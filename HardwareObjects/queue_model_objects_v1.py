@@ -1125,6 +1125,7 @@ class AcquisitionParameters(object):
         self.kappa_phi = float()
         self.exp_time = float()
         self.num_passes = int()
+        self.num_lines = 1
         self.energy = int()
         self.centred_position = CentredPosition()
         self.resolution = float()
@@ -1138,6 +1139,9 @@ class AcquisitionParameters(object):
         self.induce_burn = False
         self.mesh_steps = int()
         self.mesh_range = ()        
+        self.mesh_snapshot = None
+        self.comments = ""
+        self.in_queue = False 
 
 
 class Crystal(object):
@@ -1286,7 +1290,7 @@ def to_collect_dict(data_collection, session, sample, centred_pos=None):
                           'run_number': acquisition.path_template.run_number,
                           'process_directory': acquisition.\
                           path_template.process_directory},
-             #'in_queue': 0,
+             'in_queue': acq_params.in_queue,
              'detector_mode': acq_params.detector_mode,
              'shutterless': acq_params.shutterless,
              'sessionId': session.session_id,
@@ -1310,7 +1314,9 @@ def to_collect_dict(data_collection, session, sample, centred_pos=None):
                                        'overlap': acq_params.overlap,
                                        'start': acq_params.osc_start,
                                        'range': acq_params.osc_range,
-                                       'number_of_passes': acq_params.num_passes}],
+                                       'number_of_passes': acq_params.num_passes,
+                                       'number_of_lines': acq_params.num_lines,
+                                       'mesh_range': acq_params.mesh_range}],
              'group_id': data_collection.lims_group_id,
              #'nb_sum_images': 0,
              'EDNA_files_dir': acquisition.path_template.process_directory,

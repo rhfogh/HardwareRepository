@@ -44,6 +44,8 @@ class BeamInfo(Equipment):
         self.beam_info_dict = None
         self.default_beam_divergence = None
 
+        self.chan_beam_size_microns = None
+        self.chan_beam_shape_ellipse = None
 
     def init(self):
         """
@@ -79,6 +81,8 @@ class BeamInfo(Equipment):
         default_beam_divergence_horizontal = int(self.getProperty("beam_divergence_horizontal"))
         self.default_beam_divergence = [default_beam_divergence_horizontal, default_beam_divergence_vertical]
 
+        self.beam_size_aperture = [0.01, 0.01]
+
     def connectNotify(self, *args):
         self.evaluate_beam_info()
         self.emit_beam_info_change()
@@ -107,7 +111,8 @@ class BeamInfo(Equipment):
         Arguments :
         Return    :
         """
-        raise NotImplementedError
+        return (0, 0)
+        #raise NotImplementedError
 
     def set_beam_position(self, beam_x, beam_y):
         """
