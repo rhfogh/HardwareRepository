@@ -14,10 +14,10 @@ __author__ = "rhfogh"
 __date__ = "19/06/17"
 
 
-import enum
+from enum import Enum
 
 @enum.unique
-class States(enum.Enum):
+class States(Enum):
     """Standard device states, based on TangoShutter states.
     SardanaMotor.state_map, and DiffractometerState,
     for general use across HardwareObjects.
