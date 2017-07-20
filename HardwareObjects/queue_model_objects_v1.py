@@ -1,6 +1,6 @@
 """
 This module contain objects that combined make up the data model.
-Any object that inherhits from TaskNode can be added to and handled by
+Any object that inherits from TaskNode can be added to and handled by
 the QueueModel.
 """
 import copy

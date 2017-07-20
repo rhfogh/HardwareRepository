@@ -36,8 +36,9 @@ class ISPyBClient2Mockup(HardwareObject):
                 logging.getLogger("HWR").debug('LDAP Server is not available')
 
         self.loginType = self.getProperty("loginType") or "proposal"
-        self.session_hwobj = self.getObjectByRole('session')
-        self.beamline_name = self.session_hwobj.beamline_name
+        # self.session_hwobj = self.getObjectByRole('session')
+        # self.beamline_name = self.session_hwobj.beamline_name
+        self.beamline_name = self.getProperty("beamline_name")
 
     def login (self,loginID, psd, ldap_connection=None):
 

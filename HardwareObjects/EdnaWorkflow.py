@@ -7,7 +7,7 @@ import pprint
 import httplib
 import logging
 #import threading
-from lxml import etree
+# from xml import etree
 import types
 
 class State(object):

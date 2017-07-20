@@ -1,13 +1,13 @@
 <!-- Example beamline setup file -->
 
-<object class="BeamlineSetup" role="BeamlineSetup">
+<object class="BeamlineSetup" role="beamline_setup">
   <!-- Objects directly associatd with hardware -->
   <object href="/transmission-mockup" role="transmission"/>
   <object href="/diffractometer-mockup" role="diffractometer"/>
   <object href="/diff-omega" role="omega_axis"/>
   <object href="/diff-kappa" role="kappa_axis"/>
   <object href="/diff-kappaphi" role="kappa_phi_axis"/>
-  <object href="/sc-mockup" role="sample_changer"/>    
+  <object href="/sc-mockup" role="sample_changer"/>
   <object href="/resolution-mockup" role="resolution"/>
   <object href="/energy-mockup" role="energy"/>
 
@@ -21,7 +21,7 @@
   <!-- Procedures and routines -->
   <object href="/energyscan-mockup" role="energyscan"/>
   <object href="/collect-mockup" role="collect"/>
-  <object href="/xrfscan-mockup" role="xrfscan"/>
+  <!--<object href="/xrfscan-mockup" role="xrfscan"/>-->
   <object href="/detector-mockup" role="detector"/>
 
   <!-- Is it possible to change the beam wavelentgh.
