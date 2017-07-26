@@ -167,8 +167,7 @@ class __HardwareRepositoryClient:
                    pass
                  break 
 
-        if True:  
-                #print xmldata
+        if True:
                 if len(xmldata) > 0:
                     try:
                         #t0 = time.time()
@@ -364,20 +363,23 @@ class __HardwareRepositoryClient:
         Return :
           the required Hardware Object
         """
+
+        if not objectName:
+            return None
+
         if not objectName.startswith("/"):
-            objectName="/"+objectName
+            objectName = "/" + objectName
+
+        if objectName in self.invalidHardwareObjects:
+            return None
 
         try:
-            if objectName:
-                if objectName in self.invalidHardwareObjects:
-                    return None
-            
-                try:
-                    ho = self.hardwareObjects[objectName]
-                except KeyError:
-                    ho = self.loadHardwareObject(objectName)
-                
-                return ho
+            try:
+                ho = self.hardwareObjects[objectName]
+            except KeyError:
+                ho = self.loadHardwareObject(objectName)
+
+            return ho
         except TypeError as err:
             logging.getLogger("HWR").exception("could not get Hardware Object %s", objectName)
         

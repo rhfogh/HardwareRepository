@@ -152,11 +152,11 @@ class __HardwareRepositoryClient:
                 logging.getLogger('HWR').exception('Could not load Hardware Object "%s"', hoName)
             else:
                 try:
-                  xmldata = replyDict['xmldata']
-                  mtime = int(replyDict['mtime'])
+                    xmldata = replyDict['xmldata']
+                    mtime = int(replyDict['mtime'])
                 except KeyError:
-                  logging.getLogger("HWR").error("Cannot load Hardware Object %s: file does not exist.", hoName)
-                  return
+                    logging.getLogger("HWR").error("Cannot load Hardware Object %s: file does not exist.", hoName)
+                    return
           else:
             logging.getLogger('HWR').error('Cannot load Hardware Object "%s" : not connected to server.', hoName)
         else:
@@ -368,25 +368,28 @@ class __HardwareRepositoryClient:
         Return :
           the required Hardware Object
         """
+
+        if not objectName:
+            return None
+
         if not objectName.startswith("/"):
-            objectName="/"+objectName
+            objectName = "/" + objectName
+
+        if objectName in self.invalidHardwareObjects:
+            return None
 
         try:
-            if objectName:
-                if objectName in self.invalidHardwareObjects:
-                    return None
+            if objectName in self.hardwareObjects:
+                ho = self.hardwareObjects[objectName]
+            else:
+                ho = self.loadHardwareObject(objectName)
 
-                if objectName in self.hardwareObjects:
-                    ho = self.hardwareObjects[objectName]
-                else:
-                    ho = self.loadHardwareObject(objectName)
-
-                #try:
-                #    print (111, self.hardwareObjects, objectName)
-                #    ho = self.hardwareObjects[objectName]
-                #except KeyError:
-                #    ho = self.loadHardwareObject(objectName)
-                return ho
+            #try:
+            #    print (111, self.hardwareObjects, objectName)
+            #    ho = self.hardwareObjects[objectName]
+            #except KeyError:
+            #    ho = self.loadHardwareObject(objectName)
+            return ho
         except TypeError as err:
             logging.getLogger("HWR").exception("could not get Hardware Object %s", objectName)
         

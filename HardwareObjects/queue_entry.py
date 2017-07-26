@@ -323,16 +323,16 @@ class BaseQueueEntry(QueueEntryContainer):
         if self.get_data_model().is_executed():
             """
             if self.status == QUEUE_ENTRY_STATUS.SUCCESS:
-                view.setBackgroundColor(widget_colors.LIGHT_GREEN)
+                view.set_background_color(widget_colors.LIGHT_GREEN)
             elif self.status == QUEUE_ENTRY_STATUS.WARNING:
-                view.setBackgroundColor(widget_colors.LIGHT_YELLOW)
+                view.set_background_color(widget_colors.LIGHT_YELLOW)
             elif self.status == QUEUE_ENTRY_STATUS.FAILED:
-                view.setBackgroundColor(widget_colors.LIGHT_RED)
+                view.set_background_color(widget_colors.LIGHT_RED)
             """
             view.set_background_color(self.status + 1)
         else:
             view.set_background_color(0)
-            #view.setBackgroundColor(widget_colors.WHITE)
+            #view.set_background_color(widget_colors.WHITE)
 
     def stop(self):
         """
@@ -348,7 +348,7 @@ class BaseQueueEntry(QueueEntryContainer):
 
         if view and isinstance(ex, QueueExecutionException):
             if ex.origin is self:
-                #view.setBackgroundColor(widget_colors.LIGHT_RED)
+                #view.set_background_color(widget_colors.LIGHT_RED)
                 view.set_background_color(3)
 
     def __str__(self):
