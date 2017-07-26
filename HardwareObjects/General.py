@@ -5,7 +5,7 @@
 #
 #  This file is part of MXCuBE software.
 
-"""General data and functions, that can be shared between different HArdwareObjects
+"""General data and functions, that can be shared between different HardwareObjects
 """
 
 from __future__ import division, absolute_import
@@ -14,10 +14,10 @@ __author__ = "rhfogh"
 __date__ = "19/06/17"
 
 
-from enum import Enum
+import enum
 
 @enum.unique
-class States(Enum):
+class States(enum.Enum):
     """Standard device states, based on TangoShutter states.
     SardanaMotor.state_map, and DiffractometerState,
     for general use across HardwareObjects.
@@ -41,3 +41,25 @@ class States(Enum):
     ALARM = 11
     DISABLED = 12
     UNKNOWN = 13
+
+def javaProperty(keyword, value):
+    """Return argument list for command line invocation setting java property"""
+    if value is None:
+        return ['-D' + keyword]
+    else:
+        return ['-D%s=%s' % (keyword, value)]
+
+def commandOption(keyword, value):
+    """Return argument list for command line option"""
+    if value is None:
+        return ['-' + keyword]
+    else:
+        return ['-' + keyword, repr(value)]
+
+
+def int2Float(value):
+    """Convert int to float"""
+    if isinstance(value, int):
+        return float(value)
+    else:
+        return value

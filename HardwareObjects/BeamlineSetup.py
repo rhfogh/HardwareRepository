@@ -21,7 +21,8 @@ class BeamlineSetup(HardwareObject):
                            'resolution', 'shape_history', 'session', 'beam_info',
                            'data_analysis', 'workflow', 'lims_client',
                            'omega_axis', 'kappa_axis', 'kappa_phi_axis',
-                           'collect', 'energy', 'xrf_spectrum', 'detector', 'energyscan']
+                           'collect', 'energy', 'xrf_spectrum', 'detector',
+                           'energyscan', 'gphl_workflow']
 
     def init(self):
         """

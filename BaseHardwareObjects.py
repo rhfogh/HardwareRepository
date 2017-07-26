@@ -277,7 +277,7 @@ class HardwareObjectNode:
 
         self._propertySet[name] = value
         self._propertySet.setPropertyPath(name, self._path+'/'+str(name))
-        
+
 
     def getProperty(self, name, default_value=None):
         return self._propertySet.get(str(name), default_value)
@@ -288,7 +288,7 @@ class HardwareObjectNode:
     def update_values(self):
         """Method called from Qt bricks to ensure that bricks have values
            after the initialization.
-           Problem arrise when a hardware object is used by several bricks.
+           Problem arise when a hardware object is used by several bricks.
            If first brick connects to some signal emited by a brick then
            other bricks connecting to the same signal will no receive the 
            values on the startup.

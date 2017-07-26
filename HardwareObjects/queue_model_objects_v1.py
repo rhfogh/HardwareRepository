@@ -1242,15 +1242,98 @@ class GphlWorkflow(TaskNode):
         self.path_template = PathTemplate()
         self._type = str()
         self.set_requires_centring(False)
+        self.invocation_class = None
+        self._connection_parameters = {}
+        self._invocation_properties = {}
+        self._invocation_options = {}
+        self._workflow_properties = {}
+        self._workflow_options = {}
 
+    # Workflow type, or name (string).
+    def get_type(self):
+        return self._type
     def set_type(self, workflow_type):
         self._type = workflow_type
 
-    def get_type(self):
-        return self._type
-
     def get_path_template(self):
         return self.path_template
+
+    def init_from_workflow_hwobj(self, workflow_type, workflow_hwobj):
+        self._type = workflow_type
+
+        dd = {}
+        if workflow_hwobj.hasObject('invocation_properties'):
+            dd = workflow_hwobj['invocation_properties'].getProperties()
+        self.set_connection_parameters(dd)
+
+        dd = {}
+        if workflow_hwobj.hasObject('invocation_options'):
+            dd = workflow_hwobj['invocation_options'].getProperties()
+        self.set_connection_parameters(dd)
+
+        dd = {}
+        if workflow_hwobj.hasObject('workflow_properties'):
+            dd = workflow_hwobj['workflow_properties'].getProperties()
+        self.set_connection_parameters(dd)
+
+        dd = {}
+        if workflow_hwobj.hasObject('workflow_options'):
+            dd = workflow_hwobj['workflow_options'].getProperties()
+        if workflow_hwobj[workflow_type].hasObject('options'):
+            dd.update(workflow_hwobj[workflow_type]['options'].getProperties())
+        self.set_workflow_options(dd)
+
+        self.invocation_class = workflow_hwobj[workflow_type].getProperty(
+            name='application'
+        )
+
+    # Keyword-value dictionary of connection_parameters (for py4j connection)
+    def get_connection_parameters(self):
+        return dict(self._connection_parameters)
+    def set_connection_parameters(self, valueDict):
+        dd = self._connection_parameters
+        dd.clear()
+        if valueDict:
+            dd.update(valueDict)
+
+    # Keyword-value dictionary of invocation_properties (for execution command)
+    def get_invocation_properties(self):
+        return dict(self._invocation_properties)
+    def set_invocation_properties(self, valueDict):
+        dd = self._invocation_properties
+        dd.clear()
+        if valueDict:
+            dd.update(valueDict)
+
+    # Keyword-value dictionary of invocation_options (for execution command)
+    def get_invocation_options(self):
+        return dict(self._invocation_options)
+    def set_invocation_options(self, valueDict):
+        dd = self._invocation_options
+        dd.clear()
+        if valueDict:
+            dd.update(valueDict)
+
+    # Keyword-value dictionary of workflow_properties (for execution command)
+    def get_workflow_properties(self):
+        return dict(self._workflow_properties)
+    def set_workflow_properties(self, valueDict):
+        dd = self._workflow_properties
+        dd.clear()
+        if valueDict:
+            dd.update(valueDict)
+
+    # Keyword-value dictionary of workflow_options (for execution command)
+    def get_workflow_options(self):
+        return dict(self._workflow_options)
+    def set_workflow_options(self, valueDict):
+        dd = self._workflow_options
+        dd.clear()
+        if valueDict:
+            dd.update(valueDict)
+
+
+
 
 
 #

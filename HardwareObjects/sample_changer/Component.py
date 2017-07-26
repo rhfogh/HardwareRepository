@@ -10,7 +10,7 @@ class Component(object):
         self.scannable=scannable
         self.id=None
         self.present=False
-        self.selected=False        
+        self.selected=False
         self.scanned=False
         self.dirty=False
         self._leaf=False
@@ -37,11 +37,11 @@ class Component(object):
     def getCoords(self):
         coords_list = [self.getIndex()+1]
         x = self.getContainer()
-	while x:
-          idx = x.getIndex()
-          if idx is not None:
-            coords_list.append(idx+1)
-          x = x.getContainer()        
+        while x:
+            idx = x.getIndex()
+            if idx is not None:
+                coords_list.append(idx+1)
+            x = x.getContainer()
         coords_list.reverse()
         return tuple(coords_list) 
     

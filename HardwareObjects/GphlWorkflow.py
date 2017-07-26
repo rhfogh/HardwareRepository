@@ -70,12 +70,9 @@ class GphlWorkflow(HardwareObject, object):
 
         self.execution_timeout = self.getProperty('execution_timeout')
         workflow_connection = GphlWorkflowConnection()
-        workflow_connection.init(
-            python_address=self.getProperty('python_address'),
-            python_port=self.getProperty('python_port'),
-            java_address=self.getProperty('java_address'),
-            java_port=self.getProperty('java_port')
-        )
+        dd = (self['connection_parameters'].getProperties()
+              if self.hasObject('connection_parameters') else {})
+        workflow_connection.init(**dd)
         self.workflow_connection = workflow_connection
 
         # Set up local listeners
@@ -122,6 +119,22 @@ class GphlWorkflow(HardwareObject, object):
         self._gevent_event = gevent.event.Event()
         self.set_state(States.ON)
 
+
+    def get_available_workflows(self):
+        """Get list of workflow description dictionaries.
+
+        The structure is modeled on the EDNAworkflow function of the same name;
+        for now the dictionaries have items 'name' and 'doc'"""
+
+        result = []
+
+        for wf_node in self['workflows']:
+            result.append(dict((
+                ('name',wf_node.name()),
+                ('doc', wf_node.getProperty('documentation', default_value=''))
+            )))
+        #
+        return result
 
     def get_state(self):
         return self._state
@@ -200,7 +213,7 @@ class GphlWorkflow(HardwareObject, object):
 
             # Fork off workflow server process
             self.workflow_connection.start_workflow(
-                queue_entry.get_data_model().workflow_type
+                queue_entry.get_data_model()
             )
 
             # Wait for workflow execution to finish

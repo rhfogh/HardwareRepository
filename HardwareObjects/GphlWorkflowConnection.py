@@ -1,5 +1,6 @@
 # encoding: utf-8
 """"Global Phasing py4j workflow server connection"""
+
 __copyright__ = """
   * Copyright © 2016 - ${YEAR} by Global Phasing Ltd. All rights reserved
 """
@@ -8,9 +9,11 @@ __date__ = "04/11/16"
 
 
 import uuid
+import subprocess
 from py4j import clientserver
 import GphlMessages
-from HardwareObjects.General import States
+from HardwareObjects import General 
+States = General.States
 
 try:
     # This file already does the alternative imports plus some tweaking
@@ -28,15 +31,6 @@ except ImportError:
         robustapply.robust_apply = robustapply.robustApply
 
 
-
-def int2Float(value):
-    """Convert int to float"""
-    if isinstance(value, int):
-        return float(value)
-    else:
-        return value
-
-
 class GphlWorkflowConnection(object):
 # class GphlWorkflowConnection(object):
     """
@@ -51,7 +45,7 @@ class GphlWorkflowConnection(object):
         States.OPEN,    # Server is waiting for a message from the beamline
     ]
     
-    def __init__(self, name):
+    def __init__(self):
 
         # Py4J gateway to external workflow program
         self._gateway = None
@@ -98,7 +92,7 @@ class GphlWorkflowConnection(object):
         """Name of currently executing workflow"""
         return self._workflow_name
 
-    def start_workflow(self, workflow_name):
+    def start_workflow(self, workflow_model_obj):
 
         if self.get_state() != States.OFF:
             # NB, for now workflow is started as the connection is made,
@@ -107,6 +101,9 @@ class GphlWorkflowConnection(object):
 
 
         dispatcher.connect(self.abort_workflow, 'GPHL_BEAMLINE_ABORT')
+
+
+        self._workflow_name = workflow_model_obj.get_type()
 
         python_parameters = {}
         val = self.python_address
@@ -130,14 +127,27 @@ class GphlWorkflowConnection(object):
                 **python_parameters),
             python_server_entry_point=self)
 
-        self._workflow_name = workflow_name
-
 
         # TODO Here we make and send the workflow start-run message
         # NB currently done under 'wfrun' alias
         #  This forks off the server process and returns None
+        commandList = ['java']
 
-        raise NotImplementedError()
+        for keyword, value in workflow_model_obj.get_invocation_properties():
+            commandList.extend(General.javaProperty(keyword, value))
+
+        for keyword, value in workflow_model_obj.get_invocation_options():
+            commandList.extend(General.commandOption(keyword, value))
+
+        commandList.append(workflow_model_obj.invocation_class)
+
+        for keyword, value in workflow_model_obj.get_workflow_properties():
+            commandList.extend(General.javaProperty(keyword, value))
+
+        for keyword, value in workflow_model_obj.get_workflow_options():
+            commandList.extend(General.commandOption(keyword, value))
+        #
+        subprocess.Popen(commandList)
 
         self.set_state(States.RUNNING)
 
@@ -631,17 +641,17 @@ class GphlWorkflowConnection(object):
         cls = self._gateway.jvm.astra.messagebus.messages.information.SampleCentredImpl
 
         if sampleCentred.interleaveOrder:
-            result = cls(int2Float(sampleCentred.imageWidth),
+            result = cls(General.int2Float(sampleCentred.imageWidth),
                          sampleCentred.wedgeWidth,
-                         int2Float(sampleCentred.exposure),
-                         int2Float(sampleCentred.transmission),
+                         General.int2Float(sampleCentred.exposure),
+                         General.int2Float(sampleCentred.transmission),
                          list(sampleCentred.interleaveOrder)
                          # self._gateway.jvm.String(sampleCentred.interleaveOrder).toCharArray()
                          )
         else:
-            result = cls(int2Float(sampleCentred.imageWidth),
-                         int2Float(sampleCentred.exposure),
-                         int2Float(sampleCentred.transmission)
+            result = cls(General.int2Float(sampleCentred.imageWidth),
+                         General.int2Float(sampleCentred.exposure),
+                         General.int2Float(sampleCentred.transmission)
                          )
 
         beamstopSetting = sampleCentred.beamstopSetting
@@ -702,7 +712,7 @@ class GphlWorkflowConnection(object):
         )
         if userProvidedInfo.expectedResolution:
             builder = builder.expectedResolution(
-                int2Float(userProvidedInfo.expectedResolution)
+                General.int2Float(userProvidedInfo.expectedResolution)
             )
         builder = builder.anisotropic(userProvidedInfo.isAnisotropic)
         for phasingWavelength in userProvidedInfo.phasingWavelengths:
@@ -734,8 +744,8 @@ class GphlWorkflowConnection(object):
         if unitCell is None:
             return None
 
-        lengths = [int2Float(x) for x in unitCell.lengths]
-        angles = [int2Float(x) for x in unitCell.angles]
+        lengths = [General.int2Float(x) for x in unitCell.lengths]
+        angles = [General.int2Float(x) for x in unitCell.angles]
         return self._gateway.jvm.astra.messagebus.messages.domain_types.UnitCellImpl(
             lengths[0], lengths[1], lengths[2], angles[0], angles[1], angles[2]
         )
@@ -749,7 +759,7 @@ class GphlWorkflowConnection(object):
             str(phasingWavelength.id)
         )
         return self._gateway.jvm.astra.messagebus.messages.information.PhasingWavelengthImpl(
-            javaUuid, int2Float(phasingWavelength.wavelength),
+            javaUuid, General.int2Float(phasingWavelength.wavelength),
             phasingWavelength.role
         )
 
@@ -763,7 +773,7 @@ class GphlWorkflowConnection(object):
         javaRotationId = self._gateway.jvm.java.util.UUID.fromString(
             str(gts.requestedRotationId.id)
         )
-        axisSettings = dict(((x,int2Float(y))
+        axisSettings = dict(((x, General.int2Float(y))
                              for x,y in gts.axisSettings.items()))
         newRotation = gts.newRotation
         if newRotation:
@@ -783,7 +793,7 @@ class GphlWorkflowConnection(object):
 
         grs = goniostatRotation
         javaUuid = self._gateway.jvm.java.util.UUID.fromString(str(grs.id))
-        axisSettings = dict(((x,int2Float(y))
+        axisSettings = dict(((x, General.int2Float(y))
                              for x,y in grs.axisSettings.items()))
         # NBNB The final None is necessary because there is no non-deprecated
         # constructor that takes two UUIDs. Eventually the deprecated
@@ -800,7 +810,7 @@ class GphlWorkflowConnection(object):
         javaUuid = self._gateway.jvm.java.util.UUID.fromString(
             str(beamStopSetting.id)
         )
-        axisSettings = dict(((x,int2Float(y))
+        axisSettings = dict(((x, General.int2Float(y))
                              for x,y in beamStopSetting.axisSettings.items()))
         return self._gateway.jvm.astra.messagebus.messages.instrumentation.BeamstopSettingImpl(
             axisSettings, javaUuid

@@ -1,9 +1,206 @@
 <object class="GphlWorkflow">
-    <!-- Hosts and ports for py4j java-python gateway-->
+
+    <!-- Hosts and ports for py4j java-python gateway, all OPTIONAL-->
     <!-- If not set will use py4j default values, which are as given below-->
-    <python_address>127.0.0.1</python_address>
-    <python_port>25334</python_port>
-    <java_address>127.0.0.1</java_address>
-    <java_port>25333</java_port>
+    <!--
+    <connection_parameters>
+        <python_address>127.0.0.1</python_address>
+        <python_port>25334</python_port>
+        <java_address>127.0.0.1</java_address>
+        <java_port>25333</java_port>
+    </connection_parameters>
+    -->
+
+    <!-- Timeout before workflow application execution is aborted-->
     <execution_timeout>3600</execution_timeout>
+
+    <!-- Parameters for the command-line invocation of the workflow application-->
+    <!-- Java invocation properties - syntax is e.g. '-Dfile.encoding=UTF-8' -->
+    <invocation_properties>
+        <file.encoding>UTF-8</file.encoding>
+    </invocation_properties>
+    <!-- Command invocation options, shared by all commands -->
+    <!-- Syntax is e.g. '-cp "/home/rhfogh/scratch/sources/eclipse/wf5/*"' -->
+    <invocation_options>
+        <!-- Java classpath. -->
+        <!--Should point to all contents of workflow application directory-->
+        <cp>"/home/rhfogh/scratch/sources/eclipse/wf5/*"</cp>
+    </invocation_options>
+
+    <!-- Properties common to workflows - syntax e.g. '-Dfile.encoding=UTF-8'-->
+    <!-- Syntax as for invocation properties, but located differently-->
+    <workflow_properties>
+        <!-- Location of XDS binary -->
+        <co.gphl.sdcp.xdsbin>
+            /public/xtal/Xds/XDS-INTEL64_Linux_x86_64/xds_par
+        </co.gphl.sdcp.xdsbin>
+        <!-- Location of GPhL .license directory -->
+        <co.gphl.wf.bdg_licence_dir>
+            /public/xtal/Server-nightly-alpha-bdg-linux64
+        </co.gphl.wf.bdg_licence_dir>
+        <!-- Location of stratcal binary -->
+        <co.gphl.wf.stratcal.bin>
+            /public/xtal/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/stratcal
+        </co.gphl.wf.stratcal.bin>
+        <!-- Location of stratcal-specific license directory - OPTIONAL ->
+        <co.gphl.wf.stratcal.bdg_licence_dir>
+            /public/xtal/Server-nightly-alpha-bdg-linux64
+        </co.gphl.wf.stratcal.bdg_licence_dir>
+        -->
+        <!-- Location of simcal binary -->
+        <co.gphl.wf.simcal_predict.bin>
+            /public/xtal/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/simcal_predict
+        </co.gphl.wf.simcal_predict.bin>
+        <!-- Location of simcal-specific license directory - OPTIONAL ->
+        <co.gphl.wf.simcal_predict.bdg_licence_dir>
+            /public/xtal/Server-nightly-alpha-bdg-linux64
+        </co.gphl.wf.stratcal.bdg_licence_dir>
+        -->
+        <!-- Location of transcal binary -->
+        <co.gphl.wf.transcal.bin>
+            /public/xtal/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/transcal
+        </co.gphl.wf.transcal.bin>
+        <!-- Location of recen binary -->
+        <co.gphl.wf.recen.bin>
+            /public/xtal/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/recen
+        </co.gphl.wf.recen.bin>
+        <!-- Path of application that analyses diffractcal (aka rotational
+        calibration) data. In practice, this will almost always be a wrapper
+        script that sets up the environment properly. -->
+        <co.gphl.wf.diffractcal.bin>
+            /path/to/diffractcal
+        </co.gphl.wf.diffractcal.bin>
+        <!-- Dummy sample properties: choose values for these to make the
+        predictions for the characterisation strategy look reasonable (they
+        have no scientific basis, and are not used for any scientific purpose). -->
+        <co.gphl.wf.simcal_predict.b_wilson>
+            26.0
+        </co.gphl.wf.simcal_predict.b_wilson>
+        <co.gphl.wf.simcal_predict.cell_dim_sd_scale>
+            1.5e-3
+        </co.gphl.wf.simcal_predict.cell_dim_sd_scale>
+        <co.gphl.wf.simcal_predict.mosaicity>
+            0.2
+        </co.gphl.wf.simcal_predict.mosaicity>
+        <!-- Uncomment this to disable stratcal's collision checking ->
+        <co.gphl.wf.stratcal.collision_mode>
+            2
+        </co.gphl.wf.stratcal.collision_mode>
+        -->
+
+        <!-- Invariant root directory where images and processing input/output
+        files are written. Users/workflows may specify directories for images
+        and input/output files beneath this root. -->
+        <!-- NBNB replace later -->
+        <co.gphl.beamline.imageRoot>
+            /home/rhfogh/scratch/working/beamlines/dls-i04-interim
+        </co.gphl.beamline.imageRoot>
+        <!-- Number of digits for image number in image filenames. -->
+            <!-- NBNB replace later?? -->
+        <co.gphl.beamline.maskWidth>4</co.gphl.beamline.maskWidth>
+        <!-- Suffix of image filenames written by this beamline. -->
+            <!-- NBNB replace later?? -->
+        <co.gphl.beamline.detectorSuffix>.cbf</co.gphl.beamline.detectorSuffix>
+        <!-- subdir: path relative to imageRoot where a scan's images should be written. -->
+        <!-- NBNB replace later?? -->
+        <co.gphl.beamline.subdirKeyName>image_subdir</co.gphl.beamline.subdirKeyName>
+    </workflow_properties>
+
+    <!--  Workflow options common to all workflows - can be overridden for individual workflows-->
+    <workflow_options>
+        <!-- URL for beamline connection, as seen from the workflow application -->
+        <beamline>py4j::</beamline>
+        <!-- URL for beamline UI connection OPTIONAL, as seen from the workflow application ->
+        <beamlineui>beamline_ui_url</beamlineui> -->
+        <!-- Location of persistence layer (workflow application data files -->
+        <!-- wdir is the working directory, persistname the root of the file within it  -->
+        <!-- so that the main data file is ${wdir}/${persistname}.xml -->
+        <wdir>/home/rhfogh/scratch/working/workflows/gphl21</wdir>
+        <persistname>gphl_mxcube</persistname>
+        <!-- Workflow enactment prefix  OPTIONAL - if set to e.g. 'wfx', data
+        for successive workflow runs will be stored in 'wfx_1, ,wfx_2, ... -->
+        <wfprefix>gphl_wf_</wfprefix>
+    </workflow_options>
+
+    <!-- List of supported workflows, with options for each -->
+    <workflows>
+        <TranlationalCalibration>
+            <application>co.gphl.wf.workflows.WFTransCal</application>
+            <documentation>Translational calibration.
+                Designed for use by beamline personnel.
+                Will produce a series of goniostat positions compatible with
+                the inbuilt collision checker, move the goniostat to each
+                position, and ask for centring.
+            </documentation>
+            <options>
+                <!-- Name for translation calibration output -->
+                <calibration>transcal_result</calibration>
+                <!-- file: File containing settings of rotation axes for calibration -->
+                <!-- grid: Grid definition [axis_name:start:end:step], slowest-varying to fastest varying -->
+                <!-- EITHER file OR grid must be set. NBNB REDO! ->
+                <file>settings_file</file>
+                <grid>grid_axes_spec</grid>
+                -->
+                <!-- Path of file to dump persisted instrumentation configuration. OPTIONAL-->
+                <instcfgout>
+                    /home/rhfogh/scratch/working/workflows/gphl21/transcal_dump
+                </instcfgout>
+            </options>
+        </TranlationalCalibration>
+
+        <DiffractometerCalibration>
+            <application>co.gphl.wf.workflows.WFDiffractCal</application>
+            <documentation>Diffractometer calibration.
+                Designed for use by beamline personnel.
+            </documentation>
+            <options>
+                <!-- Name of initial strategy from library to use -->
+                <strategy>strategy_name</strategy>
+                <!-- Name for diffractometer calibration output -->
+                <calibration>diffractcal_result</calibration>
+                <!-- Path of file to dump persisted instrumentation configuration. OPTIONAL-->
+                <instcfgout>
+                    /home/rhfogh/scratch/working/workflows/gphl21/transcal_dump
+                </instcfgout>
+                <!-- NBNB replace later -->
+                <!-- Pattern name for characterisation collections -->
+                <charpattern>generic</charpattern>
+                <!-- NBNB replace later -->
+                <!-- Extra subdirectory to add under beamline's invariant root dir OPTIONAL-->
+                <rootsubdir>gphl_wf</rootsubdir>
+                <!-- NBNB replace later -->
+                <!-- Add extra subdirectory named after sample under root_(sub)dir OPTIONAL -->
+                <samplesubdir/>
+            </options>
+        </DiffractometerCalibration>
+
+        <DataCollection1>
+            <application>co.gphl.wf.workflows.WFSimpleCharToProcessing</application>
+            <documentation>
+                Data collection workflow 1.
+                Includes initial characterisation and complete collection
+            </documentation>
+            <options>
+                <!-- Name of initial strategy from library to use -->
+                <strategy>InitialCharacterisation</strategy>
+                <!-- Working directory root for workflow-side applications OPTIONAL -->
+                <appdir>/home/rhfogh/scratch/working/workflows/gphl21/workflows</appdir>
+                <!-- Prefix for image file names (stratcal-generated strategy only) OPTIONAL-->
+                <prefix>wf</prefix>
+                <!-- Pattern name for inverse-beam collections -->
+                <ibpattern>ib_interleaved</ibpattern>
+                <!-- Pattern name for non-inverse-beam collections -->
+                <pattern>interleaved</pattern>
+                <!-- NBNB replace later -->
+                <!-- Pattern name for characterisation collections -->
+                <charpattern>generic</charpattern>
+                <!-- NBNB replace later -->
+                <!-- Extra subdirectory to add under beamline's invariant root dir OPTIONAL-->
+                <rootsubdir>gphl_wf</rootsubdir>
+                <!-- NBNB replace later -->
+                <!-- Add extra subdirectory named after sample under root_(sub)dir OPTIONAL -->
+                <samplesubdir/>
+            </options>
+        </DataCollection1>
+    </workflows>
 </object>
