@@ -441,8 +441,10 @@ class DiffractometerMockup(Equipment):
         Descript. :
         """
         self.emit_progress_message("Auto centring")
+        self.current_centring_procedure = 'DUMMY'
         self.emit_centring_started(DiffractometerMockup.C3D_MODE)
-        self.emit('centringSuccessful')
+        # self.emit('centringSuccessful')
+        self.emit_centring_successful()
         return
 
     def motor_positions_to_screen(self, centred_positions_dict):
@@ -498,13 +500,6 @@ class DiffractometerMockup(Equipment):
         Descript. :
         """
         self.user_clicked_event.set((x, y))
-	
-    def emit_cetring_started(self, method):
-        """
-        Descript. :
-        """
-        self.current_centring_method = method
-        self.emit('centringStarted', (method, False))
 
     def accept_centring(self):
         """

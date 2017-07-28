@@ -1261,7 +1261,9 @@ class GphlWorkflow(TaskNode):
     def init_from_hwobj(self, workflow_type, workflow_hwobj):
         self._type = workflow_type
 
-        self.invocation_classname = workflow_hwobj[workflow_type].getProperty(
+        workflow_config = workflow_hwobj['workflows'][workflow_type]
+
+        self.invocation_classname = workflow_config.getProperty(
             name='application'
         )
 
@@ -1285,8 +1287,8 @@ class GphlWorkflow(TaskNode):
               }
         if workflow_hwobj.hasObject('workflow_options'):
             dd.update(workflow_hwobj['workflow_options'].getProperties())
-        if workflow_hwobj[workflow_type].hasObject('options'):
-            dd.update(workflow_hwobj[workflow_type]['options'].getProperties())
+        if workflow_config.hasObject('options'):
+            dd.update(workflow_config['options'].getProperties())
         self.set_workflow_options(dd)
 
     # Keyword-value dictionary of connection_parameters (for py4j connection)

@@ -61,7 +61,8 @@ class SampleChangerMockup(SampleChanger):
         return basket_list
 
     def getLoadedSample(self):
-        return "%s:%s" % (self._selected_basket, self._selected_sample)
+        return self.getComponentByAddress(Pin.getSampleAddress(self._selected_basket, self._selected_sample))
+        # return "%s:%s" % (self._selected_basket, self._selected_sample)
 
     def is_mounted_sample(self, sample):
         if isinstance(sample, tuple):
