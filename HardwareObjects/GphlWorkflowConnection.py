@@ -139,7 +139,7 @@ class GphlWorkflowConnection(object):
         for keyword, value in workflow_model_obj.get_invocation_options():
             commandList.extend(General.commandOption(keyword, value))
 
-        commandList.append(workflow_model_obj.invocation_class)
+        commandList.append(workflow_model_obj.invocation_classname)
 
         for keyword, value in workflow_model_obj.get_workflow_properties():
             commandList.extend(General.javaProperty(keyword, value))

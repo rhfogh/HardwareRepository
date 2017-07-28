@@ -38,8 +38,9 @@ class Session(HardwareObject):
         self.base_directory = self["file_info"].\
                               getProperty('base_directory')
 
-        self.base_process_directory = self["file_info"].\
-            getProperty('processed_data_base_directory')
+        # # Not used
+        # self.base_process_directory = self["file_info"].\
+        #     getProperty('processed_data_base_directory')
 
         self.raw_data_folder_name = self["file_info"].\
             getProperty('raw_data_folder_name')

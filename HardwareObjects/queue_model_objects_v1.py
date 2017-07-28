@@ -1242,7 +1242,7 @@ class GphlWorkflow(TaskNode):
         self.path_template = PathTemplate()
         self._type = str()
         self.set_requires_centring(False)
-        self.invocation_class = None
+        self.invocation_classname = None
         self._connection_parameters = {}
         self._invocation_properties = {}
         self._invocation_options = {}
@@ -1258,8 +1258,12 @@ class GphlWorkflow(TaskNode):
     def get_path_template(self):
         return self.path_template
 
-    def init_from_workflow_hwobj(self, workflow_type, workflow_hwobj):
+    def init_from_hwobj(self, workflow_type, workflow_hwobj):
         self._type = workflow_type
+
+        self.invocation_classname = workflow_hwobj[workflow_type].getProperty(
+            name='application'
+        )
 
         dd = {}
         if workflow_hwobj.hasObject('invocation_properties'):
@@ -1276,16 +1280,14 @@ class GphlWorkflow(TaskNode):
             dd = workflow_hwobj['workflow_properties'].getProperties()
         self.set_connection_parameters(dd)
 
-        dd = {}
+        dd = {'wdir':os.path.join(self.path_template.process_directory,
+                                  workflow_hwobj.getProperty('gphl_subdir'))
+              }
         if workflow_hwobj.hasObject('workflow_options'):
-            dd = workflow_hwobj['workflow_options'].getProperties()
+            dd.update(workflow_hwobj['workflow_options'].getProperties())
         if workflow_hwobj[workflow_type].hasObject('options'):
             dd.update(workflow_hwobj[workflow_type]['options'].getProperties())
         self.set_workflow_options(dd)
-
-        self.invocation_class = workflow_hwobj[workflow_type].getProperty(
-            name='application'
-        )
 
     # Keyword-value dictionary of connection_parameters (for py4j connection)
     def get_connection_parameters(self):

@@ -841,7 +841,7 @@ class CollectionProposal(IdentifiedElement, Payload):
         self._scans = tuple(scans)
 
     @property
-    def relativeImageDir(self):
+    def relativeImageDir(s
         return self._relativeImageDir
 
     @property
