@@ -152,10 +152,18 @@ class GphlWorkflowConnection(object):
         for keyword, value in workflow_model_obj.get_workflow_options():
             commandList.extend(General.commandOption(keyword, value))
         #
-        logging.Logger().debug("GPhL execute %s" % commandList)
-        subprocess.Popen(commandList)
+        logging.Logger().debug("GPhL execute : %s" % commandList)
+        processobj = subprocess.Popen(commandList, stdout=subprocess.PIPE,
+                                      stderr=subprocess.STDOUT)
+
+        # At this point processobj.stdout captures process stdout and stderr,
+        # processObj.pid is the process ID, processobj.returncode
+        # is the process return value, None if not yet terminated
 
         self.set_state(States.RUNNING)
+
+        logging.Logger().debug("GPhL workflow pid, returncode : %s, %s"
+                               % processobj.pid, processobj.returncode)
 
     def _workflow_ended(self):
 

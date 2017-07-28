@@ -26,7 +26,7 @@
     <invocation_options>
         <!-- Java classpath. -->
         <!--Should point to all contents of workflow application directory-->
-        <cp>"/home/rhfogh/scratch/sources/eclipse/wf5/*"</cp>
+        <cp>"/MXCuBE/mxcube/gphl_java/gphl_classes/*"</cp>
     </invocation_options>
 
     <!-- Properties common to workflows - syntax e.g. '-Dfile.encoding=UTF-8'-->
@@ -34,37 +34,37 @@
     <workflow_properties>
         <!-- Location of XDS binary -->
         <co.gphl.sdcp.xdsbin>
-            /public/xtal/Xds/XDS-INTEL64_Linux_x86_64/xds_par
+            /MXCuBE/softwares/Xds/XDS-INTEL64_Linux_x86_64/xds_par
         </co.gphl.sdcp.xdsbin>
         <!-- Location of GPhL .license directory -->
         <co.gphl.wf.bdg_licence_dir>
-            /public/xtal/Server-nightly-alpha-bdg-linux64
+            /MXCuBE/softwares/Server-nightly-alpha-bdg-linux64
         </co.gphl.wf.bdg_licence_dir>
         <!-- Location of stratcal binary -->
         <co.gphl.wf.stratcal.bin>
-            /public/xtal/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/stratcal
+            /MXCuBE/softwares/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/stratcal
         </co.gphl.wf.stratcal.bin>
         <!-- Location of stratcal-specific license directory - OPTIONAL ->
         <co.gphl.wf.stratcal.bdg_licence_dir>
-            /public/xtal/Server-nightly-alpha-bdg-linux64
+            /MXCuBE/softwares/Server-nightly-alpha-bdg-linux64
         </co.gphl.wf.stratcal.bdg_licence_dir>
         -->
         <!-- Location of simcal binary -->
         <co.gphl.wf.simcal_predict.bin>
-            /public/xtal/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/simcal_predict
+            /MXCuBE/softwares/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/simcal_predict
         </co.gphl.wf.simcal_predict.bin>
         <!-- Location of simcal-specific license directory - OPTIONAL ->
         <co.gphl.wf.simcal_predict.bdg_licence_dir>
-            /public/xtal/Server-nightly-alpha-bdg-linux64
+            /MXCuBE/softwares/Server-nightly-alpha-bdg-linux64
         </co.gphl.wf.stratcal.bdg_licence_dir>
         -->
         <!-- Location of transcal binary -->
         <co.gphl.wf.transcal.bin>
-            /public/xtal/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/transcal
+            /MXCuBE/softwares/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/transcal
         </co.gphl.wf.transcal.bin>
         <!-- Location of recen binary -->
         <co.gphl.wf.recen.bin>
-            /public/xtal/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/recen
+            /MXCuBE/softwares/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/recen
         </co.gphl.wf.recen.bin>
         <!-- Path of application that analyses diffractcal (aka rotational
         calibration) data. In practice, this will almost always be a wrapper

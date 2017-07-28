@@ -195,7 +195,7 @@ class EMBLMiniDiff(Equipment):
             logging.getLogger("HWR").debug('EMBLMinidiff: Current phase channel not defined') 
 
         self.beam_info_hwobj = HardwareRepository.HardwareRepository().\
-                                getHardwareObject(self.getProperty("beaminfo"))
+                                getHardwareObject(self.getProperty("beam_info"))
         if self.beam_info_hwobj is not None:  
             self.connect(self.beam_info_hwobj, 'beamPosChanged', self.beam_position_changed)
         else:
