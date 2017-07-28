@@ -122,7 +122,7 @@ class GphlWorkflowConnection(object):
         if val is not None:
             java_parameters['port'] = val
 
-        logging.Logger().debug("GPhL Open connection %s %s %s %s"
+        logging.getLogger('HWR').debug("GPhL Open connection %s %s %s %s"
                                % (self.python_address, self.python_port,
                                   self.java_address, self.java_port))
 
@@ -152,7 +152,7 @@ class GphlWorkflowConnection(object):
         for keyword, value in workflow_model_obj.get_workflow_options():
             commandList.extend(General.commandOption(keyword, value))
         #
-        logging.Logger().debug("GPhL execute : %s" % commandList)
+        logging.getLogger('HWR').debug("GPhL execute : %s" % commandList)
         processobj = subprocess.Popen(commandList, stdout=subprocess.PIPE,
                                       stderr=subprocess.STDOUT)
 
@@ -162,7 +162,7 @@ class GphlWorkflowConnection(object):
 
         self.set_state(States.RUNNING)
 
-        logging.Logger().debug("GPhL workflow pid, returncode : %s, %s"
+        logging.getLogger('HWR').debug("GPhL workflow pid, returncode : %s, %s"
                                % processobj.pid, processobj.returncode)
 
     def _workflow_ended(self):
@@ -173,7 +173,7 @@ class GphlWorkflowConnection(object):
 
     def _close_connection(self):
 
-        logging.Logger().debug("GPhL Close connection ")
+        logging.getLogger('HWR').debug("GPhL Close connection ")
         self._gateway = None
         self._state = States.OFF
 
@@ -190,7 +190,7 @@ class GphlWorkflowConnection(object):
         if message:
             payload = "%s: %s" % (payload, message)
 
-        logging.Logger().debug("GPhL abort workflow:  %s" % payload)
+        logging.getLogger('HWR').debug("GPhL abort workflow:  %s" % payload)
 
         dispatcher.send(GphlMessages.message_type_to_signal['String'],
                         self, payload=payload)
@@ -205,10 +205,10 @@ class GphlWorkflowConnection(object):
         xx = py4jMessage.getCorrelationId()
         correlation_id = xx and xx.toString()
         message_type, payload = self._decode_py4j_message(py4jMessage)
-        logging.getLogger().debug("GPhL incoming, job,  message: %s"
-                                  % (message_type, enactment_id,
-                                     correlation_id)
-                                  )
+        logging.getLogger('HWR').debug(
+            "GPhL incoming, job,  message: %s %s %s"
+            % (message_type, enactment_id, correlation_id)
+        )
 
         if self.get_state() == 'ON':
             # Workflow has been aborted from beamline.
@@ -599,9 +599,10 @@ class GphlWorkflowConnection(object):
                     correlation_id
                 )
 
-            logging.getLogger().debug("GPhL - response, job, message: %s, %s, %s"
-                                      % (payload.__class__.__name__,
-                                         enactment_id, correlation_id))
+            logging.getLogger('HWR').debug(
+                "GPhL - response, job, message: %s, %s, %s"
+                % (payload.__class__.__name__, enactment_id, correlation_id)
+            )
 
             py4j_payload = self._payload_to_java(payload)
 

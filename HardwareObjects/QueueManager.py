@@ -10,6 +10,7 @@ documentation for the queue_entry module for more information.
 import os
 import sys
 import logging
+import traceback
 from logging.handlers import TimedRotatingFileHandler
 import gevent
 import gevent.event
@@ -113,6 +114,7 @@ class QueueManager(HardwareObject, QueueEntryContainer):
             try:
                 self.__execute_entry(qe)
             except (queue_entry.QueueAbortedException, Exception) as ex:
+                message = repr(ex) + '\n' + ''.join(traceback.format_stack()[:-1])
                 try:
                     qe.handle_exception(ex)
                     self.stop()
@@ -121,10 +123,10 @@ class QueueManager(HardwareObject, QueueEntryContainer):
 
                 if isinstance(ex, queue_entry.QueueAbortedException):
                     logging.getLogger('user_level_log').\
-                        warning('Queue execution was aborted, ' + str(ex.message))
+                        warning('Queue execution was aborted, ' + message)
                 else:
                     logging.getLogger('user_level_log').\
-                        error('Queue execution failed with: ' + str(ex.message))
+                        error('Queue execution failed with: ' + message)
 
                 raise ex
         finally:

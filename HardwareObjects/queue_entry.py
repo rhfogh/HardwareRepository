@@ -1395,8 +1395,13 @@ class GphlWorkflowQueueEntry(BaseQueueEntry):
     def execute(self):
         BaseQueueEntry.execute(self)
 
+        logging.getLogger('queue_exec').debug(
+            "GphlWorkflowQueueEntry.execute WF state is %s"
+            % self.workflow_hwobj.get_state()
+        )
+
         # Start execution of a new workflow
-        if str(self.workflow_hwobj.state) != 'ON':
+        if str(self.workflow_hwobj.get_state()) != 'ON':
             # TODO Add handling of potential conflicts.
             # NBNB GPhL workflow cannot have multiple users
             # unless they use separate persistence layers
@@ -1437,6 +1442,10 @@ class GphlWorkflowQueueEntry(BaseQueueEntry):
         qc.connect(self.workflow_hwobj, 'stateChanged',
                    self.workflow_state_handler)
 
+        logging.getLogger('HWR').debug(
+            "Done GphlWorkflowQueueEntry.pre_execute"
+        )
+
     def post_execute(self):
         BaseQueueEntry.post_execute(self)
         qc = self.get_queue_controller()
@@ -1445,9 +1454,15 @@ class GphlWorkflowQueueEntry(BaseQueueEntry):
         # # reset state
         # NBNB no need - this is done by the standard state handler
         # self.workflow_running = False
+        logging.getLogger('queue_exec').debug(
+            "Done GphlWorkflowQueueEntry.post_execute"
+        )
 
     def stop(self):
         BaseQueueEntry.stop(self)
+        logging.getLogger('queue_exec').debug(
+            "In GphlWorkflowQueueEntry.stop"
+        )
         self.workflow_hwobj.abort()
         self.get_view().setText(1, 'Stopped')
         raise QueueAbortedException('Queue stopped', self)
@@ -1464,7 +1479,7 @@ class GenericWorkflowQueueEntry(BaseQueueEntry):
         BaseQueueEntry.execute(self)
 
         # Start execution of a new workflow
-        if str(self.workflow_hwobj.state.value) != 'ON':
+        if str(self.workflow_hwobj.get_state().value) != 'ON':
             # We are trying to start a new workflow and the Tango server is not idle,
             # therefore first abort any running workflow: 
             self.workflow_hwobj.abort()
@@ -1476,8 +1491,8 @@ class GenericWorkflowQueueEntry(BaseQueueEntry):
                 time.sleep(3)
                 # If the Tango server has been restarted the state.value is None.
                 # If not wait till the state.value is "ON":
-                if self.workflow_hwobj.state.value is not None:
-                    while str(self.workflow_hwobj.state.value) != 'ON':
+                if self.workflow_hwobj.get_state().value is not None:
+                    while str(self.workflow_hwobj.get_state().value) != 'ON':
                         time.sleep(0.5)
 
         msg = "Starting workflow (%s), please wait." % (self.get_data_model()._type)
