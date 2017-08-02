@@ -6,6 +6,7 @@ the QueueModel.
 import copy
 import os
 import queue_model_enumerables_v1 as queue_model_enumerables
+from HardwareRepository.HardwareRepository import HardwareRepository
 
 class TaskNode(object):
     """
@@ -1244,6 +1245,7 @@ class GphlWorkflow(TaskNode):
         self._type = str()
         self.set_requires_centring(False)
         self.invocation_classname = None
+        self.java_binary = None
         self._connection_parameters = {}
         self._invocation_properties = {}
         self._invocation_options = {}
@@ -1262,6 +1264,8 @@ class GphlWorkflow(TaskNode):
     def init_from_hwobj(self, workflow_type, workflow_hwobj):
         self._type = workflow_type
 
+        self.java_binary = workflow_hwobj.getProperty('java_binary')
+
         workflow_config = workflow_hwobj['workflows'][workflow_type]
 
         self.invocation_classname = workflow_config.getProperty(
@@ -1271,17 +1275,17 @@ class GphlWorkflow(TaskNode):
         dd = {}
         if workflow_hwobj.hasObject('invocation_properties'):
             dd = workflow_hwobj['invocation_properties'].getProperties()
-        self.set_connection_parameters(dd)
+        self.set_invocation_properties(dd)
 
         dd = {}
         if workflow_hwobj.hasObject('invocation_options'):
             dd = workflow_hwobj['invocation_options'].getProperties()
-        self.set_connection_parameters(dd)
+        self.set_invocation_options(dd)
 
         dd = {}
         if workflow_hwobj.hasObject('workflow_properties'):
             dd = workflow_hwobj['workflow_properties'].getProperties()
-        self.set_connection_parameters(dd)
+        self.set_workflow_properties(dd)
 
         dd = {'wdir':os.path.join(self.path_template.process_directory,
                                   workflow_hwobj.getProperty('gphl_subdir'))
@@ -1289,7 +1293,14 @@ class GphlWorkflow(TaskNode):
         if workflow_hwobj.hasObject('workflow_options'):
             dd.update(workflow_hwobj['workflow_options'].getProperties())
         if workflow_config.hasObject('options'):
-            dd.update(workflow_config['options'].getProperties())
+            options = workflow_config['options'].getProperties()
+            relative_file_path = options.get('file')
+            if relative_file_path is not None:
+                # Special case - this option must be modified before use
+
+                path =HardwareRepository().findInRepository(relative_file_path)
+                options['file'] = path
+            dd.update(options)
         self.set_workflow_options(dd)
 
     # Keyword-value dictionary of connection_parameters (for py4j connection)

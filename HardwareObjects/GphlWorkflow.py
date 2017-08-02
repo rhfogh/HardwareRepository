@@ -19,7 +19,9 @@ import queue_model_objects_v1 as queue_model_objects
 from HardwareRepository.HardwareRepository import dispatcher
 from HardwareRepository.BaseHardwareObjects import HardwareObject
 from HardwareObjects.GphlWorkflowConnection import GphlWorkflowConnection
-from HardwareObjects.General import States
+import General
+States = General.States
+# from HardwareObjects.General import States
 
 
 class GphlWorkflow(HardwareObject, object):
@@ -151,13 +153,18 @@ class GphlWorkflow(HardwareObject, object):
         """
         The workflow has finished, sets the state to 'ON'
         """
-        # If necessary unblock dialog
+        if not self._gphl_process_finished.ready():
+            # stop waiting process - workflow_end will be re-called from there
+            print ('@~@~ workflow_end')
+            self._gphl_process_finished.set("Workflow Terminated")
+            return
+
         self.queue_entry = None
+        self._gphl_process_finished = None
+        self.set_state(States.ON)
+        # If necessary unblock dialog
         if not self._gevent_event.is_set():
             self._gevent_event.set()
-        if not self._gphl_process_finished.is_set():
-            self._gphl_process_finished.set()
-        self.set_state(States.ON)
 
     # TODO dialog handling
     # def open_dialog(self, dict_dialog):
@@ -191,6 +198,7 @@ class GphlWorkflow(HardwareObject, object):
     def abort(self):
         logging.getLogger("HWR").info('Aborting current workflow')
         # If necessary unblock dialog
+        print ('@~@~ ending from abort')
         self.workflow_end()
 
         dispatcher.send(
@@ -215,44 +223,51 @@ class GphlWorkflow(HardwareObject, object):
             self.workflow_connection.start_workflow(
                 queue_entry.get_data_model()
             )
+            print ('@~@~ connection started')
 
             # Wait for workflow execution to finish
             # Queue child entries are set up and triggered through dispatcher
             final_message = self._gphl_process_finished.get(
                 timeout=self.execution_timeout
             )
+            print ('@~@~ after async get')
             if final_message is None:
                 final_message = 'Timeout'
+                print ('@~@~ abort timeout', self.execution_timeout)
                 self.abort()
             self.echo_info(final_message)
         finally:
+            print ('@~@~ ending from execute')
             self.workflow_end()
 
     # Message handlers:
 
     def workflow_aborted(self, message_type, workflow_aborted):
         # NB Echo additional content later
+        print ('@~@~ workflow_aborted')
         self._gphl_process_finished.set(message_type)
 
     def workflow_completed(self, message_type, workflow_completed):
         # NB Echo additional content later
+        print ('@~@~ workflow_completed')
         self._gphl_process_finished.set(message_type)
 
     def workflow_failed(self, message_type, workflow_failed):
         # NB Echo additional content later
+        print ('@~@~ workflow_failed')
         self._gphl_process_finished.set(message_type)
 
-    def echo_info_string(self, info, correlation_id):
+    def echo_info_string(self, payload, correlation_id):
         """Print text info to console,. log etc."""
         # TODO implement properly
         subprocess_name = self._server_subprocess_names.get(correlation_id)
         if subprocess_name:
-            logging.info ('%s: %s' % (subprocess_name, info))
+            logging.info ('%s: %s' % (subprocess_name, payload))
         else:
-            logging.info(info)
+            logging.info(payload)
 
-    def echo_subprocess_started(self, subprocess_started, correlation_id):
-        name =subprocess_started.name
+    def echo_subprocess_started(self, payload, correlation_id):
+        name =payload.name
         if correlation_id:
             self._server_subprocess_names[name] = correlation_id
         logging.info('%s : STARTING' % name)

@@ -28,9 +28,11 @@ import queue_model_objects_v1 as queue_model_objects
 import os
 import autoprocessing
 
-from collections import namedtuple
+# from collections import namedtuple
 from queue_model_enumerables_v1 import *
 from HardwareRepository.HardwareRepository import dispatcher
+import General
+from General import States
 
 status_list = ['SUCCESS','WARNING', 'FAILED']
 QueueEntryStatusType = namedtuple('QueueEntryStatusType', status_list)
@@ -1401,7 +1403,7 @@ class GphlWorkflowQueueEntry(BaseQueueEntry):
         )
 
         # Start execution of a new workflow
-        if str(self.workflow_hwobj.get_state()) != 'ON':
+        if self.workflow_hwobj.get_state() != States.ON:
             # TODO Add handling of potential conflicts.
             # NBNB GPhL workflow cannot have multiple users
             # unless they use separate persistence layers

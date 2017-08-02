@@ -11,9 +11,10 @@ __date__ = "04/11/16"
 import uuid
 import subprocess
 import logging
+import os
 from py4j import clientserver
 import GphlMessages
-from HardwareObjects import General 
+import General
 States = General.States
 
 try:
@@ -136,54 +137,74 @@ class GphlWorkflowConnection(object):
         # TODO Here we make and send the workflow start-run message
         # NB currently done under 'wfrun' alias
         #  This forks off the server process and returns None
-        commandList = ['java']
+        commandList = [workflow_model_obj.java_binary]
 
-        for keyword, value in workflow_model_obj.get_invocation_properties():
+        for keyword, value in workflow_model_obj.get_invocation_properties().items():
             commandList.extend(General.javaProperty(keyword, value))
 
-        for keyword, value in workflow_model_obj.get_invocation_options():
+        for keyword, value in workflow_model_obj.get_invocation_options().items():
             commandList.extend(General.commandOption(keyword, value))
 
         commandList.append(workflow_model_obj.invocation_classname)
 
-        for keyword, value in workflow_model_obj.get_workflow_properties():
+        for keyword, value in workflow_model_obj.get_workflow_properties().items():
             commandList.extend(General.javaProperty(keyword, value))
-
-        for keyword, value in workflow_model_obj.get_workflow_options():
+        for keyword, value in workflow_model_obj.get_workflow_options().items():
             commandList.extend(General.commandOption(keyword, value))
         #
-        logging.getLogger('HWR').debug("GPhL execute : %s" % commandList)
-        processobj = subprocess.Popen(commandList, stdout=subprocess.PIPE,
-                                      stderr=subprocess.STDOUT)
+        wdir = workflow_model_obj.get_workflow_options().get('wdir')
+        if not os.path.isdir(wdir):
+            try:
+                os.makedirs(wdir)
+            except:
+                # No need to raise error - program will fail downstream
+                logging.getLogger('HWR').error(
+                    "Could not create GPhL working directory: %s" % wdir
+                )
+        for ss in commandList:
+            ss = ss.split('=')[-1]
+            if ss.startswith('/') and not  os.path.exists(ss):
+                logging.getLogger('HWR').warning(
+                    "File does not exist : %s" % ss
+                )
 
-        # At this point processobj.stdout captures process stdout and stderr,
-        # processObj.pid is the process ID, processobj.returncode
-        # is the process return value, None if not yet terminated
+        logging.getLogger('HWR').info("GPhL execute :\n%s" % ' '.join(commandList))
+
+        try:
+            processobj = subprocess.Popen(commandList, stdout=None,
+                                          stderr=None)
+            print('@~@~ spawned')
+        except:
+            print('@~@~ spawn error')
+            logging.getLogger().error('Error in spawning workflow application')
+            raise
 
         self.set_state(States.RUNNING)
 
         logging.getLogger('HWR').debug("GPhL workflow pid, returncode : %s, %s"
-                               % processobj.pid, processobj.returncode)
+                               % (processobj.pid, processobj.returncode))
 
     def _workflow_ended(self):
 
         self._enactment_id = None
         self._workflow_name = None
-        self._state = States.ON
+        self.set_state(States.ON)
 
     def _close_connection(self):
 
         logging.getLogger('HWR').debug("GPhL Close connection ")
         self._gateway = None
-        self._state = States.OFF
+        self.set_state(States.OFF)
 
     def abort_workflow(self, message=None):
         """Abort workflow - may be called from controller in any state"""
 
-        payload = "Workflow aborted from Beamline"
+        print ('@~@~ abort_workflow', message)
 
         if self.get_state() == States.OFF:
-            raise RuntimeError("Workflow is off, cannot be aborted")
+            payload = "Error in workflow start-up"
+        else:
+            payload = "Workflow aborted from Beamline"
 
         # NB signals will have no effect if controller is already deleted.
         self._workflow_ended()
@@ -193,24 +214,27 @@ class GphlWorkflowConnection(object):
         logging.getLogger('HWR').debug("GPhL abort workflow:  %s" % payload)
 
         dispatcher.send(GphlMessages.message_type_to_signal['String'],
-                        self, payload=payload)
+                        self, payload=payload, correlation_id=None)
 
     def _receive_from_server(self, py4jMessage):
         """Receive and process message from workflow server
         Return goes to server"""
+
+        print('@~@~ _receive_from_server', py4jMessage)
+        message_type, payload = self._decode_py4j_message(py4jMessage)
+        print('@~@~ _received', message_type, payload)
 
         xx = py4jMessage.getEnactmentId()
         enactment_id = xx and xx.toString()
 
         xx = py4jMessage.getCorrelationId()
         correlation_id = xx and xx.toString()
-        message_type, payload = self._decode_py4j_message(py4jMessage)
         logging.getLogger('HWR').debug(
             "GPhL incoming, job,  message: %s %s %s"
             % (message_type, enactment_id, correlation_id)
         )
 
-        if self.get_state() == 'ON':
+        if self.get_state() == States.ON:
             # Workflow has been aborted from beamline.
             return self._response_to_server(GphlMessages.BeamlineAbort(),
                                             correlation_id)
@@ -289,6 +313,8 @@ class GphlWorkflowConnection(object):
         if abort_message:
             # We do not need to wait for the return after the Beamline abort
             # message before we close the connection.
+            print ('@~@~ about to abort from _receive_from_server',
+                   self._state, abort_message)
             self.abort_workflow(message=abort_message)
             self._close_connection()
             return self._response_to_server(GphlMessages.BeamlineAbort(),
@@ -296,17 +322,20 @@ class GphlWorkflowConnection(object):
 
         elif result is None:
             # No response expected
+            print ('@~@~ responding None')
             self.set_state(States.RUNNING)
             return None
 
         else:
+            print ('@~@~ responding')
 
             self.set_state(States.RUNNING)
             return self._response_to_server(result, correlation_id)
 
 
     # NBNB TODO temporary fix - remove when Java calls have been renamed
-    msgToBcs = _receive_from_server
+    # msgToBcs = _receive_from_server
+    processMessage = _receive_from_server
 
     def _extractResponse(self, responses, message_type):
         result = abort_message = None
@@ -328,7 +357,9 @@ class GphlWorkflowConnection(object):
         """Extract messageType and convert py4J object to python object"""
 
         # Determine message type
+        print('@~@~ in _decode_py4j_message')
         messageType = message.getPayloadClass().getSimpleName()
+        print('@~@~ decoding', messageType)
         if messageType.endswith('Impl'):
             messageType = messageType[:-4]
         converterName = '_%s_to_python' % messageType
@@ -583,6 +614,7 @@ class GphlWorkflowConnection(object):
         """Create py4j message from py4j wrapper and current ids"""
 
         if self.get_state() != States.OPEN:
+            print ('@~@~ about to abort from _response_to_server 1', self._state)
             self.abort_workflow(message="Reply (%s) to server out of context."
                                 % payload.__class__.__name__)
 
@@ -610,6 +642,7 @@ class GphlWorkflowConnection(object):
                 enactment_id, correlation_id, py4j_payload
             )
         except:
+            print ('@~@~ about to abort from _response_to_server 2', self._state)
             self.abort_workflow(message="Error sending reply (%s) to server"
                                 % py4j_payload.getClass().getSimpleName())
         else:

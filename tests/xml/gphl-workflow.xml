@@ -15,6 +15,8 @@
     <execution_timeout>3600</execution_timeout>
     <!-- Subdirectory under Session.get_process_directory() for GPhL persistence data-->
     <gphl_subdir>GPHL</gphl_subdir>
+    <!-- Java binary to execute for workflow application -->
+    <java_binary>/MXCuBE/gphl_java/bin/java</java_binary>
 
     <!-- Parameters for the command-line invocation of the workflow application-->
     <!-- Java invocation properties - syntax is e.g. '-Dfile.encoding=UTF-8' -->
@@ -26,68 +28,42 @@
     <invocation_options>
         <!-- Java classpath. -->
         <!--Should point to all contents of workflow application directory-->
-        <cp>"/MXCuBE/mxcube/gphl_java/gphl_classes/*"</cp>
+        <cp>/MXCuBE/gphl_java_classes/*</cp>
     </invocation_options>
 
     <!-- Properties common to workflows - syntax e.g. '-Dfile.encoding=UTF-8'-->
     <!-- Syntax as for invocation properties, but located differently-->
     <workflow_properties>
         <!-- Location of XDS binary -->
-        <co.gphl.sdcp.xdsbin>
-            /MXCuBE/softwares/Xds/XDS-INTEL64_Linux_x86_64/xds_par
-        </co.gphl.sdcp.xdsbin>
+        <co.gphl.sdcp.xdsbin>/MXCuBE/softwares/Xds/XDS-INTEL64_Linux_x86_64/xds_par</co.gphl.sdcp.xdsbin>
         <!-- Location of GPhL .license directory -->
-        <co.gphl.wf.bdg_licence_dir>
-            /MXCuBE/softwares/Server-nightly-alpha-bdg-linux64
-        </co.gphl.wf.bdg_licence_dir>
+        <co.gphl.wf.bdg_licence_dir>/MXCuBE/softwares/Server-nightly-alpha-bdg-linux64</co.gphl.wf.bdg_licence_dir>
         <!-- Location of stratcal binary -->
-        <co.gphl.wf.stratcal.bin>
-            /MXCuBE/softwares/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/stratcal
-        </co.gphl.wf.stratcal.bin>
+        <co.gphl.wf.stratcal.bin>/MXCuBE/softwares/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/stratcal</co.gphl.wf.stratcal.bin>
         <!-- Location of stratcal-specific license directory - OPTIONAL ->
-        <co.gphl.wf.stratcal.bdg_licence_dir>
-            /MXCuBE/softwares/Server-nightly-alpha-bdg-linux64
-        </co.gphl.wf.stratcal.bdg_licence_dir>
+        <co.gphl.wf.stratcal.bdg_licence_dir>/MXCuBE/softwares/Server-nightly-alpha-bdg-linux64</co.gphl.wf.stratcal.bdg_licence_dir>
         -->
         <!-- Location of simcal binary -->
-        <co.gphl.wf.simcal_predict.bin>
-            /MXCuBE/softwares/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/simcal_predict
-        </co.gphl.wf.simcal_predict.bin>
+        <co.gphl.wf.simcal_predict.bin>/MXCuBE/softwares/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/simcal_predict</co.gphl.wf.simcal_predict.bin>
         <!-- Location of simcal-specific license directory - OPTIONAL ->
-        <co.gphl.wf.simcal_predict.bdg_licence_dir>
-            /MXCuBE/softwares/Server-nightly-alpha-bdg-linux64
-        </co.gphl.wf.stratcal.bdg_licence_dir>
+        <co.gphl.wf.simcal_predict.bdg_licence_dir>/MXCuBE/softwares/Server-nightly-alpha-bdg-linux64</co.gphl.wf.stratcal.bdg_licence_dir>
         -->
         <!-- Location of transcal binary -->
-        <co.gphl.wf.transcal.bin>
-            /MXCuBE/softwares/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/transcal
-        </co.gphl.wf.transcal.bin>
+        <co.gphl.wf.transcal.bin>/MXCuBE/softwares/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/transcal</co.gphl.wf.transcal.bin>
         <!-- Location of recen binary -->
-        <co.gphl.wf.recen.bin>
-            /MXCuBE/softwares/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/recen
-        </co.gphl.wf.recen.bin>
+        <co.gphl.wf.recen.bin>/MXCuBE/softwares/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/recen</co.gphl.wf.recen.bin>
         <!-- Path of application that analyses diffractcal (aka rotational
         calibration) data. In practice, this will almost always be a wrapper
         script that sets up the environment properly. -->
-        <co.gphl.wf.diffractcal.bin>
-            /path/to/diffractcal
-        </co.gphl.wf.diffractcal.bin>
+        <co.gphl.wf.diffractcal.bin>path/to/diffractcal</co.gphl.wf.diffractcal.bin>
         <!-- Dummy sample properties: choose values for these to make the
         predictions for the characterisation strategy look reasonable (they
         have no scientific basis, and are not used for any scientific purpose). -->
-        <co.gphl.wf.simcal_predict.b_wilson>
-            26.0
-        </co.gphl.wf.simcal_predict.b_wilson>
-        <co.gphl.wf.simcal_predict.cell_dim_sd_scale>
-            1.5e-3
-        </co.gphl.wf.simcal_predict.cell_dim_sd_scale>
-        <co.gphl.wf.simcal_predict.mosaicity>
-            0.2
-        </co.gphl.wf.simcal_predict.mosaicity>
+        <co.gphl.wf.simcal_predict.b_wilson>26.0</co.gphl.wf.simcal_predict.b_wilson>
+        <co.gphl.wf.simcal_predict.cell_dim_sd_scale>1.5e-3</co.gphl.wf.simcal_predict.cell_dim_sd_scale>
+        <co.gphl.wf.simcal_predict.mosaicity>0.2</co.gphl.wf.simcal_predict.mosaicity>
         <!-- Uncomment this to disable stratcal's collision checking ->
-        <co.gphl.wf.stratcal.collision_mode>
-            2
-        </co.gphl.wf.stratcal.collision_mode>
+        <co.gphl.wf.stratcal.collision_mode>2</co.gphl.wf.stratcal.collision_mode>
         -->
     </workflow_properties>
 
@@ -106,7 +82,7 @@
 
     <!-- List of supported workflows, with options for each -->
     <workflows>
-        <TranslationalCalibration>
+        <TranslationalCalibrationTest>
             <application>co.gphl.wf.workflows.WFTransCal</application>
             <documentation>Translational calibration.
                 Designed for use by beamline personnel.
@@ -118,17 +94,15 @@
                 <!-- Name for translation calibration output -->
                 <calibration>transcal_result</calibration>
                 <!-- file: File containing settings of rotation axes for calibration -->
+                <!-- The name is the relative apth from the Repository directory -->
                 <!-- grid: Grid definition [axis_name:start:end:step], slowest-varying to fastest varying -->
-                <!-- EITHER file OR grid must be set. NBNB REDO! ->
-                <file>settings_file</file>
-                <grid>grid_axes_spec</grid>
-                -->
-                <!--&lt;!&ndash; Path of file to dump persisted instrumentation configuration. OPTIONAL&ndash;&gt;-->
-                <!--<instcfgout>-->
-                    <!--/home/rhfogh/scratch/working/workflows/gphl21/transcal_dump-->
-                <!--</instcfgout>-->
+                <!-- EITHER file OR grid must be set. NBNB REDO! -->
+                <file>gphl_config/TransCalTest.inp</file>
+                <!--<grid>grid_axes_spec</grid>-->
+                <!-- Path of file to dump persisted instrumentation configuration. OPTIONAL-->
+                <!--<instcfgout>/home/rhfogh/scratch/working/workflows/gphl21/transcal_dump</instcfgout>-->
             </options>
-        </TranslationalCalibration>
+        </TranslationalCalibrationTest>
 
         <DiffractometerCalibration>
             <application>co.gphl.wf.workflows.WFDiffractCal</application>

@@ -27,8 +27,8 @@ if not hasattr(robustapply, "_robust_apply"):
     if louie:
         robustapply.robust_apply = __my_robust_apply
     else:
-        robustapply.robustApply = __my_robust_apply 
-    del louie
+        robustapply.robustApply = __my_robust_apply
     del __my_robust_apply
+del louie
 
 
