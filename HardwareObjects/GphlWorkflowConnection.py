@@ -7,15 +7,25 @@ __copyright__ = """
 __author__ = "rhfogh"
 __date__ = "04/11/16"
 
-
-import uuid
-import subprocess
 import logging
 import os
+import socket
+import subprocess
+import uuid
+
+import gevent.monkey
 from py4j import clientserver
-import GphlMessages
+
 import General
+import GphlMessages
+
 States = General.States
+try:
+    # Needed for 3.6(?) onwards
+    from importlib import reload
+except ImportError:
+    # Works for earlier versions, including Python 2.6
+    from imp import reload
 
 try:
     # This file already does the alternative imports plus some tweaking
@@ -127,11 +137,25 @@ class GphlWorkflowConnection(object):
                                % (self.python_address, self.python_port,
                                   self.java_address, self.java_port))
 
-        self._gateway = clientserver.ClientServer(
-            java_parameters=clientserver.JavaParameters(**java_parameters),
-            python_parameters=clientserver.PythonParameters(
-                **python_parameters),
-            python_server_entry_point=self)
+        # set sockets and threading to standard before running py4j
+        # NBNB this can cause ERRORS if socket or thread have been
+        # patched with non-default parameters
+        # It is the best we can do, though
+        #
+        # These should use is_module_patched,
+        # but that is not available in gevent 1.0
+        socket_patched = 'socket' in gevent.monkey.saved
+        reload(socket)
+        try:
+            self._gateway = clientserver.ClientServer(
+                java_parameters=clientserver.JavaParameters(**java_parameters),
+                python_parameters=clientserver.PythonParameters(
+                    **python_parameters),
+                python_server_entry_point=self)
+        finally:
+            # patch back to starting state
+            if socket_patched:
+                gevent.monkey.patch_socket()
 
 
         # TODO Here we make and send the workflow start-run message
@@ -173,9 +197,7 @@ class GphlWorkflowConnection(object):
         try:
             processobj = subprocess.Popen(commandList, stdout=None,
                                           stderr=None)
-            print('@~@~ spawned')
         except:
-            print('@~@~ spawn error')
             logging.getLogger().error('Error in spawning workflow application')
             raise
 
@@ -199,8 +221,6 @@ class GphlWorkflowConnection(object):
     def abort_workflow(self, message=None):
         """Abort workflow - may be called from controller in any state"""
 
-        print ('@~@~ abort_workflow', message)
-
         if self.get_state() == States.OFF:
             payload = "Error in workflow start-up"
         else:
@@ -220,9 +240,7 @@ class GphlWorkflowConnection(object):
         """Receive and process message from workflow server
         Return goes to server"""
 
-        print('@~@~ _receive_from_server', py4jMessage)
         message_type, payload = self._decode_py4j_message(py4jMessage)
-        print('@~@~ _received', message_type, payload)
 
         xx = py4jMessage.getEnactmentId()
         enactment_id = xx and xx.toString()
@@ -230,7 +248,7 @@ class GphlWorkflowConnection(object):
         xx = py4jMessage.getCorrelationId()
         correlation_id = xx and xx.toString()
         logging.getLogger('HWR').debug(
-            "GPhL incoming, job,  message: %s %s %s"
+            "GPhL incoming: message=%s, jobId=%s,  messageId=%s"
             % (message_type, enactment_id, correlation_id)
         )
 
@@ -313,8 +331,6 @@ class GphlWorkflowConnection(object):
         if abort_message:
             # We do not need to wait for the return after the Beamline abort
             # message before we close the connection.
-            print ('@~@~ about to abort from _receive_from_server',
-                   self._state, abort_message)
             self.abort_workflow(message=abort_message)
             self._close_connection()
             return self._response_to_server(GphlMessages.BeamlineAbort(),
@@ -322,13 +338,10 @@ class GphlWorkflowConnection(object):
 
         elif result is None:
             # No response expected
-            print ('@~@~ responding None')
             self.set_state(States.RUNNING)
             return None
 
         else:
-            print ('@~@~ responding')
-
             self.set_state(States.RUNNING)
             return self._response_to_server(result, correlation_id)
 
@@ -357,9 +370,7 @@ class GphlWorkflowConnection(object):
         """Extract messageType and convert py4J object to python object"""
 
         # Determine message type
-        print('@~@~ in _decode_py4j_message')
         messageType = message.getPayloadClass().getSimpleName()
-        print('@~@~ decoding', messageType)
         if messageType.endswith('Impl'):
             messageType = messageType[:-4]
         converterName = '_%s_to_python' % messageType
@@ -614,35 +625,33 @@ class GphlWorkflowConnection(object):
         """Create py4j message from py4j wrapper and current ids"""
 
         if self.get_state() != States.OPEN:
-            print ('@~@~ about to abort from _response_to_server 1', self._state)
             self.abort_workflow(message="Reply (%s) to server out of context."
                                 % payload.__class__.__name__)
 
-        try:
-            if self._enactment_id is None:
-                enactment_id = None
-            else:
-                enactment_id = self._gateway.jvm.java.util.UUID.fromString(
-                    self.enactment_id
-                )
-
-            if correlation_id is not None:
-                correlation_id = self._gateway.jvm.java.util.UUID.fromString(
-                    correlation_id
-                )
-
-            logging.getLogger('HWR').debug(
-                "GPhL - response, job, message: %s, %s, %s"
-                % (payload.__class__.__name__, enactment_id, correlation_id)
+        if self._enactment_id is None:
+            enactment_id = None
+        else:
+            enactment_id = self._gateway.jvm.java.util.UUID.fromString(
+                self._enactment_id
             )
 
-            py4j_payload = self._payload_to_java(payload)
+        if correlation_id is not None:
+            correlation_id = self._gateway.jvm.java.util.UUID.fromString(
+                correlation_id
+            )
 
+        logging.getLogger('HWR').debug(
+            "GPhL - response=%s jobId=%s messageId=%s"
+            % (payload.__class__.__name__, enactment_id, correlation_id)
+        )
+
+        py4j_payload = self._payload_to_java(payload)
+
+        try:
             response = self._gateway.jvm.co.gphl.sdcp.py4j.Py4jMessage(
                 enactment_id, correlation_id, py4j_payload
             )
         except:
-            print ('@~@~ about to abort from _response_to_server 2', self._state)
             self.abort_workflow(message="Error sending reply (%s) to server"
                                 % py4j_payload.getClass().getSimpleName())
         else:
@@ -875,3 +884,128 @@ class GphlWorkflowConnection(object):
 
     class Java(object):
         implements = ["co.gphl.py4j.PythonListener"]
+
+
+class DummyGphlWorkflowModel(object):
+    """Dummy equivalent of Gphl workflow task node, for tsting"""
+    def __init__(self):
+        # TaskNode.__init__(self)
+        self.path_template = None
+        self._type = str()
+        self._requires_centring = False
+        self.invocation_classname = None
+        self.java_binary = None
+        self._connection_parameters = {}
+        self._invocation_properties = {}
+        self._invocation_options = {}
+        self._workflow_properties = {}
+        self._workflow_options = {}
+
+    # Workflow type, or name (string).
+    def get_type(self):
+        return self._type
+    def set_type(self, workflow_type):
+        self._type = workflow_type
+
+    # Keyword-value dictionary of connection_parameters (for py4j connection)
+    def get_connection_parameters(self):
+        return dict(self._connection_parameters)
+    def set_connection_parameters(self, valueDict):
+        dd = self._connection_parameters
+        dd.clear()
+        if valueDict:
+            dd.update(valueDict)
+
+    # Keyword-value dictionary of invocation_properties (for execution command)
+    def get_invocation_properties(self):
+        return dict(self._invocation_properties)
+    def set_invocation_properties(self, valueDict):
+        dd = self._invocation_properties
+        dd.clear()
+        if valueDict:
+            dd.update(valueDict)
+
+    # Keyword-value dictionary of invocation_options (for execution command)
+    def get_invocation_options(self):
+        return dict(self._invocation_options)
+    def set_invocation_options(self, valueDict):
+        dd = self._invocation_options
+        dd.clear()
+        if valueDict:
+            dd.update(valueDict)
+
+    # Keyword-value dictionary of workflow_properties (for execution command)
+    def get_workflow_properties(self):
+        return dict(self._workflow_properties)
+    def set_workflow_properties(self, valueDict):
+        dd = self._workflow_properties
+        dd.clear()
+        if valueDict:
+            dd.update(valueDict)
+
+    # Keyword-value dictionary of workflow_options (for execution command)
+    def get_workflow_options(self):
+        return dict(self._workflow_options)
+    def set_workflow_options(self, valueDict):
+        dd = self._workflow_options
+        dd.clear()
+        if valueDict:
+            dd.update(valueDict)
+
+
+def testGphlConnection():
+    """Test communication to GPhL workflow application"""
+
+    connection = GphlWorkflowConnection()
+    wf = getDummyWorkflowModel(
+        baseDirectory='/home/rhfogh/pycharm/MXCuBE-Qt_26r',
+        gphlInstallation='/public/xtal'
+    )
+    connection.start_workflow(wf)
+
+
+def getDummyWorkflowModel(baseDirectory, gphlInstallation):
+    self = DummyGphlWorkflowModel()
+    self._type = 'TranslationalCalibrationTest'
+    self.java_binary = '%s/java/bin/java' % baseDirectory
+
+    self.invocation_classname = 'co.gphl.wf.workflows.WFTransCal'
+
+    dd = {
+        'file.encoding':'UTF-8',
+    }
+    self.set_invocation_properties(dd)
+
+    dd = {
+        'cp':'%s/gphl_java_classes/*' % baseDirectory,
+    }
+    self.set_invocation_options(dd)
+
+    dd = {
+        'co.gphl.sdcp.xdsbin':'%s/Xds/XDS-INTEL64_Linux_x86_64/xds_par' % gphlInstallation,
+        'co.gphl.wf.bdg_licence_dir':'%s/Server-nightly-alpha-bdg-linux64' % gphlInstallation,
+        'co.gphl.wf.stratcal.bin':'%s/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/stratcal' % gphlInstallation,
+        'co.gphl.wf.simcal_predict.bin':'%s/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/simcal_predict' % gphlInstallation,
+        'co.gphl.wf.transcal.bin':'%s/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/transcal' % gphlInstallation,
+        'co.gphl.wf.recen.bin':'%s/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/recen' % gphlInstallation,
+        'co.gphl.wf.diffractcal.bin':'path/to/diffractcal',
+        'co.gphl.wf.simcal_predict.b_wilson':1.5e-3,
+        'co.gphl.wf.simcal_predict.cell_dim_sd_scale':26.0,
+        'co.gphl.wf.simcal_predict.mosaicity':0.2,
+    }
+    self.set_workflow_properties(dd)
+
+    dd = {'wdir':os.path.join('/tmp/mxcube_testdata/visitor/idtest000/id-test-eh1/20130611/PROCESSED_DATA',
+                              'GPHL'),
+          'calibration':'transcal_result',
+          'file':'%s/HardwareRepository/tests/xml/gphl_config/TransCalTest.inp' % baseDirectory,
+          'beamline':'py4j::',
+          'persistname':'persistence',
+          'wfprefix':'gphl_wf_',
+          }
+    self.set_workflow_options(dd)
+    #
+    return self
+
+if __name__ == '__main__':
+    testGphlConnection()

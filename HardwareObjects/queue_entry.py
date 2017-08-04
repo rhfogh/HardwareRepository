@@ -20,19 +20,18 @@ CharacterisationQueueEntry, EnergyScanQueueEntry are concrete
 implementations of tasks.
 """
 
-import gevent
-import traceback
 import logging
-import time
-import queue_model_objects_v1 as queue_model_objects
 import os
-import autoprocessing
+import time
+import traceback
 
-# from collections import namedtuple
-from queue_model_enumerables_v1 import *
-from HardwareRepository.HardwareRepository import dispatcher
-import General
+import gevent
+
+import autoprocessing
+import queue_model_objects_v1 as queue_model_objects
 from General import States
+from HardwareRepository.HardwareRepository import dispatcher
+from queue_model_enumerables_v1 import *
 
 status_list = ['SUCCESS','WARNING', 'FAILED']
 QueueEntryStatusType = namedtuple('QueueEntryStatusType', status_list)

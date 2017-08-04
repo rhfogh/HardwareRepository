@@ -9,19 +9,19 @@ __copyright__ = """
 __author__ = "rhfogh"
 __date__ = "06/04/17"
 
-import os
+import logging
+import uuid
+
 import gevent
 import gevent.event
-import uuid
-import logging
-import time
+
 import queue_model_objects_v1 as queue_model_objects
-from HardwareRepository.HardwareRepository import dispatcher
-from HardwareRepository.BaseHardwareObjects import HardwareObject
-from HardwareObjects.GphlWorkflowConnection import GphlWorkflowConnection
 import General
+from GphlWorkflowConnection import GphlWorkflowConnection
+from HardwareRepository.BaseHardwareObjects import HardwareObject
+from HardwareRepository.HardwareRepository import dispatcher
+
 States = General.States
-# from HardwareObjects.General import States
 
 
 class GphlWorkflow(HardwareObject, object):
@@ -155,7 +155,6 @@ class GphlWorkflow(HardwareObject, object):
         """
         if not self._gphl_process_finished.ready():
             # stop waiting process - workflow_end will be re-called from there
-            print ('@~@~ workflow_end')
             self._gphl_process_finished.set("Workflow Terminated")
             return
 
@@ -198,7 +197,6 @@ class GphlWorkflow(HardwareObject, object):
     def abort(self):
         logging.getLogger("HWR").info('Aborting current workflow')
         # If necessary unblock dialog
-        print ('@~@~ ending from abort')
         self.workflow_end()
 
         dispatcher.send(
@@ -227,34 +225,31 @@ class GphlWorkflow(HardwareObject, object):
 
             # Wait for workflow execution to finish
             # Queue child entries are set up and triggered through dispatcher
-            final_message = self._gphl_process_finished.get(
-                timeout=self.execution_timeout
-            )
-            print ('@~@~ after async get')
+            # final_message = self._gphl_process_finished.get(
+            #     timeout=self.execution_timeout
+            # )
+            gevent.wait([self._gphl_process_finished],
+                        timeout=self.execution_timeout)
+            final_message = self._gphl_process_finished.get()
             if final_message is None:
                 final_message = 'Timeout'
-                print ('@~@~ abort timeout', self.execution_timeout)
                 self.abort()
             self.echo_info(final_message)
         finally:
-            print ('@~@~ ending from execute')
             self.workflow_end()
 
     # Message handlers:
 
     def workflow_aborted(self, message_type, workflow_aborted):
         # NB Echo additional content later
-        print ('@~@~ workflow_aborted')
         self._gphl_process_finished.set(message_type)
 
     def workflow_completed(self, message_type, workflow_completed):
         # NB Echo additional content later
-        print ('@~@~ workflow_completed')
         self._gphl_process_finished.set(message_type)
 
     def workflow_failed(self, message_type, workflow_failed):
         # NB Echo additional content later
-        print ('@~@~ workflow_failed')
         self._gphl_process_finished.set(message_type)
 
     def echo_info_string(self, payload, correlation_id):
