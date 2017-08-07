@@ -111,7 +111,7 @@ class __HardwareRepositoryClient:
             self.__connected = True
 
     def findInRepository(self, relative_path):
-        """Finds a file or directory matching relativePath
+        """Finds absolute path of a file or directory matching relativePath
         in one of the hardwareRepository directories
 
         Will work for any file or directory, but intended for configuration
@@ -129,7 +129,7 @@ class __HardwareRepositoryClient:
             for xml_files_path in self.serverAddress:
                 file_path = os.path.join(xml_files_path, relative_path)
                 if os.path.exists(file_path):
-                    return file_path
+                    return os.path.abspath(file_path)
             #
             return
  

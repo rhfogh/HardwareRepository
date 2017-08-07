@@ -15,6 +15,9 @@
     <gphl_subdir>GPHL</gphl_subdir>
     <!-- Java binary to execute for workflow application -->
     <java_binary>/MXCuBE/gphl_java/bin/java</java_binary>
+    <!-- GPHL configurtatiion subdirectory
+         (will be searched for in HardwareObjects confuig xml directories-->
+    <gphl_config_subdir>gphl_config/dls-i04-interim</gphl_config_subdir>
 
     <!-- Parameters for the command-line invocation of the workflow application-->
     <!-- Java invocation properties - syntax is e.g. '-Dfile.encoding=UTF-8' -->

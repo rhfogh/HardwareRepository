@@ -65,10 +65,13 @@ class SampleChangerMockup(SampleChanger):
         # return "%s:%s" % (self._selected_basket, self._selected_sample)
 
     def is_mounted_sample(self, sample):
+
         if isinstance(sample, tuple):
-            sample = "%s:%s" % sample
-        
-        return sample == self.getLoadedSample()
+            return sample == self.getLoadedSample().getCoords()
+        elif isinstance(sample, str):
+            return sample == self.getLoadedSample().getID()
+        else:
+            return sample == self.getLoadedSample()
 
     def _doAbort(self):
         return

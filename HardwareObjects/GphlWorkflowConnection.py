@@ -93,6 +93,7 @@ class GphlWorkflowConnection(object):
         return self._state
 
     def set_state(self, value):
+        print('@~@~ state change', self._state, '->', value)
         if value in self.valid_states:
             self._state = value
             dispatcher.send('stateChanged', self, self._state)
@@ -295,6 +296,9 @@ class GphlWorkflowConnection(object):
 
         if not abort_message:
 
+            print('@~@~ will send ', message_type, send_signal,
+                  self.get_state())
+
             if message_type in ('String',
                                 'SubprocessStarted',
                                 'SubprocessStopped'):
@@ -328,6 +332,7 @@ class GphlWorkflowConnection(object):
             else:
                 abort_message = ("Unknown message type: %s" % message_type)
 
+        print('@~@~ after send', abort_message, result, self.get_state())
         if abort_message:
             # We do not need to wait for the return after the Beamline abort
             # message before we close the connection.
@@ -342,7 +347,6 @@ class GphlWorkflowConnection(object):
             return None
 
         else:
-            self.set_state(States.RUNNING)
             return self._response_to_server(result, correlation_id)
 
 
@@ -601,6 +605,9 @@ class GphlWorkflowConnection(object):
         elif payloadType == 'BeamlineAbort':
             return self._BeamlineAbort_to_java(payload)
 
+        elif payloadType == 'ReadyForCentring':
+            return self._ReadyForCentring_to_java(payload)
+
         elif payloadType == 'SampleCentred':
             return self._SampleCentred_to_java(payload)
 
@@ -623,10 +630,12 @@ class GphlWorkflowConnection(object):
 
     def _response_to_server(self, payload, correlation_id):
         """Create py4j message from py4j wrapper and current ids"""
+        print('@~@~ begin responding', payload, self.get_state())
 
         if self.get_state() != States.OPEN:
             self.abort_workflow(message="Reply (%s) to server out of context."
                                 % payload.__class__.__name__)
+        self.set_state(States.RUNNING)
 
         if self._enactment_id is None:
             enactment_id = None
@@ -646,10 +655,16 @@ class GphlWorkflowConnection(object):
         )
 
         py4j_payload = self._payload_to_java(payload)
+        # print('@~@~ py4j_payload', py4j_payload)
+        javaclass = py4j_payload.getClass()
+        print('@~@~ javaclass', javaclass.getName())
+        javamethods = sorted(x.getName() for x in javaclass.getDeclaredMethods())
+        # print('@~@~ java contents', javamethods)
+        # print('@~@~ dir payload java', dir(py4j_payload))
 
         try:
             response = self._gateway.jvm.co.gphl.sdcp.py4j.Py4jMessage(
-                enactment_id, correlation_id, py4j_payload
+                py4j_payload, enactment_id, correlation_id
             )
         except:
             self.abort_workflow(message="Error sending reply (%s) to server"
@@ -674,7 +689,7 @@ class GphlWorkflowConnection(object):
         )
 
     def _ReadyForCentring_to_java(self, readyForCentring):
-        return self._gateway.jvm.astra.messagebus.messages.information.ReadyForCentringImpl(
+        return self._gateway.jvm.astra.messagebus.messages.control.ReadyForCentringImpl(
         )
 
     def _BeamlineAbort_to_java(self, beamlineAbort):
@@ -887,7 +902,7 @@ class GphlWorkflowConnection(object):
 
 
 class DummyGphlWorkflowModel(object):
-    """Dummy equivalent of Gphl workflow task node, for tsting"""
+    """Dummy equivalent of Gphl workflow task node, for testing"""
     def __init__(self):
         # TaskNode.__init__(self)
         self.path_template = None

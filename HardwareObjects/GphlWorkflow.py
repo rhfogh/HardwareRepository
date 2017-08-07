@@ -20,6 +20,7 @@ import General
 from GphlWorkflowConnection import GphlWorkflowConnection
 from HardwareRepository.BaseHardwareObjects import HardwareObject
 from HardwareRepository.HardwareRepository import dispatcher
+from HardwareRepository.HardwareRepository import HardwareRepository
 
 States = General.States
 
@@ -65,6 +66,9 @@ class GphlWorkflow(HardwareObject, object):
         # Execution timeout waiting for the workflow engine
         self.execution_timeout = None
 
+        # Directory for GPhL beamline configuration files
+        self.gphl_beamline_config = None
+
     def _init(self):
         pass
 
@@ -76,6 +80,12 @@ class GphlWorkflow(HardwareObject, object):
               if self.hasObject('connection_parameters') else {})
         workflow_connection.init(**dd)
         self.workflow_connection = workflow_connection
+
+
+        relative_file_path = self.getProperty('gphl_config_subdir')
+        self.gphl_beamline_config = HardwareRepository().findInRepository(
+            relative_file_path
+        )
 
         # Set up local listeners
         dispatcher.connect(self.echo_info_string,
@@ -267,19 +277,18 @@ class GphlWorkflow(HardwareObject, object):
             self._server_subprocess_names[name] = correlation_id
         logging.info('%s : STARTING' % name)
 
-    def echo_subprocess_stopped(self, subprocess_stopped, correlation_id):
-        name =subprocess_stopped.name
+    def echo_subprocess_stopped(self, payload, correlation_id):
+        name = payload.name
         if correlation_id in self._server_subprocess_names:
             del self._server_subprocess_names[name]
         logging.info('%s : FINISHED' % name)
 
-    def get_configuration_data(self, request_configuration,
-                               correlation_id):
-        data_location = self.getProperty('beamline_configuration_directory')
+    def get_configuration_data(self, payload, correlation_id):
+        data_location = self.gphl_beamline_config
         return self.GphlMessages.ConfigurationData(data_location)
 
-    def setup_data_collection(self, geometric_strategy, correlation_id):
-        pass
+    def setup_data_collection(self, payload, correlation_id):
+        geometric_strategy = payload
         raise NotImplementedError()
 
         ## Display GeometricStrategy, with RotationSetting ID.
@@ -309,8 +318,8 @@ class GphlWorkflow(HardwareObject, object):
         ## Return SampleCentred
 
 
-    def collect_data(self, collection_proposal, correlation_id):
-        pass
+    def collect_data(self, payload, correlation_id):
+        collection_proposal = payload
 
         ## Display collection proposal in suitable form
         ## Query  relativeImageDir,
@@ -331,15 +340,17 @@ class GphlWorkflow(HardwareObject, object):
         ## return collectionDone
         raise NotImplementedError()
 
-    def select_lattice(self, choose_lattice, correlation_id):
-        pass
+    def select_lattice(self, payload, correlation_id):
+        choose_lattice = payload
+        #pass
         raise NotImplementedError()
 
         ## Display solution and query user for lattice
 
         ## Create SelectedLattice and return it
 
-    def centre_sample(self, request_centring, correlation_id):
+    def centre_sample(self, payload, correlation_id):
+        request_centring = payload
 
         logging.info ('Start centring no. %s of %s'
                       % (request_centring.currentSettingNo,
@@ -348,6 +359,9 @@ class GphlWorkflow(HardwareObject, object):
         ## Rotate sample to RotationSetting
         goniostatRotation = request_centring.goniostatRotation
         axisSettings = goniostatRotation.axisSettings
+
+        for item in sorted(axisSettings.items()):
+            print('@~@~ rotationSettings', item)
 
         # NBNB it is up to beamline setup etc. to ensure that the
         # axis names are correct - and this is what SampleCentring uses
@@ -375,13 +389,13 @@ class GphlWorkflow(HardwareObject, object):
 
         raise NotImplementedError()
 
-    def prepare_for_centring(self, gphl_message, correlation_id):
+    def prepare_for_centring(self, payload, correlation_id):
 
-        raise NotImplementedError()
+        # TODO Add pop-up confirmation box ('Ready for centring?')
 
         return self.GphlMessages.ReadyForCentring()
 
-    def obtain_prior_information(self, gphl_message, correlation_id):
+    def obtain_prior_information(self, payload, correlation_id):
 
         sample_node_id = self.dictParameters.get('sample_node_id')
         queue_model = self.getObjectByRole("QueueModel")
@@ -439,4 +453,4 @@ class GphlWorkflow(HardwareObject, object):
             userProvidedInfo=userProvidedInfo
         )
         #
-        return priorInformation,
+        return priorInformation
