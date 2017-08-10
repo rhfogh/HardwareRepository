@@ -109,7 +109,7 @@
                 <file>gphl_config/TransCalTest.inp</file>
                 <!--<grid>grid_axes_spec</grid>-->
                 <!-- Path of file to dump persisted instrumentation configuration. OPTIONAL-->
-                <!--<instcfgout>/home/rhfogh/scratch/working/workflows/gphl21/transcal_dump</instcfgout>-->
+                <instcfgout>/MXCuBE/mxcube/gphl_transcal_out.nml</instcfgout>
             </options>
         </TranslationalCalibrationTest>
 
