@@ -108,8 +108,8 @@ ChemicalElements = OrderedDict((
     ("UUP","ununpentium"), ("LV","livermorium"),
 ))
 
-# CentringStatus = ('NEXT', 'DONE')
-#
+CentringStatus = ('NEXT', 'DONE')
+
 # CrystalSystems = ('TRICLINIC', 'MONOCLINIC', 'ORTHORHOMBIC', 'TETRAGONAL',
 #                   'TRIGONAL', 'HEXAGONAL', 'CUBIC')
 

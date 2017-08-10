@@ -11,13 +11,12 @@ __date__ = "06/04/17"
 
 import logging
 import uuid
+import time
 
 import gevent
 import gevent.event
 
-import queue_model_objects_v1 as queue_model_objects
 import General
-from GphlWorkflowConnection import GphlWorkflowConnection
 from HardwareRepository.BaseHardwareObjects import HardwareObject
 from HardwareRepository.HardwareRepository import dispatcher
 from HardwareRepository.HardwareRepository import HardwareRepository
@@ -69,12 +68,26 @@ class GphlWorkflow(HardwareObject, object):
         # Directory for GPhL beamline configuration files
         self.gphl_beamline_config = None
 
+        # Rotation axis role names, ordered from holder towards sample
+        self.rotation_axis_roles = []
+
+        # Translation axis role names
+        self.translation_axis_roles = []
+
     def _init(self):
         pass
 
     def init(self):
 
+        # Used only here, so let us keep the import out of the module top
+        from GphlWorkflowConnection import GphlWorkflowConnection
+
         self.execution_timeout = self.getProperty('execution_timeout')
+
+        self.rotation_axis_roles = self.getProperty('rotation_axis_roles').split()
+        self.translation_axis_roles = self.getProperty('translation_axis_roles').split()
+
+
         workflow_connection = GphlWorkflowConnection()
         dd = (self['connection_parameters'].getProperties()
               if self.hasObject('connection_parameters') else {})
@@ -231,40 +244,35 @@ class GphlWorkflow(HardwareObject, object):
             self.workflow_connection.start_workflow(
                 queue_entry.get_data_model()
             )
-            print ('@~@~ connection started')
 
-            # Wait for workflow execution to finish
-            # Queue child entries are set up and triggered through dispatcher
-            # final_message = self._gphl_process_finished.get(
-            #     timeout=self.execution_timeout
-            # )
-            gevent.wait([self._gphl_process_finished],
-                        timeout=self.execution_timeout)
-            final_message = self._gphl_process_finished.get()
+            final_message = self._gphl_process_finished.get(
+                timeout=self.execution_timeout
+            )
             if final_message is None:
                 final_message = 'Timeout'
                 self.abort()
-            self.echo_info(final_message)
+            logging.getLogger("user_level_log").info(
+                "GPhL Workflow end : %s" % final_message
+            )
         finally:
             self.workflow_end()
 
     # Message handlers:
 
-    def workflow_aborted(self, message_type, workflow_aborted):
+    def workflow_aborted(self, payload, correlation_id):
         # NB Echo additional content later
-        self._gphl_process_finished.set(message_type)
+        self._gphl_process_finished.set(payload.__class__.__name__)
 
-    def workflow_completed(self, message_type, workflow_completed):
+    def workflow_completed(self, payload, correlation_id):
         # NB Echo additional content later
-        self._gphl_process_finished.set(message_type)
+        self._gphl_process_finished.set(payload.__class__.__name__)
 
-    def workflow_failed(self, message_type, workflow_failed):
+    def workflow_failed(self, payload, correlation_id):
         # NB Echo additional content later
-        self._gphl_process_finished.set(message_type)
+        self._gphl_process_finished.set(payload.__class__.__name__)
 
-    def echo_info_string(self, payload, correlation_id):
+    def echo_info_string(self, payload, correlation_id=None):
         """Print text info to console,. log etc."""
-        # TODO implement properly
         subprocess_name = self._server_subprocess_names.get(correlation_id)
         if subprocess_name:
             logging.info ('%s: %s' % (subprocess_name, payload))
@@ -272,15 +280,16 @@ class GphlWorkflow(HardwareObject, object):
             logging.info(payload)
 
     def echo_subprocess_started(self, payload, correlation_id):
-        name =payload.name
+        name = payload.name
         if correlation_id:
-            self._server_subprocess_names[name] = correlation_id
+            self._server_subprocess_names[correlation_id] = name
         logging.info('%s : STARTING' % name)
 
     def echo_subprocess_stopped(self, payload, correlation_id):
-        name = payload.name
-        if correlation_id in self._server_subprocess_names:
-            del self._server_subprocess_names[name]
+        try:
+            name = self._server_subprocess_names.pop(correlation_id)
+        except KeyError:
+            name = 'Unknown process'
         logging.info('%s : FINISHED' % name)
 
     def get_configuration_data(self, payload, correlation_id):
@@ -360,34 +369,38 @@ class GphlWorkflow(HardwareObject, object):
         goniostatRotation = request_centring.goniostatRotation
         axisSettings = goniostatRotation.axisSettings
 
-        for item in sorted(axisSettings.items()):
-            print('@~@~ rotationSettings', item)
+        # # NBNB it is up to beamline setup etc. to ensure that the
+        # # axis names are correct - and this is what SampleCentring uses
+        # name = 'GPhL_centring_%s' % request_centring.currentSettingNo
+        # sc_model = queue_model_objects.SampleCentring(
+        #     name=name, kappa=axisSettings['kappa'],
+        #     kappa_phi=axisSettings['kappa_phi']
+        # )
 
-        # NBNB it is up to beamline setup etc. to ensure that the
-        # axis names are correct - and this is what SampleCentring uses
-        name = 'GPhL_centring_%s' % request_centring.currentSettingNo
-        sc_model = queue_model_objects.SampleCentring(
-            name=name, kappa=axisSettings['kappa'],
-            kappa_phi=axisSettings['kappa_phi']
+        # NBNB TODO redo when we have a specific diffractometer to work off.
+        diffractometer = self.queue_entry.beamline_setup.getObjectByRole(
+            "diffractometer"
         )
-        # PROBLEM 1 - How do you get from here to a SampleCentring queue item?
-        # a.k.a: Why is SampleCentringQueueItem not instantiated anywhere?
-        # PROBLEM 2 - how do you put omega positioning on the queue?
+        dd = dict((x, axisSettings[x]) for x in self.rotation_axis_roles)
+        diffractometer.move_motors(dd)
+        diffractometer.start_2D_centring()
 
-
-        diffractometer = self.getObjectByRole("diffractometer")
         positionsDict = diffractometer.getPositions()
-        # # TODO check that axis names match beamline, or translate them
-        # diffractometer.moveMotors(axisSettings)
-
-
-        ## Trigger centring dialogue
-
-        ## When done get translation setting
-
-        ## Create GoniostatTranslation and return CentringDone
-
-        raise NotImplementedError()
+        dd = dict((x, positionsDict[x]) for x in self.translation_axis_roles)
+        goniostatTranslation = self.GphlMessages.GoniostatTranslation(
+            rotation=goniostatRotation,
+            requestedRotationId= goniostatRotation.id, **dd
+        )
+        if (request_centring.currentSettingNo >=
+                request_centring.totalRotations):
+            returnStatus = 'DONE'
+        else:
+            returnStatus = 'NEXT'
+        #
+        return self.GphlMessages.CentringDone(
+            returnStatus, timestamp=time.time(),
+            goniostatTranslation=goniostatTranslation
+        )
 
     def prepare_for_centring(self, payload, correlation_id):
 

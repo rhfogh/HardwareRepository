@@ -151,7 +151,7 @@ class QueueManager(HardwareObject, QueueEntryContainer):
         self.wait_for_pause_event()
 
         try:
-            # Procedure to be done before main implmentation
+            # Procedure to be done before main implementation
             # of task.
             entry.pre_execute()
             entry.execute()

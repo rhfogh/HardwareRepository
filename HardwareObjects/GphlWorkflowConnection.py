@@ -93,7 +93,7 @@ class GphlWorkflowConnection(object):
         return self._state
 
     def set_state(self, value):
-        print('@~@~ state change', self._state, '->', value)
+        print('@~@~ GPhL state change', self._state, '->', value)
         if value in self.valid_states:
             self._state = value
             dispatcher.send('stateChanged', self, self._state)
@@ -104,6 +104,10 @@ class GphlWorkflowConnection(object):
     def get_workflow_name(self):
         """Name of currently executing workflow"""
         return self._workflow_name
+
+    def to_java_time(self, time):
+        """Convert time in seconds since the epoch (python time) to Java time value"""
+        return self._gateway.jvm.java.lang.Long(int(time*1000))
 
     def start_workflow(self, workflow_model_obj):
 
@@ -188,7 +192,7 @@ class GphlWorkflowConnection(object):
                 )
         for ss in commandList:
             ss = ss.split('=')[-1]
-            if ss.startswith('/') and not  os.path.exists(ss):
+            if ss.startswith('/') and not '*' in ss and not  os.path.exists(ss):
                 logging.getLogger('HWR').warning(
                     "File does not exist : %s" % ss
                 )
@@ -267,6 +271,7 @@ class GphlWorkflowConnection(object):
 
         # Also serves to trigger abort at end of function
         abort_message = None
+        result = None
 
         if not payload:
             abort_message = ("Payload could not be decoded for message %s"
@@ -296,16 +301,12 @@ class GphlWorkflowConnection(object):
 
         if not abort_message:
 
-            print('@~@~ will send ', message_type, send_signal,
-                  self.get_state())
-
             if message_type in ('String',
                                 'SubprocessStarted',
                                 'SubprocessStopped'):
                 # INFO messages to echo - no response to server needed
                 responses = dispatcher.send(send_signal, self, payload=payload,
                                             correlation_id=correlation_id)
-                result = None
 
             elif message_type in ('RequestConfiguration',
                                   'GeometricStrategy',
@@ -327,12 +328,13 @@ class GphlWorkflowConnection(object):
                 self._workflow_ended()
                 # Server has terminated by itself, so there is nothing to return
                 self._close_connection()
+                responses = dispatcher.send(send_signal, self, payload=payload,
+                                            correlation_id=correlation_id)
                 return None
 
             else:
                 abort_message = ("Unknown message type: %s" % message_type)
 
-        print('@~@~ after send', abort_message, result, self.get_state())
         if abort_message:
             # We do not need to wait for the return after the Beamline abort
             # message before we close the connection.
@@ -349,10 +351,10 @@ class GphlWorkflowConnection(object):
         else:
             return self._response_to_server(result, correlation_id)
 
-
-    # NBNB TODO temporary fix - remove when Java calls have been renamed
-    # msgToBcs = _receive_from_server
+    # processMessage is called from py4j to pass in messages
     processMessage = _receive_from_server
+    # processText is called from py4j to pass in text info messages
+    processText = _receive_from_server
 
     def _extractResponse(self, responses, message_type):
         result = abort_message = None
@@ -375,24 +377,29 @@ class GphlWorkflowConnection(object):
 
         # Determine message type
         messageType = message.getPayloadClass().getSimpleName()
-        if messageType.endswith('Impl'):
-            messageType = messageType[:-4]
-        converterName = '_%s_to_python' % messageType
 
-        try:
-            # determine converter function
-            converter = getattr(self, converterName)
-        except AttributeError:
-            print ("Message type %s not recognised (no %s function)"
-                   % (messageType, converterName))
-            result = None
+        if messageType == 'String':
+            result =  message.getPayload()
+
         else:
+            if messageType.endswith('Impl'):
+                messageType = messageType[:-4]
+            converterName = '_%s_to_python' % messageType
+
             try:
-                # Convert to Python objects
-                result = converter(message.getPayload())
-            except NotImplementedError:
-                print('Processing of message %s not implemented' % messageType)
+                # determine converter function
+                converter = getattr(self, converterName)
+            except AttributeError:
+                print ("Message type %s not recognised (no %s function)"
+                       % (messageType, converterName))
                 result = None
+            else:
+                try:
+                    # Convert to Python objects
+                    result = converter(message.getPayload())
+                except NotImplementedError:
+                    print('Processing of message %s not implemented' % messageType)
+                    result = None
         #
         return messageType, result
 
@@ -450,7 +457,6 @@ class GphlWorkflowConnection(object):
             scans=scans,
             id=uuid.UUID(uuidString)
         )
-
 
     def __WorkflowDone_to_python(self, py4jWorkflowDone, cls):
         Issue = GphlMessages.Issue
@@ -630,11 +636,14 @@ class GphlWorkflowConnection(object):
 
     def _response_to_server(self, payload, correlation_id):
         """Create py4j message from py4j wrapper and current ids"""
-        print('@~@~ begin responding', payload, self.get_state())
 
         if self.get_state() != States.OPEN:
-            self.abort_workflow(message="Reply (%s) to server out of context."
-                                % payload.__class__.__name__)
+            if self.get_state() == States.OFF:
+                # Connection is cut. We are surely in a shut-down process
+                return None
+            else:
+                self.abort_workflow(message="Reply (%s) to server out of context."
+                                    % payload.__class__.__name__)
         self.set_state(States.RUNNING)
 
         if self._enactment_id is None:
@@ -655,12 +664,6 @@ class GphlWorkflowConnection(object):
         )
 
         py4j_payload = self._payload_to_java(payload)
-        # print('@~@~ py4j_payload', py4j_payload)
-        javaclass = py4j_payload.getClass()
-        print('@~@~ javaclass', javaclass.getName())
-        javamethods = sorted(x.getName() for x in javaclass.getDeclaredMethods())
-        # print('@~@~ java contents', javamethods)
-        # print('@~@~ dir payload java', dir(py4j_payload))
 
         try:
             response = self._gateway.jvm.co.gphl.sdcp.py4j.Py4jMessage(
@@ -677,7 +680,7 @@ class GphlWorkflowConnection(object):
             self._gateway.jvm.co.gphl.beamline.v2_unstable.instrumentation.CentringStatus.valueOf(
                 centringDone.status
             ),
-            centringDone.timestamp,
+            self.to_java_time(centringDone.timestamp),
             self._GoniostatTranslation_to_java(
                 centringDone.goniostatTranslation
             )
@@ -852,7 +855,7 @@ class GphlWorkflowConnection(object):
         gts = goniostatTranslation
         javaUuid = self._gateway.jvm.java.util.UUID.fromString(str(gts.id))
         javaRotationId = self._gateway.jvm.java.util.UUID.fromString(
-            str(gts.requestedRotationId.id)
+            str(gts.requestedRotationId)
         )
         axisSettings = dict(((x, General.int2Float(y))
                              for x,y in gts.axisSettings.items()))
@@ -966,7 +969,6 @@ class DummyGphlWorkflowModel(object):
         dd.clear()
         if valueDict:
             dd.update(valueDict)
-
 
 def testGphlConnection():
     """Test communication to GPhL workflow application"""
