@@ -410,9 +410,8 @@ class GphlWorkflow(HardwareObject, object):
 
     def obtain_prior_information(self, payload, correlation_id):
 
-        sample_node_id = self.dictParameters.get('sample_node_id')
-        queue_model = self.getObjectByRole("QueueModel")
-        sample_model = queue_model.get_node(sample_node_id)
+        workflow_model = self.queue_entry.get_data_model()
+        sample_model = workflow_model.get_sample_node()
 
         crystals = sample_model.crystals
         if crystals:
@@ -426,6 +425,13 @@ class GphlWorkflow(HardwareObject, object):
         else:
             unitCell = space_group = None
 
+        # TODO NBNB this must be quereid/modified/confirmed by user input
+        wavelengths = []
+        for role, value in workflow_model.wavelengths.items():
+            wavelengths.append(
+                self.GphlMessages.PhasingWavelength(wavelength=value, role=role)
+            )
+
         userProvidedInfo = self.GphlMessages.UserProvidedInfo(
             scatterers=(),
             lattice=None,
@@ -433,12 +439,14 @@ class GphlWorkflow(HardwareObject, object):
             cell=unitCell,
             expectedResolution=None,
             isAnisotropic=None,
-            phasingWavelengths=()
+            phasingWavelengths=wavelengths
         )
         # NB scatterers, lattice, isAnisotropic, phasingWavelengths,
         # and expectedResolution are
         # not obviously findable and would likely have to be set explicitly
         # in UI. Meanwhile leave them empty
+
+        # TODO needs user interface to take input
 
         # Look for existing uuid
         for text in sample_model.lims_code, sample_model.code, sample_model.name:
@@ -455,8 +463,8 @@ class GphlWorkflow(HardwareObject, object):
         else:
             existing_uuid = None
 
-        # TODO check if this is correct
-        rootDirectory = self.path_template.get_archive_directory()
+        # TODO re-check if this is correct
+        rootDirectory = workflow_model.path_template.directory
 
         priorInformation = self.GphlMessages.PriorInformation(
             sampleId=existing_uuid or uuid.uuid1(),

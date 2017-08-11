@@ -99,6 +99,9 @@
                 the inbuilt collision checker, move the goniostat to each
                 position, and ask for centring.
             </documentation>
+            <!-- Recommended wavelengths (in A) and their roles -->
+            <!-- Should be empty for translational calibration -->
+            <wavelengths></wavelengths>
             <options>
                 <!-- Name for translation calibration output -->
                 <calibration>transcal_result</calibration>
@@ -118,6 +121,14 @@
             <documentation>Diffractometer calibration.
                 Designed for use by beamline personnel.
             </documentation>
+            <!-- Recommended wavelengths (in A) and their roles -->
+            <!-- role must one of GphlMessages.WavelengthRoles -->
+            <wavelengths>
+                <wavelength>
+                    <role>PEAK</role>
+                    <value>1.0</value>
+                </wavelength>
+            </wavelengths>
             <options>
                 <!-- Name of initial strategy from library to use -->
                 <strategy>InitialCharacterisation</strategy>
@@ -138,6 +149,9 @@
                 Data collection workflow 1.
                 Includes initial characterisation and complete collection
             </documentation>
+            <!-- Recommended wavelengths (in A) and their roles -->
+            <!-- role must one of GphlMessages.WavelengthRoles -->
+            <wavelengths></wavelengths>
             <options>
                 <!-- Name of initial strategy from library to use -->
                 <strategy>InitialCharacterisation</strategy>

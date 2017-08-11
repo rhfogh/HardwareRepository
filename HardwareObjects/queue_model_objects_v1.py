@@ -1251,6 +1251,7 @@ class GphlWorkflow(TaskNode):
         self._invocation_options = {}
         self._workflow_properties = {}
         self._workflow_options = {}
+        self.wavelengths = {}
 
     # Workflow type, or name (string).
     def get_type(self):
@@ -1271,6 +1272,15 @@ class GphlWorkflow(TaskNode):
         self.invocation_classname = workflow_config.getProperty(
             name='application'
         )
+
+        self.invocation_classname = workflow_config.getProperty(
+            name='application'
+        )
+
+        for wavelength in workflow_config['wavelengths']:
+            self.wavelengths[wavelength.getProperty('role')] = (
+                wavelength.getProperty('value')
+            )
 
         dd = {}
         if workflow_hwobj.hasObject('invocation_properties'):
@@ -1348,8 +1358,14 @@ class GphlWorkflow(TaskNode):
         if valueDict:
             dd.update(valueDict)
 
+    def get_sample_node(self):
+        """get Sample task node that this entry is executed on"""
 
-
+        result = self
+        while result is not None and not isinstance(result, Sample):
+            result = result._parent
+        #
+        return result
 
 
 #
