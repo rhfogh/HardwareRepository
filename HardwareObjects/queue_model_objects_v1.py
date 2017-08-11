@@ -1277,10 +1277,11 @@ class GphlWorkflow(TaskNode):
             name='application'
         )
 
-        for wavelength in workflow_config['wavelengths']:
-            self.wavelengths[wavelength.getProperty('role')] = (
-                wavelength.getProperty('value')
-            )
+        if workflow_config.hasObject('wavelengths'):
+            for wavelength in workflow_config['wavelengths']:
+                self.wavelengths[wavelength.getProperty('role')] = (
+                    wavelength.getProperty('value')
+                )
 
         dd = {}
         if workflow_hwobj.hasObject('invocation_properties'):

@@ -425,7 +425,7 @@ class GphlWorkflow(HardwareObject, object):
         else:
             unitCell = space_group = None
 
-        # TODO NBNB this must be quereid/modified/confirmed by user input
+        # TODO NBNB this must be queried/modified/confirmed by user input
         wavelengths = []
         for role, value in workflow_model.wavelengths.items():
             wavelengths.append(

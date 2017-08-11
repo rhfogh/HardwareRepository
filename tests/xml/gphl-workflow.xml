@@ -99,9 +99,6 @@
                 the inbuilt collision checker, move the goniostat to each
                 position, and ask for centring.
             </documentation>
-            <!-- Recommended wavelengths (in A) and their roles -->
-            <!-- Should be empty for translational calibration -->
-            <wavelengths></wavelengths>
             <options>
                 <!-- Name for translation calibration output -->
                 <calibration>transcal_result</calibration>
@@ -121,7 +118,7 @@
             <documentation>Diffractometer calibration.
                 Designed for use by beamline personnel.
             </documentation>
-            <!-- Recommended wavelengths (in A) and their roles -->
+            <!-- Default wavelengths (in A) and their roles -->
             <!-- role must one of GphlMessages.WavelengthRoles -->
             <wavelengths>
                 <wavelength>
@@ -134,10 +131,8 @@
                 <strategy>InitialCharacterisation</strategy>
                 <!-- Name for diffractometer calibration output -->
                 <calibration>diffractcal_result</calibration>
-                <!--&lt;!&ndash; Path of file to dump persisted instrumentation configuration. OPTIONAL&ndash;&gt;-->
-                <!--<instcfgout>-->
-                    <!--/home/rhfogh/scratch/working/workflows/gphl21/transcal_dump-->
-                <!--</instcfgout>-->
+                <!-- Path of file to dump persisted instrumentation configuration. OPTIONAL-->
+                <instcfgout>/MXCuBE/mxcube/gphl_diffractcal_out.nml</instcfgout>
                 <!-- NBNB replace later -->
                 <charpattern>generic</charpattern>
             </options>
@@ -149,9 +144,14 @@
                 Data collection workflow 1.
                 Includes initial characterisation and complete collection
             </documentation>
-            <!-- Recommended wavelengths (in A) and their roles -->
+            <!-- Default wavelengths (in A) and their roles -->
             <!-- role must one of GphlMessages.WavelengthRoles -->
-            <wavelengths></wavelengths>
+            <wavelengths>
+                <wavelength>
+                    <role>PEAK</role>
+                    <value>1.0</value>
+                </wavelength>
+            </wavelengths>
             <options>
                 <!-- Name of initial strategy from library to use -->
                 <strategy>InitialCharacterisation</strategy>
