@@ -497,9 +497,11 @@ class GphlWorkflow(HardwareObject, object):
             queue_manager.execute_entry(data_collection_entry)
         except:
             typ, val, trace = sys.exc_info()
-            self.workflow_connection.abort_workflow(
-                message="%s raised during data collection" % typ.__name__
-            )
+            self.emit("GPHL_BEAMLINE_ABORT",
+                      "%s raised during data collection" % typ.__name__)
+            # self.workflow_connection.abort_workflow(
+            #     message="%s raised during data collection" % typ.__name__
+            # )
             raise
         else:
             if data_collection_entry.status == QUEUE_ENTRY_STATUS.FAILED:
@@ -582,6 +584,13 @@ class GphlWorkflow(HardwareObject, object):
 
     def center_sample(self, goniostatRotation, requestedRotationId=None):
 
+        queue_model_hwobj = HardwareRepository().getHardwareObject(
+            'queue-model'
+        )
+        queue_manager = HardwareRepository().getHardwareObject(
+            'queue'
+        )
+
         goniostatTranslation = goniostatRotation.translation
 
         # # NBNB it is up to beamline setup etc. to ensure that the
@@ -593,9 +602,9 @@ class GphlWorkflow(HardwareObject, object):
         # )
 
         # NBNB TODO redo when we have a specific diffractometer to work off.
-        diffractometer = self.queue_entry.beamline_setup.getObjectByRole(
-            "diffractometer"
-        )
+        # diffractometer = self.queue_entry.beamline_setup.getObjectByRole(
+        #     "diffractometer"
+        # )
         dd = dict((x, goniostatRotation.axisSettings[x])
                   for x in self.rotation_axis_roles)
         if goniostatTranslation is not None:
@@ -603,17 +612,35 @@ class GphlWorkflow(HardwareObject, object):
                 val = goniostatTranslation.axisSettings.get(tag)
                 if val is not None:
                     dd[tag] = val
-        diffractometer.move_motors(dd)
-        diffractometer.start_centring_method(method=self.centring_method)
 
-        positionsDict = diffractometer.getPositions()
-        dd = dict((x, positionsDict[x]) for x in self.translation_axis_roles)
-        result = self.GphlMessages.GoniostatTranslation(
-            rotation=goniostatRotation,
-            requestedRotationId=requestedRotationId, **dd
-        )
-        #
-        return result
+
+        # diffractometer.move_motors(dd)
+        # diffractometer.start_centring_method(method=self.centring_method)
+
+
+        centring_model = queue_model_objects.SampleCentring(motor_positions=dd)
+        queue_model_hwobj.add_child(self.queue_entry.get_data_model(),
+                                    centring_model)
+        centring_entry = queue_manager.get_entry_with_model(centring_model)
+        try:
+            queue_manager.execute_entry(centring_entry)
+        except:
+            typ, val, trace = sys.exc_info()
+            self.emit("GPHL_BEAMLINE_ABORT",
+                      "%s raised during data collection" % typ.__name__)
+            raise
+
+        centring_result = centring_model.get_centring_result()
+        if centring_result:
+            positionsDict = centring_result.as_dict()
+            dd = dict((x, positionsDict[x])
+                      for x in self.translation_axis_roles)
+            return self.GphlMessages.GoniostatTranslation(
+                rotation=goniostatRotation,
+                requestedRotationId=requestedRotationId, **dd
+            )
+        else:
+            self.emit("GPHL_BEAMLINE_ABORT", "No Centring result found")
 
     def prepare_for_centring(self, payload, correlation_id):
 

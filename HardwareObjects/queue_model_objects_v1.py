@@ -926,15 +926,19 @@ class XRFSpectrumResult(object):
         self.mca_config = None
 
 class SampleCentring(TaskNode):
-    def __init__(self, name = None, kappa = None, kappa_phi = None):
+    def __init__(self, name = None, motor_positions=None):
         TaskNode.__init__(self)
         self._tasks = []
+        self._starting_position = CentredPosition(
+            motor_dict=motor_positions or {}
+        )
+        self._centring_result = None
 
         if name:
             self.set_name(name)
  
-        self.kappa = kappa
-        self.kappa_phi = kappa_phi
+        # self.kappa = kappa
+        # self.kappa_phi = kappa_phi
 
     def add_task(self, task_node):
         self._tasks.append(task_node)
@@ -945,11 +949,26 @@ class SampleCentring(TaskNode):
     def get_name(self):
         return self._name
 
-    def get_kappa(self):
-        return self.kappa
+    # def get_kappa(self):
+    #     return self._starting_position.get_kappa_value()
+    #
+    # def get_kappa_phi(self):
+    #     return self._starting_position.get_kappa_phi_value()
 
-    def get_kappa_phi(self):
-        return self.kappa_phi
+    def get_starting_position(self):
+        return self._starting_position
+
+    def get_centring_result(self):
+        return self._centring_result
+
+    def set_centring_result(self, value):
+        if isinstance(value, (CentredPosition, None)):
+            self._centring_result = value
+        else:
+            raise TypeError(
+                "SampleCentring.centringResult must be a CentredPosition"
+                " or None, was a %s" % value.__class__.__name__
+            )
 
 class Acquisition(object):
     def __init__(self):

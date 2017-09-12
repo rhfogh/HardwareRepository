@@ -653,11 +653,17 @@ class SampleCentringQueueEntry(BaseQueueEntry):
         self.get_view().setText(1, 'Waiting for input')
         log = logging.getLogger("user_level_log")
 
-        kappa = self._data_model.get_kappa()
-        phi = self._data_model.get_kappa_phi()
+        # kappa = self._data_model.get_kappa()
+        # phi = self._data_model.get_kappa_phi()
 
-        if hasattr(self.diffractometer_hwobj, "in_kappa_mode") and self.diffractometer_hwobj.in_kappa_mode():
-            self.diffractometer_hwobj.moveMotors({"kappa": kappa, "kappa_phi":phi})
+        if (hasattr(self.diffractometer_hwobj, "in_kappa_mode")
+            and self.diffractometer_hwobj.in_kappa_mode()):
+            # self.diffractometer_hwobj.moveMotors({"kappa": kappa, "kappa_phi":phi})
+            dd = self.get_data_model().get_starting_position().as_dict()
+            motor_positions = dict((key, val) for key,val in dd.items() if key)
+            if motor_positions:
+                self.diffractometer_hwobj.moveMotors(motor_positions)
+
 
         #TODO agree on correct message
         log.warning("Please center a new point, and press continue.")
@@ -668,6 +674,7 @@ class SampleCentringQueueEntry(BaseQueueEntry):
 
         if len(self.shape_history.get_selected_shapes()):
             pos = self.shape_history.get_selected_shapes()[0]
+            self._data_model.set_centring_result(pos.get_centred_positions()[0])
         else:
             msg = "No centred position selected, using current position."
             log.info(msg)
