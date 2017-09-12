@@ -268,6 +268,11 @@ class DiffractometerMockup(Equipment):
         """
         Descript. :
         """
+        logging.getLogger('HWR').debug(
+            "@~@~ manual centring"
+        )
+
+        # raise Exception('Ka-BOOM!')
 
         self.user_clicked_event = AsyncResult()
         x, y = self.user_clicked_event.get()
@@ -393,7 +398,9 @@ class DiffractometerMockup(Equipment):
             self.emit_centring_failed()
         else:
             try:
+                print('@~@~ start_centring_method', fun)
                 fun(sample_info)
+                print('@~@~ start_centring_method done fun', fun)
             except:
                 logging.getLogger("HWR").exception("problem while centring")
                 self.emit_centring_failed()
@@ -432,9 +439,13 @@ class DiffractometerMockup(Equipment):
         """
         Descript. :
         """
+        print('@~@~ start_3Click_centring')
         self.emit_progress_message("3 click centring...")
+        print('@~@~ start_3Click_centring 2', self.current_centring_procedure)
         self.current_centring_procedure = gevent.spawn(self.manual_centring)
-        self.current_centring_procedure.link(self.manual_centring_done)	
+        print('@~@~ start_3Click_centring 3', self.current_centring_procedure)
+        self.current_centring_procedure.link(self.manual_centring_done)
+        print('@~@~ start_3Click_centring  done', self.current_centring_procedure)
 
     def start_automatic_centring(self, sample_info = None, loop_only = False):
         """
@@ -457,6 +468,7 @@ class DiffractometerMockup(Equipment):
         """
         Descript. :
         """
+        print('@~@~ manual centring done')
         self.emit_progress_message("Moving sample to centred position...")
         self.emit_centring_moving()
         self.centred_time = time.time()

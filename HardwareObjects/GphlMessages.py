@@ -364,7 +364,7 @@ class WorkflowFailed(WorkflowDone):
 
 
 class BeamlineAbort(Payload):
-    """Abort workflow fronm beamline"""
+    """Abort workflow from beamline"""
 
     _intent = "COMMAND"
 

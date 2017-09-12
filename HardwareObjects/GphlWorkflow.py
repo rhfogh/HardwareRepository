@@ -12,6 +12,7 @@ __date__ = "06/04/17"
 import logging
 import uuid
 import time
+import sys
 
 import gevent
 import gevent.event
@@ -20,6 +21,9 @@ import General
 from HardwareRepository.BaseHardwareObjects import HardwareObject
 from HardwareRepository.HardwareRepository import dispatcher
 from HardwareRepository.HardwareRepository import HardwareRepository
+
+import queue_model_objects_v1 as queue_model_objects
+from queue_entry import QUEUE_ENTRY_STATUS
 
 States = General.States
 
@@ -74,6 +78,9 @@ class GphlWorkflow(HardwareObject, object):
         # Translation axis role names
         self.translation_axis_roles = []
 
+        # Name of centring method to use
+        self.centring_method = None
+
     def _init(self):
         pass
 
@@ -87,6 +94,7 @@ class GphlWorkflow(HardwareObject, object):
         self.rotation_axis_roles = self.getProperty('rotation_axis_roles').split()
         self.translation_axis_roles = self.getProperty('translation_axis_roles').split()
 
+        self.centring_method = self.getProperty('centring_method')
 
         workflow_connection = GphlWorkflowConnection()
         dd = (self['connection_parameters'].getProperties()
@@ -122,7 +130,7 @@ class GphlWorkflow(HardwareObject, object):
         dispatcher.connect(self.select_lattice,
                            'GPHL_CHOOSE_LATTICE',
                            workflow_connection)
-        dispatcher.connect(self.centre_sample,
+        dispatcher.connect(self.process_centring_request,
                            'GPHL_REQUEST_CENTRING',
                            workflow_connection)
         dispatcher.connect(self.obtain_prior_information,
@@ -296,58 +304,219 @@ class GphlWorkflow(HardwareObject, object):
         data_location = self.gphl_beamline_config
         return self.GphlMessages.ConfigurationData(data_location)
 
+    def queryCollectionStrategy(self, geometric_strategy):
+        """Display collection strategy for user approval,
+        and query parameters needed"""
+
+        result = {}
+
+        isInterleaved = geometric_strategy.isInterleaved
+        allowed_widths = geometric_strategy.allowedWidths
+        default_width_index = geometric_strategy.defaultWidthIdx or 0
+
+        # TODO put user display/query here
+
+        # For now return default values
+        result['imageWidth'] = allowed_widths[default_width_index]
+        result['transmission'] = 1.0  # 100%
+        result['exposure'] = 0.035  # random value
+        if isInterleaved:
+            result['wedgeWidth'] = 10
+        #
+        return result
+
+
     def setup_data_collection(self, payload, correlation_id):
         geometric_strategy = payload
-        raise NotImplementedError()
+        # NB this call also asks for OK/abort of strategy, hence put first
+        parameters = self.queryCollectionStrategy(geometric_strategy)
+        user_modifiable = geometric_strategy.isUserModifiable
 
-        ## Display GeometricStrategy, with RotationSetting ID.
-
-        ## Query imageWidth, transmission, exposure and wedgeWidth
-        ## depending on values for userModifiable and isInterleaved.
-
-        ## Create SampleCentred object and set user entered values
-
-        # NBNB psdeudocode
-        goniostatRotationIds = set()
+        goniostatSweepSettings = {}
+        goniostatTranslations = []
         for sweep in geometric_strategy.sweeps:
-            setting = sweep.goniostatSweepSetting
-            if setting.ID not in goniostatRotationIds:
-                goniostatRotationIds.add(setting.ID)
-                ## Rotate sample to setting
-                ## Optionally translate to attached translation setting
-                ## Query user for alternative rotation
-                ## If alternative rotation create new setting object
-                ## and rotate to new setting
-                ## Trigger centring dialogue
-                ## If translation or rotation setting is changed
-                ## (at first: ALWAYS) then:
-                ##   Create GoniostatTranslation
-                ##   and add it to SampleCentred.goniostatTranslations
+            sweepSetting = sweep.goniostatSweepSetting
+            requestedRotationId = sweepSetting.id
+            if requestedRotationId not in goniostatSweepSettings:
 
-        ## Return SampleCentred
+                if user_modifiable:
+                    # Query user for new rotationSetting and make it,
+                    # sweepSetting = 'New Instance'
+                    logging.getLogger('HWR').warning(
+                        "User modification of sweep settings not implemented. Ignored"
+                    )
+                goniostatSweepSettings[sweepSetting.id] = sweepSetting
+                # NB there is no provision for NOT making a new translation
+                # object if you are making no changes
+                goniostatTranslation = self.center_sample(sweepSetting,
+                                                          requestedRotationId)
+                goniostatTranslations.append(goniostatTranslation)
+
+        sampleCentred = self.GphlMessages.SampleCentred(
+            goniostatTranslations=goniostatTranslations,
+            **parameters
+        )
+        return sampleCentred
 
 
     def collect_data(self, payload, correlation_id):
         collection_proposal = payload
 
-        ## Display collection proposal in suitable form
-        ## Query  relativeImageDir,
-        ## and ask for go/nogo decision
+        beamline_setup_hwobj = self.queue_entry.beamline_setup
+        resolution_hwobj = self.queue_entry.beamline_setup.getObjectByRole(
+            "resolution"
+        )
+        queue_model_hwobj = HardwareRepository().getHardwareObject(
+            'queue-model'
+        )
+        queue_manager = HardwareRepository().getHardwareObject(
+            'queue'
+        )
 
-        # NBNB pseudocode
+        relative_image_dir = collection_proposal.relativeImageDir
+
+        session = self.queue_entry.beamline_setup.getObjectByRole(
+            "session"
+        )
+
+        # # NO. By the time this is called, the queue will be executing already
+        # if queue_manager.is_executing():
+        #     message = "Cannot start data collection, queue is already executing"
+        #     logging.getLogger('HWR').error(message)
+        #     self.workflow_connection.abort_workflow(message)
+        #     return self.GphlMessages.CollectionDone(
+        #         proposalId=collection_proposal.id, status=1)
+
+        # NBNB TODO for now we are NOT asking for confirmation
+        # and NOT allowing the change of relativeImageDir
+        # Maybe later
+
+        gphl_workflow_model = self.queue_entry.get_data_model()
+
+
+        new_dcg_name = 'GPhL Data Collection'
+        new_dcg_model = queue_model_objects.TaskGroup()
+        new_dcg_model.set_enabled(False)
+        new_dcg_model.set_name(new_dcg_name)
+        new_dcg_model.set_number(
+            gphl_workflow_model.get_next_number_for_name(new_dcg_name)
+        )
+        queue_model_hwobj.add_child(gphl_workflow_model, new_dcg_model)
+
+        sample = gphl_workflow_model.get_sample_node()
+        # There will be exactly one for the kinds of collection we are doing
+        crystal = sample.crystals[0]
+        data_collections = []
         for scan in collection_proposal.scans:
-            pass
-            ## rotate to scan.sweep.goniostatSweepSetting position
-            ## and translate to corresponding translation position
+            sweep = scan.sweep
+            acq = queue_model_objects.Acquisition()
 
-            ## Set beam, detector and beamstop
-            ## set up acquisition and acquire
+            # Get defaults, even though we override most of them
+            acq_parameters = (
+                beamline_setup_hwobj.get_default_acquisition_parameters()
+            )
+            acq.acquisition_parameters = acq_parameters
 
-            ## NB the entire sequence can be put on the queue at once
-            ## provided the motor movements can be  queued.
+            acq_parameters.first_image = scan.imageStartNum
+            acq_parameters.num_images = scan.width.numImages
+            acq_parameters.osc_start = scan.start
+            acq_parameters.osc_range = scan.width.imageWidth
+            # acq_parameters.kappa = self._get_kappa_axis_position()
+            # acq_parameters.kappa_phi = self._get_kappa_phi_axis_position()
+            # acq_parameters.overlap = overlap
+            acq_parameters.exp_time = scan.exposure.time
+            acq_parameters.num_passes = 1
+            # NBNB TODO this parameter must be queried, somehow.
+            acq_parameters.resolution = resolution_hwobj.currentResolution
+            acq_parameters.energy = General.h_over_e/sweep.beamSetting.wavelength
+            # NB TODO comes in as 0 <= x <- 1  Check this is OK.
+            acq_parameters.transmission = scan.exposure.transmission
+            # acq_parameters.shutterless = self._has_shutterless()
+            # acq_parameters.detector_mode = self._get_roi_modes()
+            acq_parameters.inverse_beam = False
+            # acq_parameters.take_dark_current = True
+            # acq_parameters.skip_existing_images = False
+            # acq_parameters.take_snapshots = True
 
-        ## return collectionDone
-        raise NotImplementedError()
+            # Edna also sets screening_id
+            # Edna also sets osc_end
+
+            goniostatRotation = sweep.goniostatSweepSetting
+            goniostatTranslation = goniostatRotation.translation
+            dd = dict((x, goniostatRotation.axisSettings[x])
+                      for x in self.rotation_axis_roles)
+            if goniostatTranslation is not None:
+                for tag in self.translation_axis_roles:
+                    val = goniostatTranslation.axisSettings.get(tag)
+                    if val is not None:
+                        dd[tag] = val
+            dd[goniostatRotation.scanAxis] = scan.start
+            acq_parameters.centred_position = (
+                queue_model_objects.CentredPosition(dd)
+            )
+
+            # Path_template
+            path_template = beamline_setup_hwobj.get_default_path_template()
+            acq.path_template = path_template
+            path_template.directory = session.get_image_directory(
+                relative_image_dir
+            )
+            filename_params = scan.filenameParams
+            ss = filename_params.get('run_number')
+            path_template.run_number = int(ss) if ss else 1
+            prefix = filename_params.get('prefix', '')
+            ib_component = filename_params.get('inverse_beam_component_sign',
+                                               '')
+            ll = []
+            if prefix:
+                ll.append(prefix)
+            if ib_component:
+                ll.append(ib_component)
+            path_template.base_prefix = '_'.join(ll)
+            path_template.mad_prefix = (
+                filename_params.get('beam_setting_index') or ''
+            )
+            path_template.wedge_prefix = (
+                filename_params.get('gonio_setting_index') or ''
+            )
+            path_template.start_num = acq_parameters.first_image
+            path_template.num_files = acq_parameters.num_images
+
+            data_collection = queue_model_objects.DataCollection([acq], crystal)
+            data_collections.append(data_collection)
+
+            data_collection.set_enabled(False)
+            data_collection.set_name(path_template.get_prefix())
+            data_collection.set_number(path_template.run_number)
+            queue_model_hwobj.add_child(new_dcg_model, data_collection)
+
+        data_collection_entry = queue_manager.get_entry_with_model(
+            new_dcg_model
+        )
+        try:
+            queue_manager.execute_entry(data_collection_entry)
+        except:
+            typ, val, trace = sys.exc_info()
+            self.workflow_connection.abort_workflow(
+                message="%s raised during data collection" % typ.__name__
+            )
+            raise
+        else:
+            if data_collection_entry.status == QUEUE_ENTRY_STATUS.FAILED:
+                # TODO NBNB check if these status codes are corerct
+                status = 1
+            else:
+                status = 0
+
+            # NB, uses last path_template,
+            # but directory should be the same for all
+            return self.GphlMessages.CollectionDone(
+                status=status,
+                proposalId=collection_proposal.id,
+                imageRoot=path_template.directory
+            )
+
+
 
     def select_lattice(self, payload, correlation_id):
         choose_lattice = payload
@@ -358,7 +527,7 @@ class GphlWorkflow(HardwareObject, object):
 
         ## Create SelectedLattice and return it
 
-    def centre_sample(self, payload, correlation_id):
+    def process_centring_request(self, payload, correlation_id):
         request_centring = payload
 
         logging.info ('Start centring no. %s of %s'
@@ -367,7 +536,53 @@ class GphlWorkflow(HardwareObject, object):
 
         ## Rotate sample to RotationSetting
         goniostatRotation = request_centring.goniostatRotation
-        axisSettings = goniostatRotation.axisSettings
+        # goniostatTranslation = goniostatRotation.translation
+        #
+        # # # NBNB it is up to beamline setup etc. to ensure that the
+        # # # axis names are correct - and this is what SampleCentring uses
+        # # name = 'GPhL_centring_%s' % request_centring.currentSettingNo
+        # # sc_model = queue_model_objects.SampleCentring(
+        # #     name=name, kappa=axisSettings['kappa'],
+        # #     kappa_phi=axisSettings['kappa_phi']
+        # # )
+        #
+        # # NBNB TODO redo when we have a specific diffractometer to work off.
+        # diffractometer = self.queue_entry.beamline_setup.getObjectByRole(
+        #     "diffractometer"
+        # )
+        # dd = dict((x, goniostatRotation.axisSettings[x])
+        #           for x in self.rotation_axis_roles)
+        # if goniostatTranslation is not None:
+        #     for tag in self.translation_axis_roles:
+        #         val = goniostatTranslation.axisSettings.get(tag)
+        #         if val is not None:
+        #             dd[tag] = val
+        # diffractometer.move_motors(dd)
+        # diffractometer.start_centring_method(method=self.centring_method)
+        #
+        # positionsDict = diffractometer.getPositions()
+        # dd = dict((x, positionsDict[x]) for x in self.translation_axis_roles)
+        # goniostatTranslation = self.GphlMessages.GoniostatTranslation(
+        #     rotation=goniostatRotation,
+        #     requestedRotationId= goniostatRotation.id, **dd
+        # )
+
+        goniostatTranslation = self.center_sample(goniostatRotation)
+
+        if (request_centring.currentSettingNo >=
+                request_centring.totalRotations):
+            returnStatus = 'DONE'
+        else:
+            returnStatus = 'NEXT'
+        #
+        return self.GphlMessages.CentringDone(
+            returnStatus, timestamp=time.time(),
+            goniostatTranslation=goniostatTranslation
+        )
+
+    def center_sample(self, goniostatRotation, requestedRotationId=None):
+
+        goniostatTranslation = goniostatRotation.translation
 
         # # NBNB it is up to beamline setup etc. to ensure that the
         # # axis names are correct - and this is what SampleCentring uses
@@ -381,26 +596,24 @@ class GphlWorkflow(HardwareObject, object):
         diffractometer = self.queue_entry.beamline_setup.getObjectByRole(
             "diffractometer"
         )
-        dd = dict((x, axisSettings[x]) for x in self.rotation_axis_roles)
+        dd = dict((x, goniostatRotation.axisSettings[x])
+                  for x in self.rotation_axis_roles)
+        if goniostatTranslation is not None:
+            for tag in self.translation_axis_roles:
+                val = goniostatTranslation.axisSettings.get(tag)
+                if val is not None:
+                    dd[tag] = val
         diffractometer.move_motors(dd)
-        diffractometer.start_2D_centring()
+        diffractometer.start_centring_method(method=self.centring_method)
 
         positionsDict = diffractometer.getPositions()
         dd = dict((x, positionsDict[x]) for x in self.translation_axis_roles)
-        goniostatTranslation = self.GphlMessages.GoniostatTranslation(
+        result = self.GphlMessages.GoniostatTranslation(
             rotation=goniostatRotation,
-            requestedRotationId= goniostatRotation.id, **dd
+            requestedRotationId=requestedRotationId, **dd
         )
-        if (request_centring.currentSettingNo >=
-                request_centring.totalRotations):
-            returnStatus = 'DONE'
-        else:
-            returnStatus = 'NEXT'
         #
-        return self.GphlMessages.CentringDone(
-            returnStatus, timestamp=time.time(),
-            goniostatTranslation=goniostatTranslation
-        )
+        return result
 
     def prepare_for_centring(self, payload, correlation_id):
 
@@ -412,6 +625,9 @@ class GphlWorkflow(HardwareObject, object):
 
         workflow_model = self.queue_entry.get_data_model()
         sample_model = workflow_model.get_sample_node()
+        resolution_hwobj = self.queue_entry.beamline_setup.getObjectByRole(
+            "resolution"
+        )
 
         crystals = sample_model.crystals
         if crystals:
@@ -432,17 +648,19 @@ class GphlWorkflow(HardwareObject, object):
                 self.GphlMessages.PhasingWavelength(wavelength=value, role=role)
             )
 
+        # NBNB TODO Resolution needs to be set. For now take the current value
+        resolution = resolution_hwobj.currentResolution
+
         userProvidedInfo = self.GphlMessages.UserProvidedInfo(
             scatterers=(),
             lattice=None,
             spaceGroup=space_group,
             cell=unitCell,
-            expectedResolution=None,
+            expectedResolution=resolution,
             isAnisotropic=None,
             phasingWavelengths=wavelengths
         )
-        # NB scatterers, lattice, isAnisotropic, phasingWavelengths,
-        # and expectedResolution are
+        # NBNB TODO scatterers, lattice, isAnisotropic, phasingWavelengths are
         # not obviously findable and would likely have to be set explicitly
         # in UI. Meanwhile leave them empty
 

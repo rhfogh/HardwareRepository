@@ -36,6 +36,7 @@ det_gonio_axis_datum_settings= 500
 det_gonio_axis_limits= 195 1000
 det_gonio_axis_names= 'Distance'
 det_gonio_axis_types= 'Translation'
+det_gonio_axis_calibratable = 'False'
 gain= 1.0
 background= 8.0
 det_filename_suffix= '.cbf'
@@ -49,6 +50,7 @@ gonio_axis_datum_settings= 0 0 0
 gonio_axis_limits= 0, 360, 0, 200, 0, 360
 gonio_axis_names= 'phi' 'kappa' 'kappa_phi'
 gonio_axis_scannable= 'True' 'False' 'False'
+gonio_axis_calibratable= 'False' 'True' 'True'
 
 gonio_centring_axis_dirs= 1.0,  0.0,  0.0,
                           0.0,  1.0,  1.0,

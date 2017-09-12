@@ -192,7 +192,7 @@ class GphlWorkflowConnection(object):
                 )
         for ss in commandList:
             ss = ss.split('=')[-1]
-            if ss.startswith('/') and not '*' in ss and not  os.path.exists(ss):
+            if ss.startswith('/') and not '*' in ss and not os.path.exists(ss):
                 logging.getLogger('HWR').warning(
                     "File does not exist : %s" % ss
                 )
@@ -531,7 +531,7 @@ class GphlWorkflowConnection(object):
         uuidString = py4jBeamSetting.getId().toString()
         #
         return GphlMessages.BeamSetting(id=uuid.UUID(uuidString),
-                                    wavelength=py4jBeamSetting.wavelength)
+                                    wavelength=py4jBeamSetting.getWavelength())
 
 
     def _GoniostatSweepSetting_to_python(self, py4jGoniostatSweepSetting):

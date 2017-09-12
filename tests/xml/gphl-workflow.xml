@@ -17,6 +17,9 @@
     <!-- Must match Instrunmentation.nml config file NB modify for beamline -->
     <translation_axis_roles>sampx sampy phiy</translation_axis_roles>
 
+    <!-- Centring method to use. NB must match values given in diffractometer claSS -->
+    <centring_method>Manual 3-click</centring_method>
+
     <!-- Hosts and ports for py4j java-python gateway, all OPTIONAL-->
     <!-- If not set will use py4j default values, which are as given below-->
     <connection_parameters>
@@ -103,7 +106,7 @@
                 <!-- Name for translation calibration output -->
                 <calibration>transcal_result</calibration>
                 <!-- file: File containing settings of rotation axes for calibration -->
-                <!-- The name is the relative apth from the Repository directory -->
+                <!-- The name is the relative path from the Repository directory -->
                 <!-- grid: Grid definition [axis_name:start:end:step], slowest-varying to fastest varying -->
                 <!-- EITHER file OR grid must be set. NBNB REDO! -->
                 <file>gphl_config/TransCalTest.inp</file>
@@ -164,6 +167,8 @@
                 <!-- NBNB replace later -->
                 <!-- Pattern name for characterisation collections -->
                 <charpattern>generic</charpattern>
+                <!-- Default prefix - will be overwritten from user input -->
+                <prefix>gphl_data</prefix>
             </options>
         </DataCollection1>
     </workflows>

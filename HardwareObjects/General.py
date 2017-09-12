@@ -21,6 +21,15 @@ __date__ = "19/06/17"
 
 import enum
 
+
+# Constants
+
+# Conversion from kEv to A, wavelength = h_over_e/energy
+h_over_e = 12.3984
+
+
+# Enumerations:
+
 @enum.unique
 class States(enum.Enum):
     """Standard device states, based on TangoShutter states.
@@ -46,6 +55,9 @@ class States(enum.Enum):
     ALARM = 11
     DISABLED = 12
     UNKNOWN = 13
+
+
+# Utility functions:
 
 def javaProperty(keyword, value):
     """Return argument list for command line invocation setting java property"""

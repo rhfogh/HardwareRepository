@@ -5,6 +5,7 @@ the QueueModel.
 """
 import copy
 import os
+import logging
 import queue_model_enumerables_v1 as queue_model_enumerables
 from HardwareRepository.HardwareRepository import HardwareRepository
 
@@ -1242,7 +1243,9 @@ class GphlWorkflow(TaskNode):
     def __init__(self):
         TaskNode.__init__(self)
         self.path_template = PathTemplate()
+        self._name = str()
         self._type = str()
+        self._number = 0
         self.set_requires_centring(False)
         self.invocation_classname = None
         self.java_binary = None
@@ -1253,11 +1256,28 @@ class GphlWorkflow(TaskNode):
         self._workflow_options = {}
         self.wavelengths = {}
 
-    # Workflow type, or name (string).
+    # Workflow name (string) - == path_template.base_prefix.
+    def get_name(self):
+        return self._name
+    def set_name(self, value):
+        self._name = value
+
+    # Workflow type (string).
     def get_type(self):
         return self._type
-    def set_type(self, workflow_type):
-        self._type = workflow_type
+    def set_type(self, value):
+        self._type = value
+
+    # Stsarting run nunber. Needed as it is modified by signal when edited.
+    def get_number(self):
+        logging.getLogger().warning(
+            "Attempt to get unused attribute GphlWorkflow.number"
+        )
+        return None
+    def set_number(self, value):
+        logging.getLogger().warning(
+            "Attempt to set unused attribute GphlWorkflow.number"
+        )
 
     def get_path_template(self):
         return self.path_template
@@ -1309,7 +1329,7 @@ class GphlWorkflow(TaskNode):
             if relative_file_path is not None:
                 # Special case - this option must be modified before use
 
-                path =HardwareRepository().findInRepository(relative_file_path)
+                path = HardwareRepository().findInRepository(relative_file_path)
                 options['file'] = path
             dd.update(options)
         self.set_workflow_options(dd)
@@ -1352,12 +1372,17 @@ class GphlWorkflow(TaskNode):
 
     # Keyword-value dictionary of workflow_options (for execution command)
     def get_workflow_options(self):
-        return dict(self._workflow_options)
+        result = dict(self._workflow_options)
+        if 'prefix' in result:
+            result['prefix'] = self.get_path_template().base_prefix
+        return result
     def set_workflow_options(self, valueDict):
         dd = self._workflow_options
         dd.clear()
         if valueDict:
             dd.update(valueDict)
+            if 'prefix' in dd:
+                self.get_path_template().base_prefix = dd.pop('prefix')
 
     def get_sample_node(self):
         """get Sample task node that this entry is executed on"""
@@ -1514,7 +1539,7 @@ def dc_from_edna_output(edna_result, reference_image_collection,
 
             acq.path_template = beamline_setup_hwobj.get_default_path_template()
 
-            # Use the same path tempalte as the reference_collection
+            # Use the same path template as the reference_collection
             # and update the members the needs to be changed. Keeping
             # the directories of the reference collection.
             ref_pt= reference_image_collection.acquisitions[0].path_template
