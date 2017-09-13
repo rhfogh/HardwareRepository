@@ -1262,6 +1262,7 @@ class GphlWorkflow(TaskNode):
     def __init__(self):
         TaskNode.__init__(self)
         self.path_template = PathTemplate()
+        self.processing_parameters = ProcessingParameters()
         self._name = str()
         self._type = str()
         self._number = 0
@@ -1287,7 +1288,8 @@ class GphlWorkflow(TaskNode):
     def set_type(self, value):
         self._type = value
 
-    # Stsarting run nunber. Needed as it is modified by signal when edited.
+    # Starting run number. Unnecessary.
+    # Left in as it is modified by signal when edited.
     def get_number(self):
         logging.getLogger().warning(
             "Attempt to get unused attribute GphlWorkflow.number"

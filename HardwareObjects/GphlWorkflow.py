@@ -23,6 +23,7 @@ from HardwareRepository.HardwareRepository import dispatcher
 from HardwareRepository.HardwareRepository import HardwareRepository
 
 import queue_model_objects_v1 as queue_model_objects
+import queue_model_enumerables_v1 as queue_model_enumerables
 from queue_entry import QUEUE_ENTRY_STATUS
 
 States = General.States
@@ -656,17 +657,33 @@ class GphlWorkflow(HardwareObject, object):
             "resolution"
         )
 
-        crystals = sample_model.crystals
-        if crystals:
-            crystal = crystals[0]
-
-            unitCell = self.GphlMessages.UnitCell(
-                crystal.cell_a, crystal.cell_b, crystal.cell_c,
-                crystal.cell_alpha, crystal.cell_beta, crystal.cell_gamma,
-            )
-            space_group = crystal.space_group
+        cp = workflow_model.processing_parameters
+        cell_params = list(getattr(cp, x)
+                           for x in ['cell_a', 'cell_b', 'cell_c',
+                                     'cell_alpha', 'cell_beta', 'cell_gamma']
+                           )
+        if all(cell_params):
+            unitCell = self.GphlMessages.UnitCell(*cell_params)
         else:
-            unitCell = space_group = None
+            unitCell = None
+
+        ss = queue_model_enumerables.ORIG_EDNA_SPACEGROUPS.get(cp.space_group)
+        if ss:
+            space_group = int(ss)
+        else:
+            space_group = 0
+
+        # crystals = sample_model.crystals
+        # if crystals:
+        #     crystal = crystals[0]
+        #
+        #     unitCell = self.GphlMessages.UnitCell(
+        #         crystal.cell_a, crystal.cell_b, crystal.cell_c,
+        #         crystal.cell_alpha, crystal.cell_beta, crystal.cell_gamma,
+        #     )
+        #     space_group = crystal.space_group
+        # else:
+        #     unitCell = space_group = None
 
         # TODO NBNB this must be queried/modified/confirmed by user input
         wavelengths = []
