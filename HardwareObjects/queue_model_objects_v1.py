@@ -1304,6 +1304,7 @@ class GphlWorkflow(TaskNode):
         return self.path_template
 
     def init_from_hwobj(self, workflow_type, workflow_hwobj):
+
         self._type = workflow_type
 
         self.java_binary = workflow_hwobj.getProperty('java_binary')
@@ -1345,14 +1346,12 @@ class GphlWorkflow(TaskNode):
         if workflow_hwobj.hasObject('workflow_options'):
             dd.update(workflow_hwobj['workflow_options'].getProperties())
         if workflow_config.hasObject('options'):
-            options = workflow_config['options'].getProperties()
-            relative_file_path = options.get('file')
+            dd.update(workflow_config['options'].getProperties())
+            relative_file_path = dd.get('file')
             if relative_file_path is not None:
                 # Special case - this option must be modified before use
-
                 path = HardwareRepository().findInRepository(relative_file_path)
-                options['file'] = path
-            dd.update(options)
+                dd['file'] = path
         self.set_workflow_options(dd)
 
     # Keyword-value dictionary of connection_parameters (for py4j connection)

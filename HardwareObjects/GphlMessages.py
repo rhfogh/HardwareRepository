@@ -16,42 +16,7 @@ try:
     from collections import OrderedDict
 except ImportError:
     from ordereddict import OrderedDict
-
-# Signals - key is message_type, value is corresponding signal
-message_type_to_signal = {
-    # INFO messages (from server):
-    'String':'GPHL_INFO',
-    'SubprocessStarted':'GPHL_SUBPROCESS_STARTED',
-    'SubprocessStopped':'GPHL_SUBPROCESS_STOPPED',
-
-    # Requests (from server):
-    'RequestConfiguration':'GPHL_REQUEST_CONFIGURATION',
-    'GeometricStrategy':'GPHL_GEOMETRIC_STRATEGY',
-    'CollectionProposal':'GPHL_COLLECTION_PROPOSAL',
-    'ChooseLattice':'GPHL_CHOOSE_LATTICE',
-    'RequestCentring':'GPHL_REQUEST_CENTRING',
-    'ObtainPriorInformation':'GPHL_OBTAIN_PRIOR_INFORMATION',
-    'PrepareForCentring':'GPHL_PREPARE_FOR_CENTRING',
-
-    # Process control - from server
-    'WorkflowAborted':'GPHL_WORKFLOW_ABORTED',
-    'WorkflowCompleted':'GPHL_WORKFLOW_COMPLETED',
-    'WorkflowFailed':'GPHL_WORKFLOW_FAILED',
-
-    # # Responses - from controller
-    'BeamlineAbort':'GPHL_BEAMLINE_ABORT',
-    # # Responses - from controller NOT CURRENTLY USED
-    # 'ConfigurationData':'GPHL_CONFIGURATION_DATA',
-    # 'SampleCentred':'GPHL_SAMPLE_CENTRED',
-    # 'CollectionDone':'GPHL_COLLECTION_DONE',
-    # 'SelectedLattice':'GPHL_SELECTED_LATTICE',
-    # 'CentringDone':'GPHL_CENTRING_DONE',
-    # 'PriorInformation':'GPHL_PRIOR_INFORMATION',
-    # 'ReadyForCentring':'GPHL_READY_FOR_CENTRING',
-
-}
-
-
+from collections import namedtuple
 
 # Enumerations
 
@@ -112,6 +77,10 @@ CentringStatus = ('NEXT', 'DONE')
 
 # CrystalSystems = ('TRICLINIC', 'MONOCLINIC', 'ORTHORHOMBIC', 'TETRAGONAL',
 #                   'TRIGONAL', 'HEXAGONAL', 'CUBIC')
+
+ParsedMessage = namedtuple('ParsedMessage', ('message_type', 'payload',
+                                             'enactment_id', 'correlation_id'))
+
 
 # Abstract classes
 

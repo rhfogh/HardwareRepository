@@ -12,8 +12,11 @@ import os
 import socket
 import subprocess
 import uuid
+import signal
+import time
 
 import gevent.monkey
+import gevent.event
 from py4j import clientserver
 
 import General
@@ -68,6 +71,11 @@ class GphlWorkflowConnection(object):
         # Name of workflow being executed.
         self._workflow_name = None
 
+        # Queue for communicating with MXCuBE HardwareObject
+        self.workflow_queue = None
+        self._await_result = None
+        self._running_process = None
+
         self._state = States.OFF
 
         # py4j connection parameters
@@ -88,12 +96,13 @@ class GphlWorkflowConnection(object):
         self.java_address = java_address
         self.java_port = java_port
 
+        self._open_connection()
+
     def get_state(self):
         """Returns a member of the General.States enumeration"""
         return self._state
 
     def set_state(self, value):
-        print('@~@~ GPhL state change', self._state, '->', value)
         if value in self.valid_states:
             self._state = value
             dispatcher.send('stateChanged', self, self._state)
@@ -109,18 +118,7 @@ class GphlWorkflowConnection(object):
         """Convert time in seconds since the epoch (python time) to Java time value"""
         return self._gateway.jvm.java.lang.Long(int(time*1000))
 
-    def start_workflow(self, workflow_model_obj):
-
-        if self.get_state() != States.OFF:
-            # NB, for now workflow is started as the connection is made,
-            # so we are never in state 'ON'/STANDBY
-            raise RuntimeError("Workflow is already running, cannot be started")
-
-
-        dispatcher.connect(self.abort_workflow, 'GPHL_BEAMLINE_ABORT')
-
-
-        self._workflow_name = workflow_model_obj.get_type()
+    def _open_connection(self):
 
         python_parameters = {}
         val = self.python_address
@@ -139,8 +137,8 @@ class GphlWorkflowConnection(object):
             java_parameters['port'] = val
 
         logging.getLogger('HWR').debug("GPhL Open connection %s %s %s %s"
-                               % (self.python_address, self.python_port,
-                                  self.java_address, self.java_port))
+                                       % (self.python_address, self.python_port,
+                                          self.java_address, self.java_port))
 
         # set sockets and threading to standard before running py4j
         # NBNB this can cause ERRORS if socket or thread have been
@@ -162,6 +160,16 @@ class GphlWorkflowConnection(object):
             if socket_patched:
                 gevent.monkey.patch_socket()
 
+    def start_workflow(self, workflow_queue, workflow_model_obj):
+
+        self.workflow_queue = workflow_queue
+
+        if self.get_state() != States.OFF:
+            # NB, for now workflow is started as the connection is made,
+            # so we are never in state 'ON'/STANDBY
+            raise RuntimeError("Workflow is already running, cannot be started")
+
+        self._workflow_name = workflow_model_obj.get_type()
 
         # TODO Here we make and send the workflow start-run message
         # NB currently done under 'wfrun' alias
@@ -178,10 +186,18 @@ class GphlWorkflowConnection(object):
 
         for keyword, value in workflow_model_obj.get_workflow_properties().items():
             commandList.extend(General.javaProperty(keyword, value))
-        for keyword, value in workflow_model_obj.get_workflow_options().items():
+
+        workflow_options = workflow_model_obj.get_workflow_options()
+        calibration_name = workflow_options.get('calibration')
+        if calibration_name:
+            # Expand calibration base name
+            workflow_options['calibration'] = (
+                '%s_%s' % (calibration_name,  workflow_model_obj.get_name())
+            )
+        for keyword, value in workflow_options.items():
             commandList.extend(General.commandOption(keyword, value))
         #
-        wdir = workflow_model_obj.get_workflow_options().get('wdir')
+        wdir = workflow_options.get('wdir')
         if not os.path.isdir(wdir):
             try:
                 os.makedirs(wdir)
@@ -190,6 +206,8 @@ class GphlWorkflowConnection(object):
                 logging.getLogger('HWR').error(
                     "Could not create GPhL working directory: %s" % wdir
                 )
+
+
         for ss in commandList:
             ss = ss.split('=')[-1]
             if ss.startswith('/') and not '*' in ss and not os.path.exists(ss):
@@ -200,8 +218,8 @@ class GphlWorkflowConnection(object):
         logging.getLogger('HWR').info("GPhL execute :\n%s" % ' '.join(commandList))
 
         try:
-            processobj = subprocess.Popen(commandList, stdout=None,
-                                          stderr=None)
+            self._running_process = subprocess.Popen(commandList, stdout=None,
+                                                     stderr=None)
         except:
             logging.getLogger().error('Error in spawning workflow application')
             raise
@@ -209,152 +227,184 @@ class GphlWorkflowConnection(object):
         self.set_state(States.RUNNING)
 
         logging.getLogger('HWR').debug("GPhL workflow pid, returncode : %s, %s"
-                               % (processobj.pid, processobj.returncode))
+                                       % (self._running_process.pid,
+                                          self._running_process.returncode))
 
     def _workflow_ended(self):
+        logging.getLogger('HWR').debug("GPhL workflow ended")
 
         self._enactment_id = None
         self._workflow_name = None
-        self.set_state(States.ON)
+        self.workflow_queue = None
+        self._await_result = None
+        self.set_state(States.OFF)
+
+        xx = self._running_process
+        if xx is not None:
+            try:
+                if xx.poll() is not None:
+                    xx.send_signal(signal.SIGINT)
+                    time.sleep(3)
+                    if xx.poll() is not None:
+                        xx.terminate()
+                        time.sleep(9)
+                        if xx.poll() is not None:
+                            xx.kill()
+            except:
+                logging.getLogger('HWR').info(
+                    "Exception while terminating external workflow process %s"
+                    % xx)
+                logging.getLogger('HWR').info("Error was:",
+                    exc_info=True)
+            self._running_process = None
 
     def _close_connection(self):
 
+        # TODO - should maybe be called when object is deleted?
+        # NBNB currently not called
+
         logging.getLogger('HWR').debug("GPhL Close connection ")
-        self._gateway = None
-        self.set_state(States.OFF)
+        xx = self._gateway
+        if xx is not None:
+            try:
+                # Exceptions 'can easily happen' (py4j docs)
+                # We prefer to catch them here than to have them caught and echoed downstream
+                xx.shutdown(raise_exception=True)
+            except:
+                logging.getLogger('HWR').debug(
+                    "Exception during py4j gateway shutdown. Ignored"
+                )
+            self._gateway = None
 
     def abort_workflow(self, message=None):
         """Abort workflow - may be called from controller in any state"""
 
-        if self.get_state() == States.OFF:
-            payload = "Error in workflow start-up"
+        logging.getLogger('HWR').info("Aborting workflow: %s" % message)
+        logging.getLogger('user_level_log').info("Aborting workflow ...")
+
+
+        if self._await_result is not None:
+            # Workflow waiting for answer - send abort
+            self._await_result = [(GphlMessages.BeamlineAbort(), None)]
+
+        # Shut down hardware object
+        qu = self.workflow_queue
+        if qu is None:
+            self._workflow_ended()
         else:
-            payload = "Workflow aborted from Beamline"
+            # If the queue is running,
+            # workflow_ended will be called from post_execute
+            qu.put_nowait(StopIteration)
 
-        # NB signals will have no effect if controller is already deleted.
-        self._workflow_ended()
-        if message:
-            payload = "%s: %s" % (payload, message)
 
-        logging.getLogger('HWR').debug("GPhL abort workflow:  %s" % payload)
+    def processText(self, py4jMessage):
+        """Receive and process info message from workflow server
+        Return goes to server"""
+        xx = self._decode_py4j_message(py4jMessage)
+        message_type = xx.message_type
+        payload = xx.payload
+        correlation_id = xx.correlation_id
+        enactment_id = xx.enactment_id
 
-        dispatcher.send(GphlMessages.message_type_to_signal['String'],
-                        self, payload=payload, correlation_id=None)
+        if not payload:
+            logging.getLogger('HWR').warning(
+                "GPhL Empty or unparsable information message. Ignored"
+            )
 
-    def _receive_from_server(self, py4jMessage):
+        else:
+            if not enactment_id:
+                logging.getLogger('HWR').warning(
+                    "GPhL information message lacks enactment ID:"
+                )
+            elif self._enactment_id != enactment_id:
+                logging.getLogger('HWR').warning(
+                    "Workflow enactment I(D %s != info message enactment ID %s."
+                    % (self._enactment_id, enactment_id)
+                    )
+
+            self.workflow_queue.put_nowait((message_type, payload,
+                                            correlation_id, None))
+        #
+        return None
+
+    def processMessage(self, py4jMessage):
         """Receive and process message from workflow server
         Return goes to server"""
 
-        message_type, payload = self._decode_py4j_message(py4jMessage)
-
-        xx = py4jMessage.getEnactmentId()
-        enactment_id = xx and xx.toString()
-
-        xx = py4jMessage.getCorrelationId()
-        correlation_id = xx and xx.toString()
-        logging.getLogger('HWR').debug(
-            "GPhL incoming: message=%s, jobId=%s,  messageId=%s"
-            % (message_type, enactment_id, correlation_id)
-        )
-
-        if self.get_state() == States.ON:
-            # Workflow has been aborted from beamline.
+        xx = self._decode_py4j_message(py4jMessage)
+        message_type = xx.message_type
+        payload = xx.payload
+        correlation_id = xx.correlation_id
+        enactment_id = xx.enactment_id
+        
+        
+        if not enactment_id:
+            logging.getLogger('HWR').error(
+                "GPhL message lacks enactment ID - sending 'Abort' to external workflow"
+            )
             return self._response_to_server(GphlMessages.BeamlineAbort(),
                                             correlation_id)
 
-        elif self.get_state() == States.OFF and message_type == 'WorkflowAborted':
-            # This is the end of an abort process. Ignore
+        elif self._enactment_id is None:
+            # NB this should be made less primitive
+            # once we are past direct function calls
+            self._enactment_id = enactment_id
+
+        elif self._enactment_id != enactment_id:
+            logging.getLogger('HWR').error(
+                "Workflow enactment ID %s != message enactment ID %s"
+                " - sending 'Abort' to external workflow"
+                % (self._enactment_id, enactment_id)
+            )
+            return self._response_to_server(GphlMessages.BeamlineAbort(),
+                                            correlation_id)
+
+        elif not payload:
+            logging.getLogger('HWR').error(
+                "GPhL message lacks payload - sending 'Abort' to external workflow"
+            )
+            return self._response_to_server(GphlMessages.BeamlineAbort(),
+                                            correlation_id)
+
+        if  message_type in ('SubprocessStarted', 'SubprocessStopped'):
+
+            self.workflow_queue.put_nowait((message_type, payload,
+                                            correlation_id, None))
             return None
 
-        # Not aborting, get on with the work
-        self.set_state(States.OPEN)
-
-        # Also serves to trigger abort at end of function
-        abort_message = None
-        result = None
-
-        if not payload:
-            abort_message = ("Payload could not be decoded for message %s"
-                             % message_type)
-
-        elif not enactment_id:
-            abort_message = "Received message with empty enactment_id"
-
-        else:
-            # Set send_signal and enactment_id, testing for errors
-            try:
-                send_signal = GphlMessages.message_type_to_signal[message_type]
-            except KeyError:
-                abort_message = ("Unknown message type from server: %s"
-                                 % message_type)
-            else:
-
-                if self._enactment_id is None:
-                    # NB this should be made less primitive
-                    # once we are past direct function calls
-                    self._enactment_id = enactment_id
-                elif self._enactment_id != enactment_id:
-                    abort_message = (
-                        "Workflow process id %s != message process id %s"
-                        % (self._enactment_id, enactment_id)
-                    )
-
-        if not abort_message:
-
-            if message_type in ('String',
-                                'SubprocessStarted',
-                                'SubprocessStopped'):
-                # INFO messages to echo - no response to server needed
-                responses = dispatcher.send(send_signal, self, payload=payload,
-                                            correlation_id=correlation_id)
-
-            elif message_type in ('RequestConfiguration',
-                                  'GeometricStrategy',
-                                  'CollectionProposal',
-                                  'ChooseLattice',
-                                  'RequestCentring',
-                                  'ObtainPriorInformation',
-                                  'PrepareForCentring'):
-                # Requests:
-                responses = dispatcher.send(send_signal, self, payload=payload,
-                                            correlation_id=correlation_id)
-                result, abort_message = (
-                    self._extractResponse(responses, message_type)
-                )
-
-            elif message_type in ('WorkflowAborted',
-                                  'WorkflowCompleted',
-                                  'WorkflowFailed'):
-                self._workflow_ended()
-                # Server has terminated by itself, so there is nothing to return
-                self._close_connection()
-                responses = dispatcher.send(send_signal, self, payload=payload,
-                                            correlation_id=correlation_id)
-                return None
-
-            else:
-                abort_message = ("Unknown message type: %s" % message_type)
-
-        if abort_message:
-            # We do not need to wait for the return after the Beamline abort
-            # message before we close the connection.
-            self.abort_workflow(message=abort_message)
-            self._close_connection()
-            return self._response_to_server(GphlMessages.BeamlineAbort(),
-                                            correlation_id)
-
-        elif result is None:
-            # No response expected
+        elif  message_type in ('RequestConfiguration',
+                             'GeometricStrategy',
+                             'CollectionProposal',
+                             'ChooseLattice',
+                             'RequestCentring',
+                             'ObtainPriorInformation',
+                             'PrepareForCentring'):
+            # Requests:
+            self._await_result = []
+            self.set_state(States.OPEN)
+            self.workflow_queue.put_nowait((message_type, payload,
+                                            correlation_id, self._await_result))
+            while not self._await_result:
+                time.sleep(0.1)
+            result, correlation_id = self._await_result.pop(0)
+            self._await_result = None
             self.set_state(States.RUNNING)
-            return None
-
-        else:
             return self._response_to_server(result, correlation_id)
 
-    # processMessage is called from py4j to pass in messages
-    processMessage = _receive_from_server
-    # processText is called from py4j to pass in text info messages
-    processText = _receive_from_server
+        elif message_type in ('WorkflowAborted',
+                              'WorkflowCompleted',
+                              'WorkflowFailed'):
+            self.workflow_queue.put_nowait((message_type, payload,
+                                            correlation_id, None))
+            self.workflow_queue.put_nowait(StopIteration)
+            return None
+
+        else:
+            logging.getLogger('HWR').error(
+                "GPhL Unknown message type: %s - aborting" % message_type
+            )
+            return self._response_to_server(GphlMessages.BeamlineAbort(),
+                                            correlation_id)
 
     def _extractResponse(self, responses, message_type):
         result = abort_message = None
@@ -372,36 +422,52 @@ class GphlWorkflowConnection(object):
 
     #Conversion to Python
 
-    def _decode_py4j_message(self, message):
+    def _decode_py4j_message(self, py4jMessage):
         """Extract messageType and convert py4J object to python object"""
 
         # Determine message type
-        messageType = message.getPayloadClass().getSimpleName()
+        message_type = py4jMessage.getPayloadClass().getSimpleName()
 
-        if messageType == 'String':
-            result =  message.getPayload()
+        xx = py4jMessage.getEnactmentId()
+        enactment_id = xx and xx.toString()
+
+        xx = py4jMessage.getCorrelationId()
+        correlation_id = xx and xx.toString()
+        logging.getLogger('HWR').debug(
+            "GPhL incoming: message=%s, jobId=%s,  messageId=%s"
+            % (message_type, enactment_id, correlation_id)
+        )
+
+        if message_type == 'String':
+            payload =  py4jMessage.getPayload()
 
         else:
-            if messageType.endswith('Impl'):
-                messageType = messageType[:-4]
-            converterName = '_%s_to_python' % messageType
+            if message_type.endswith('Impl'):
+                message_type = message_type[:-4]
+            converterName = '_%s_to_python' % message_type
 
             try:
                 # determine converter function
                 converter = getattr(self, converterName)
             except AttributeError:
-                print ("Message type %s not recognised (no %s function)"
-                       % (messageType, converterName))
-                result = None
+                logging.getLogger('HWR').error(
+                    "GPhL Message type %s not recognised (no %s function)"
+                    % (message_type, converterName)
+                )
+                payload = None
             else:
                 try:
                     # Convert to Python objects
-                    result = converter(message.getPayload())
+                    payload = converter(py4jMessage.getPayload())
                 except NotImplementedError:
-                    print('Processing of message %s not implemented' % messageType)
-                    result = None
+                    logging.getLogger('HWR').error(
+                        'Processing of GPhL message %s not implemented'
+                        % message_type
+                    )
+                    payload = None
         #
-        return messageType, result
+        return GphlMessages.ParsedMessage(message_type, payload,
+                                          enactment_id, correlation_id)
 
     def _RequestConfiguration_to_python(self, py4jRequestConfiguration):
         return GphlMessages.RequestConfiguration()
@@ -637,15 +703,6 @@ class GphlWorkflowConnection(object):
     def _response_to_server(self, payload, correlation_id):
         """Create py4j message from py4j wrapper and current ids"""
 
-        if self.get_state() != States.OPEN:
-            if self.get_state() == States.OFF:
-                # Connection is cut. We are surely in a shut-down process
-                return None
-            else:
-                self.abort_workflow(message="Reply (%s) to server out of context."
-                                    % payload.__class__.__name__)
-        self.set_state(States.RUNNING)
-
         if self._enactment_id is None:
             enactment_id = None
         else:
@@ -706,12 +763,12 @@ class GphlWorkflowConnection(object):
                 str(priorInformation.sampleId)
             )
         )
-        builder = builder.sampleName(priorInformation.sampleName)
-        # if priorInformation.referenceFile:
-        #     builder = builder.referenceFile(self._gateway.jvm.java.net.URL(
-        #         priorInformation.referenceFile)
-        #     )
-        builder = builder.rootDirectory(priorInformation.rootDirectory)
+        xx = priorInformation.sampleName
+        if xx:
+            builder = builder.sampleName(xx)
+        xx = priorInformation.rootDirectory
+        if xx:
+            builder = builder.sampleName(xx)
         # images not implemented yet - awaiting uses
         # indexingResults not implemented yet - awaiting uses
         builder = builder.userProvidedInfo(
@@ -790,15 +847,21 @@ class GphlWorkflowConnection(object):
                     userProvidedInfo.lattice
                 )
             )
-        builder = builder.spaceGroup(userProvidedInfo.spaceGroup)
-        builder = builder.cell(
-            self._UnitCell_to_java(userProvidedInfo.cell)
-        )
+        xx = userProvidedInfo.spaceGroup
+        if xx:
+            builder = builder.spaceGroup(xx)
+        xx = userProvidedInfo.cell
+        if xx is not None:
+            builder = builder.cell(
+                self._UnitCell_to_java(xx)
+            )
         if userProvidedInfo.expectedResolution:
             builder = builder.expectedResolution(
                 General.int2Float(userProvidedInfo.expectedResolution)
             )
-        builder = builder.anisotropic(userProvidedInfo.isAnisotropic)
+        xx = userProvidedInfo.isAnisotropic
+        if xx is not None:
+            builder = builder.anisotropic(xx)
         for phasingWavelength in userProvidedInfo.phasingWavelengths:
             builder.addPhasingWavelength(
                 self._PhasingWavelength_to_java(phasingWavelength)
@@ -1014,7 +1077,7 @@ def getDummyWorkflowModel(baseDirectory, gphlInstallation):
 
     dd = {'wdir':os.path.join('/tmp/mxcube_testdata/visitor/idtest000/id-test-eh1/20130611/PROCESSED_DATA',
                               'GPHL'),
-          'calibration':'transcal_result',
+          'calibration':'transcal',
           'file':'%s/HardwareRepository/tests/xml/gphl_config/TransCalTest.inp' % baseDirectory,
           'beamline':'py4j::',
           'persistname':'persistence',

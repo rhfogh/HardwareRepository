@@ -12,14 +12,13 @@ __date__ = "06/04/17"
 import logging
 import uuid
 import time
-import sys
 
 import gevent
 import gevent.event
+import gevent._threading
 
 import General
 from HardwareRepository.BaseHardwareObjects import HardwareObject
-from HardwareRepository.HardwareRepository import dispatcher
 from HardwareRepository.HardwareRepository import HardwareRepository
 
 import queue_model_objects_v1 as queue_model_objects
@@ -51,24 +50,17 @@ class GphlWorkflow(HardwareObject, object):
         HardwareObject.__init__(self, name)
         self._state = States.OFF
 
-        # Event to handle data requests from mxcube
-        self._gevent_event = None
-
         # HO that handles connection to GPhL workflow runner
-        self.workflow_connection = None
+        self._workflow_connection = None
 
         # Needed to allow methods to put new actions on the queue
-        # TODO change to _queue_entry and add getters and setters.
-        self.queue_entry = None
+        self._queue_entry = None
 
-        # Event to handle waiting for answers from server
-        self._gphl_process_finished = None
+        # Message - processing function map
+        self._processor_functions = {}
 
         # Subprocess names to track which subprocess is getting info
         self._server_subprocess_names = {}
-
-        # Execution timeout waiting for the workflow engine
-        self.execution_timeout = None
 
         # Directory for GPhL beamline configuration files
         self.gphl_beamline_config = None
@@ -79,9 +71,6 @@ class GphlWorkflow(HardwareObject, object):
         # Translation axis role names
         self.translation_axis_roles = []
 
-        # Name of centring method to use
-        self.centring_method = None
-
     def _init(self):
         pass
 
@@ -90,18 +79,14 @@ class GphlWorkflow(HardwareObject, object):
         # Used only here, so let us keep the import out of the module top
         from GphlWorkflowConnection import GphlWorkflowConnection
 
-        self.execution_timeout = self.getProperty('execution_timeout')
-
         self.rotation_axis_roles = self.getProperty('rotation_axis_roles').split()
         self.translation_axis_roles = self.getProperty('translation_axis_roles').split()
-
-        self.centring_method = self.getProperty('centring_method')
 
         workflow_connection = GphlWorkflowConnection()
         dd = (self['connection_parameters'].getProperties()
               if self.hasObject('connection_parameters') else {})
         workflow_connection.init(**dd)
-        self.workflow_connection = workflow_connection
+        self._workflow_connection = workflow_connection
 
 
         relative_file_path = self.getProperty('gphl_config_subdir')
@@ -109,48 +94,24 @@ class GphlWorkflow(HardwareObject, object):
             relative_file_path
         )
 
-        # Set up local listeners
-        dispatcher.connect(self.echo_info_string,
-                           'GPHL_INFO',
-                           workflow_connection)
-        dispatcher.connect(self.echo_subprocess_started,
-                           'GPHL_SUBPROCESS_STARTED',
-                           workflow_connection)
-        dispatcher.connect(self.echo_subprocess_stopped,
-                           'GPHL_SUBPROCESS_STOPPED',
-                           workflow_connection)
-        dispatcher.connect(self.get_configuration_data,
-                           'GPHL_REQUEST_CONFIGURATION',
-                           workflow_connection)
-        dispatcher.connect(self.setup_data_collection,
-                           'GPHL_GEOMETRIC_STRATEGY',
-                           workflow_connection)
-        dispatcher.connect(self.collect_data,
-                           'GPHL_COLLECTION_PROPOSAL',
-                           workflow_connection)
-        dispatcher.connect(self.select_lattice,
-                           'GPHL_CHOOSE_LATTICE',
-                           workflow_connection)
-        dispatcher.connect(self.process_centring_request,
-                           'GPHL_REQUEST_CENTRING',
-                           workflow_connection)
-        dispatcher.connect(self.obtain_prior_information,
-                           'GPHL_OBTAIN_PRIOR_INFORMATION',
-                           workflow_connection)
-        dispatcher.connect(self.prepare_for_centring,
-                           'GPHL_PREPARE_FOR_CENTRING',
-                           workflow_connection)
-        dispatcher.connect(self.workflow_aborted,
-                           'GPHL_WORKFLOW_ABORTED',
-                           workflow_connection)
-        dispatcher.connect(self.workflow_completed,
-                           'GPHL_WORKFLOW_COMPLETED',
-                           workflow_connection)
-        dispatcher.connect(self.workflow_failed,
-                           'GPHL_WORKFLOW_FAILED',
-                           workflow_connection)
+        # Set up processing functions map
+        self._processor_functions = {
+            'String':self.echo_info_string,
+            'SubprocessStarted':self.echo_subprocess_started,
+            'SubprocessStopped':self.echo_subprocess_stopped,
+            'RequestConfiguration':self.get_configuration_data,
+            'GeometricStrategy':self.setup_data_collection,
+            'CollectionProposal':self.collect_data,
+            'ChooseLattice':self.select_lattice,
+            'RequestCentring':self.process_centring_request,
+            'PrepareForCentring':self.prepare_for_centring,
+            'ObtainPriorInformation':self.obtain_prior_information,
+            'WorkflowAborted':self.workflow_aborted,
+            'WorkflowCompleted':self.workflow_completed,
+            'WorkflowFailed':self.workflow_failed,
+        }
 
-        self._gevent_event = gevent.event.Event()
+
         self.set_state(States.ON)
 
 
@@ -185,100 +146,74 @@ class GphlWorkflow(HardwareObject, object):
         """
         The workflow has finished, sets the state to 'ON'
         """
-        if not self._gphl_process_finished.ready():
-            # stop waiting process - workflow_end will be re-called from there
-            self._gphl_process_finished.set("Workflow Terminated")
-            return
 
-        self.queue_entry = None
-        self._gphl_process_finished = None
+        self._queue_entry = None
         self.set_state(States.ON)
-        # If necessary unblock dialog
-        if not self._gevent_event.is_set():
-            self._gevent_event.set()
+        self._server_subprocess_names.clear()
+        self._workflow_connection._workflow_ended()
 
-    # TODO dialog handling
-    # def open_dialog(self, dict_dialog):
-    #     # If necessary unblock dialog
-    #     if not self._gevent_event.is_set():
-    #         self._gevent_event.set()
-    #     self.params_dict = dict()
-    #     if "reviewData" in dict_dialog and "inputMap" in dict_dialog:
-    #         review_data = dict_dialog["reviewData"]
-    #         for dictEntry in dict_dialog["inputMap"]:
-    #             if "value" in dictEntry:
-    #                 value = dictEntry["value"]
-    #             else:
-    #                 value = dictEntry["defaultValue"]
-    #             self.params_dict[dictEntry["variableName"]] = str(value)
-    #         self.emit('parametersNeeded', (review_data, ))
-    #         self.state.value = "OPEN"
-    #         self._gevent_event.clear()
-    #         while not self._gevent_event.is_set():
-    #             self._gevent_event.wait()
-    #             time.sleep(0.1)
-    #     return self.params_dict
-    #
-    # def get_values_map(self):
-    #     return self.params_dict
-    #
-    # def set_values_map(self, params):
-    #     self.params_dict = params
-    #     self._gevent_event.set()
 
-    def abort(self):
-        logging.getLogger("HWR").info('Aborting current workflow')
-        # If necessary unblock dialog
-        self.workflow_end()
-
-        dispatcher.send(
-            self.GphlMessages.message_type_to_signal['BeamlineAbort'], self,
-            message="GPhL workflow run aborted from GphlWorkflow HardwareObject"
-        )
+    def abort(self, message=None):
+        logging.getLogger("HWR").info('MXCuBE aborting current GPhL workflow')
+        self._workflow_connection.abort_workflow(message=message)
 
     def execute(self, queue_entry):
 
-        self.queue_entry = queue_entry
+        self._queue_entry = queue_entry
 
         try:
-            # If necessary unblock dialog
-            if not self._gevent_event.is_set():
-                self._gevent_event.set()
             self.set_state(States.RUNNING)
 
-            # Start GPhL workflow handling
-            self._gphl_process_finished = gevent.event.AsyncResult()
-
+            workflow_queue = gevent._threading.Queue()
             # Fork off workflow server process
-            self.workflow_connection.start_workflow(
-                queue_entry.get_data_model()
-            )
+            self._workflow_connection.start_workflow(workflow_queue,
+                                                     queue_entry.get_data_model()
+                                                     )
 
-            final_message = self._gphl_process_finished.get(
-                timeout=self.execution_timeout
+            while True:
+                while workflow_queue.empty():
+                    time.sleep(0.1)
+
+                tt = workflow_queue.get_nowait()
+                if tt is StopIteration:
+                    break
+
+                message_type, payload, correlation_id, result_list = tt
+                func = self._processor_functions.get(message_type)
+                if func is None:
+                    logging.getLogger("HWR").error(
+                        "GPhL message %s not recognised by MXCuBE. Terminating..."
+                        % message_type
+                    )
+                    break
+                else:
+                    response = func(payload, correlation_id)
+                    if result_list is not None:
+                        result_list.append((response, correlation_id))
+
+        except:
+            logging.getLogger("HWR").error(
+                "Uncaught error during GPhL workflow execution",
+                exc_info=True
             )
-            if final_message is None:
-                final_message = 'Timeout'
-                self.abort()
-            logging.getLogger("user_level_log").info(
-                "GPhL Workflow end : %s" % final_message
-            )
-        finally:
-            self.workflow_end()
+            raise
 
     # Message handlers:
 
     def workflow_aborted(self, payload, correlation_id):
-        # NB Echo additional content later
-        self._gphl_process_finished.set(payload.__class__.__name__)
+        logging.getLogger("user_level_log").info(
+            "GPhL Workflow aborted."
+        )
 
     def workflow_completed(self, payload, correlation_id):
-        # NB Echo additional content later
-        self._gphl_process_finished.set(payload.__class__.__name__)
+        logging.getLogger("user_level_log").info(
+            "GPhL Workflow completed."
+        )
 
     def workflow_failed(self, payload, correlation_id):
-        # NB Echo additional content later
-        self._gphl_process_finished.set(payload.__class__.__name__)
+        logging.getLogger("user_level_log").info(
+            "GPhL Workflow failed."
+        )
 
     def echo_info_string(self, payload, correlation_id=None):
         """Print text info to console,. log etc."""
@@ -363,8 +298,8 @@ class GphlWorkflow(HardwareObject, object):
     def collect_data(self, payload, correlation_id):
         collection_proposal = payload
 
-        beamline_setup_hwobj = self.queue_entry.beamline_setup
-        resolution_hwobj = self.queue_entry.beamline_setup.getObjectByRole(
+        beamline_setup_hwobj = self._queue_entry.beamline_setup
+        resolution_hwobj = self._queue_entry.beamline_setup.getObjectByRole(
             "resolution"
         )
         queue_model_hwobj = HardwareRepository().getHardwareObject(
@@ -376,23 +311,15 @@ class GphlWorkflow(HardwareObject, object):
 
         relative_image_dir = collection_proposal.relativeImageDir
 
-        session = self.queue_entry.beamline_setup.getObjectByRole(
+        session = self._queue_entry.beamline_setup.getObjectByRole(
             "session"
         )
-
-        # # NO. By the time this is called, the queue will be executing already
-        # if queue_manager.is_executing():
-        #     message = "Cannot start data collection, queue is already executing"
-        #     logging.getLogger('HWR').error(message)
-        #     self.workflow_connection.abort_workflow(message)
-        #     return self.GphlMessages.CollectionDone(
-        #         proposalId=collection_proposal.id, status=1)
 
         # NBNB TODO for now we are NOT asking for confirmation
         # and NOT allowing the change of relativeImageDir
         # Maybe later
 
-        gphl_workflow_model = self.queue_entry.get_data_model()
+        gphl_workflow_model = self._queue_entry.get_data_model()
 
 
         new_dcg_name = 'GPhL Data Collection'
@@ -494,32 +421,21 @@ class GphlWorkflow(HardwareObject, object):
         data_collection_entry = queue_manager.get_entry_with_model(
             new_dcg_model
         )
-        try:
-            queue_manager.execute_entry(data_collection_entry)
-        except:
-            typ, val, trace = sys.exc_info()
-            self.emit("GPHL_BEAMLINE_ABORT",
-                      "%s raised during data collection" % typ.__name__)
-            # self.workflow_connection.abort_workflow(
-            #     message="%s raised during data collection" % typ.__name__
-            # )
-            raise
+        queue_manager.execute_entry(data_collection_entry)
+
+        if data_collection_entry.status == QUEUE_ENTRY_STATUS.FAILED:
+            # TODO NBNB check if these status codes are corerct
+            status = 1
         else:
-            if data_collection_entry.status == QUEUE_ENTRY_STATUS.FAILED:
-                # TODO NBNB check if these status codes are corerct
-                status = 1
-            else:
-                status = 0
+            status = 0
 
-            # NB, uses last path_template,
-            # but directory should be the same for all
-            return self.GphlMessages.CollectionDone(
-                status=status,
-                proposalId=collection_proposal.id,
-                imageRoot=path_template.directory
-            )
-
-
+        # NB, uses last path_template,
+        # but directory should be the same for all
+        return self.GphlMessages.CollectionDone(
+            status=status,
+            proposalId=collection_proposal.id,
+            imageRoot=path_template.directory
+        )
 
     def select_lattice(self, payload, correlation_id):
         choose_lattice = payload
@@ -541,34 +457,6 @@ class GphlWorkflow(HardwareObject, object):
         goniostatRotation = request_centring.goniostatRotation
         # goniostatTranslation = goniostatRotation.translation
         #
-        # # # NBNB it is up to beamline setup etc. to ensure that the
-        # # # axis names are correct - and this is what SampleCentring uses
-        # # name = 'GPhL_centring_%s' % request_centring.currentSettingNo
-        # # sc_model = queue_model_objects.SampleCentring(
-        # #     name=name, kappa=axisSettings['kappa'],
-        # #     kappa_phi=axisSettings['kappa_phi']
-        # # )
-        #
-        # # NBNB TODO redo when we have a specific diffractometer to work off.
-        # diffractometer = self.queue_entry.beamline_setup.getObjectByRole(
-        #     "diffractometer"
-        # )
-        # dd = dict((x, goniostatRotation.axisSettings[x])
-        #           for x in self.rotation_axis_roles)
-        # if goniostatTranslation is not None:
-        #     for tag in self.translation_axis_roles:
-        #         val = goniostatTranslation.axisSettings.get(tag)
-        #         if val is not None:
-        #             dd[tag] = val
-        # diffractometer.move_motors(dd)
-        # diffractometer.start_centring_method(method=self.centring_method)
-        #
-        # positionsDict = diffractometer.getPositions()
-        # dd = dict((x, positionsDict[x]) for x in self.translation_axis_roles)
-        # goniostatTranslation = self.GphlMessages.GoniostatTranslation(
-        #     rotation=goniostatRotation,
-        #     requestedRotationId= goniostatRotation.id, **dd
-        # )
 
         goniostatTranslation = self.center_sample(goniostatRotation)
 
@@ -614,22 +502,12 @@ class GphlWorkflow(HardwareObject, object):
                 if val is not None:
                     dd[tag] = val
 
-
-        # diffractometer.move_motors(dd)
-        # diffractometer.start_centring_method(method=self.centring_method)
-
-
         centring_model = queue_model_objects.SampleCentring(motor_positions=dd)
-        queue_model_hwobj.add_child(self.queue_entry.get_data_model(),
+        queue_model_hwobj.add_child(self._queue_entry.get_data_model(),
                                     centring_model)
         centring_entry = queue_manager.get_entry_with_model(centring_model)
-        try:
-            queue_manager.execute_entry(centring_entry)
-        except:
-            typ, val, trace = sys.exc_info()
-            self.emit("GPHL_BEAMLINE_ABORT",
-                      "%s raised during data collection" % typ.__name__)
-            raise
+
+        queue_manager.execute_entry(centring_entry)
 
         centring_result = centring_model.get_centring_result()
         if centring_result:
@@ -641,7 +519,7 @@ class GphlWorkflow(HardwareObject, object):
                 requestedRotationId=requestedRotationId, **dd
             )
         else:
-            self.emit("GPHL_BEAMLINE_ABORT", "No Centring result found")
+            self.abort("No Centring result found")
 
     def prepare_for_centring(self, payload, correlation_id):
 
@@ -651,9 +529,9 @@ class GphlWorkflow(HardwareObject, object):
 
     def obtain_prior_information(self, payload, correlation_id):
 
-        workflow_model = self.queue_entry.get_data_model()
+        workflow_model = self._queue_entry.get_data_model()
         sample_model = workflow_model.get_sample_node()
-        resolution_hwobj = self.queue_entry.beamline_setup.getObjectByRole(
+        resolution_hwobj = self._queue_entry.beamline_setup.getObjectByRole(
             "resolution"
         )
 
@@ -671,19 +549,7 @@ class GphlWorkflow(HardwareObject, object):
         if ss:
             space_group = int(ss)
         else:
-            space_group = 0
-
-        # crystals = sample_model.crystals
-        # if crystals:
-        #     crystal = crystals[0]
-        #
-        #     unitCell = self.GphlMessages.UnitCell(
-        #         crystal.cell_a, crystal.cell_b, crystal.cell_c,
-        #         crystal.cell_alpha, crystal.cell_beta, crystal.cell_gamma,
-        #     )
-        #     space_group = crystal.space_group
-        # else:
-        #     unitCell = space_group = None
+            space_group = None
 
         # TODO NBNB this must be queried/modified/confirmed by user input
         wavelengths = []
@@ -704,9 +570,6 @@ class GphlWorkflow(HardwareObject, object):
             isAnisotropic=None,
             phasingWavelengths=wavelengths
         )
-        # NBNB TODO scatterers, lattice, isAnisotropic, phasingWavelengths are
-        # not obviously findable and would likely have to be set explicitly
-        # in UI. Meanwhile leave them empty
 
         # TODO needs user interface to take input
 

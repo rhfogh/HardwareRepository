@@ -268,11 +268,6 @@ class DiffractometerMockup(Equipment):
         """
         Descript. :
         """
-        logging.getLogger('HWR').debug(
-            "@~@~ manual centring"
-        )
-
-        # raise Exception('Ka-BOOM!')
 
         self.user_clicked_event = AsyncResult()
         x, y = self.user_clicked_event.get()

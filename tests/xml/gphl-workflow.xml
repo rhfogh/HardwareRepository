@@ -1,7 +1,7 @@
 <object class="GphlWorkflow">
 
-    <!-- Timeout before workflow application execution is aborted-->
-    <execution_timeout>3600</execution_timeout>
+    <!--&lt;!&ndash; Timeout before workflow application execution is aborted&ndash;&gt;-->
+    <!--<execution_timeout>3600</execution_timeout>-->
     <!-- Subdirectory under Session.get_process_directory() for GPhL persistence data-->
     <gphl_subdir>GPHL</gphl_subdir>
     <!-- Java binary to execute for workflow application -->
@@ -16,9 +16,6 @@
     <!-- Translation axis role names, space separated. -->
     <!-- Must match Instrunmentation.nml config file NB modify for beamline -->
     <translation_axis_roles>sampx sampy phiy</translation_axis_roles>
-
-    <!-- Centring method to use. NB must match values given in diffractometer claSS -->
-    <centring_method>Manual 3-click</centring_method>
 
     <!-- Hosts and ports for py4j java-python gateway, all OPTIONAL-->
     <!-- If not set will use py4j default values, which are as given below-->
@@ -104,7 +101,7 @@
             </documentation>
             <options>
                 <!-- Name for translation calibration output -->
-                <calibration>transcal_result</calibration>
+                <calibration>transcal</calibration>
                 <!-- file: File containing settings of rotation axes for calibration -->
                 <!-- The name is the relative path from the Repository directory -->
                 <!-- grid: Grid definition [axis_name:start:end:step], slowest-varying to fastest varying -->
@@ -133,7 +130,7 @@
                 <!-- Name of initial strategy from library to use -->
                 <strategy>InitialCharacterisation</strategy>
                 <!-- Name for diffractometer calibration output -->
-                <calibration>diffractcal_result</calibration>
+                <calibration>diffractcal</calibration>
                 <!-- Path of file to dump persisted instrumentation configuration. OPTIONAL-->
                 <instcfgout>/MXCuBE/mxcube/gphl_diffractcal_out.nml</instcfgout>
                 <!-- NBNB replace later -->

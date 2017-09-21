@@ -653,9 +653,6 @@ class SampleCentringQueueEntry(BaseQueueEntry):
         self.get_view().setText(1, 'Waiting for input')
         log = logging.getLogger("user_level_log")
 
-        # kappa = self._data_model.get_kappa()
-        # phi = self._data_model.get_kappa_phi()
-
         if (hasattr(self.diffractometer_hwobj, "in_kappa_mode")
             and self.diffractometer_hwobj.in_kappa_mode()):
             # self.diffractometer_hwobj.moveMotors({"kappa": kappa, "kappa_phi":phi})
@@ -664,17 +661,15 @@ class SampleCentringQueueEntry(BaseQueueEntry):
             if motor_positions:
                 self.diffractometer_hwobj.moveMotors(motor_positions)
 
-
         #TODO agree on correct message
         log.warning("Please center a new point, and press continue.")
-        #log.warning("Please select a centred position, and press continue.")
-
         self.get_queue_controller().pause(True)
         pos = None
 
-        if len(self.shape_history.get_selected_shapes()):
-            pos = self.shape_history.get_selected_shapes()[0]
-            self._data_model.set_centring_result(pos.get_centred_positions()[0])
+        shapes = list(self.shape_history.get_selected_shapes())
+        if shapes:
+            pos = shapes[0]
+            cpos = pos.get_centred_positions()[0]
         else:
             msg = "No centred position selected, using current position."
             log.info(msg)
@@ -683,21 +678,10 @@ class SampleCentringQueueEntry(BaseQueueEntry):
             pos_dict = self.diffractometer_hwobj.getPositions()
             cpos = queue_model_objects.CentredPosition(pos_dict)
             #pos = shape_history.Point(None, cpos, None) #, True)
+        self._data_model.set_centring_result(cpos)
 
         # Get tasks associated with this centring
         tasks = self.get_data_model().get_tasks()
-
-        """for task in tasks:
-            cpos = pos.get_centred_positions()[0]
-
-            if pos.qub_point is not None:
-                snapshot = self.shape_history.\
-                           get_snapshot([pos.qub_point])
-            else:
-                snapshot = self.shape_history.get_snapshot([])
-
-            cpos.snapshot_image = snapshot 
-            task.set_centred_positions(cpos)"""
 
         self.get_view().setText(1, 'Input accepted')
 
@@ -1457,21 +1441,17 @@ class GphlWorkflowQueueEntry(BaseQueueEntry):
     def post_execute(self):
         BaseQueueEntry.post_execute(self)
         qc = self.get_queue_controller()
+        msg = "Finishing workflow %s" % (self.get_data_model()._type)
+        logging.getLogger("user_level_log").info(msg)
+        self.workflow_hwobj.workflow_end()
         qc.disconnect(self.workflow_hwobj, 'stateChanged',
                       self.workflow_state_handler)
-        # # reset state
-        # NBNB no need - this is done by the standard state handler
-        # self.workflow_running = False
-        logging.getLogger('queue_exec').debug(
-            "Done GphlWorkflowQueueEntry.post_execute"
-        )
 
     def stop(self):
         BaseQueueEntry.stop(self)
         logging.getLogger('queue_exec').debug(
             "In GphlWorkflowQueueEntry.stop"
         )
-        self.workflow_hwobj.abort()
         self.get_view().setText(1, 'Stopped')
         raise QueueAbortedException('Queue stopped', self)
 
