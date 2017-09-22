@@ -1274,7 +1274,8 @@ class GphlWorkflow(TaskNode):
         self._invocation_options = {}
         self._workflow_properties = {}
         self._workflow_options = {}
-        self.wavelengths = {}
+        self._wavelengths = {}
+        self._resolution = None
 
     # Workflow name (string) - == path_template.base_prefix.
     def get_name(self):
@@ -1300,6 +1301,18 @@ class GphlWorkflow(TaskNode):
             "Attempt to set unused attribute GphlWorkflow.number"
         )
 
+    # Expected resolution (optional float).
+    def get_resolution(self):
+        return self._resolution
+    def set_resolution(self, value):
+        self._resolution = value
+
+    # role:value wavelengths dictionary (wavelengths in A)
+    def get_wavelengths(self):
+        return self._wavelengths.copy()
+    def set_wavelengths(self, value):
+        self._wavelengths = dict(value)
+
     def get_path_template(self):
         return self.path_template
 
@@ -1320,10 +1333,12 @@ class GphlWorkflow(TaskNode):
         )
 
         if workflow_config.hasObject('wavelengths'):
+            dd = {}
             for wavelength in workflow_config['wavelengths']:
-                self.wavelengths[wavelength.getProperty('role')] = (
+                dd[wavelength.getProperty('role')] = (
                     wavelength.getProperty('value')
                 )
+                self.set_wavelengths(dd)
 
         dd = {}
         if workflow_hwobj.hasObject('invocation_properties'):

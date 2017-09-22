@@ -354,8 +354,7 @@ class GphlWorkflow(HardwareObject, object):
             # acq_parameters.overlap = overlap
             acq_parameters.exp_time = scan.exposure.time
             acq_parameters.num_passes = 1
-            # NBNB TODO this parameter must be queried, somehow.
-            acq_parameters.resolution = resolution_hwobj.currentResolution
+            acq_parameters.resolution = gphl_workflow_model.get_resolution()
             acq_parameters.energy = General.h_over_e/sweep.beamSetting.wavelength
             # NB TODO comes in as 0 <= x <- 1  Check this is OK.
             acq_parameters.transmission = scan.exposure.transmission
@@ -551,27 +550,21 @@ class GphlWorkflow(HardwareObject, object):
         else:
             space_group = None
 
-        # TODO NBNB this must be queried/modified/confirmed by user input
         wavelengths = []
-        for role, value in workflow_model.wavelengths.items():
+        for role, value in workflow_model.get_wavelengths().items():
             wavelengths.append(
                 self.GphlMessages.PhasingWavelength(wavelength=value, role=role)
             )
-
-        # NBNB TODO Resolution needs to be set. For now take the current value
-        resolution = resolution_hwobj.currentResolution
 
         userProvidedInfo = self.GphlMessages.UserProvidedInfo(
             scatterers=(),
             lattice=None,
             spaceGroup=space_group,
             cell=unitCell,
-            expectedResolution=resolution,
+            expectedResolution=workflow_model.get_resolution(),
             isAnisotropic=None,
             phasingWavelengths=wavelengths
         )
-
-        # TODO needs user interface to take input
 
         # Look for existing uuid
         for text in sample_model.lims_code, sample_model.code, sample_model.name:

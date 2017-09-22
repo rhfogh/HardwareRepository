@@ -30,11 +30,12 @@ IndexingFormats = ('IDXREF', )
 
 AbsorptionEdges = ('K', 'LI', 'LII', 'LIII', 'MI', 'MII', 'MIII', 'MIV', 'MV')
 
-WavelengthRoles = OrderedDict((('PEAK','Peak'),('REMOTE','Remote'),
-                               ('RINF','Rising inflection'),
-                               ('FINF','Falling inflection'),
-                               ('HREM','High-energy remote'),
-                              ))
+# # Currently not used
+# WavelengthRoles = OrderedDict((('PEAK','Peak'),('REMOTE','Remote'),
+#                                ('RINF','Rising inflection'),
+#                                ('FINF','Falling inflection'),
+#                                ('HREM','High-energy remote'),
+#                               ))
 
 ChemicalElements = OrderedDict((
     ("H","hydrogen"), ("HE","helium"), ("LI","lithium"), ("BE","beryllium"),
@@ -434,13 +435,14 @@ class PhasingWavelength(IdentifiedElement):
 
     def __init__(self, wavelength, role=None, id=None):
         IdentifiedElement.__init__(self, id)
-        if role is None or role in WavelengthRoles:
-            self._role = role
-        else:
-            raise ValueError(
-                "Wavelength role value %s not in supported values: %s"
-                % (repr(role), repr(WavelengthRoles))
-            )
+        # if role is None or role in WavelengthRoles:
+        #     self._role = role
+        # else:
+        #     raise ValueError(
+        #         "Wavelength role value %s not in supported values: %s"
+        #         % (repr(role), repr(WavelengthRoles))
+        #     )
+        self._role = role
         self._wavelength = wavelength
 
     @property
