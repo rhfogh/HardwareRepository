@@ -1259,21 +1259,15 @@ class Workflow(TaskNode):
         return self.path_template
 
 class GphlWorkflow(TaskNode):
-    def __init__(self):
+    def __init__(self, workflow_hwobj=None):
         TaskNode.__init__(self)
+        self.workflow_hwobj = workflow_hwobj
         self.path_template = PathTemplate()
         self.processing_parameters = ProcessingParameters()
         self._name = str()
         self._type = str()
         self._number = 0
         self.set_requires_centring(False)
-        self.invocation_classname = None
-        self.java_binary = None
-        self._connection_parameters = {}
-        self._invocation_properties = {}
-        self._invocation_options = {}
-        self._workflow_properties = {}
-        self._workflow_options = {}
         self._wavelengths = {}
         self._resolution = None
 
@@ -1316,94 +1310,13 @@ class GphlWorkflow(TaskNode):
     def get_path_template(self):
         return self.path_template
 
-    def init_from_hwobj(self, workflow_type, workflow_hwobj):
+    def get_workflow_parameters(self):
+        result = self.workflow_hwobj.get_available_workflows().get(self.get_type())
+        if result is None:
+            raise RuntimeError("No parameters for unknown workflow %s"
+                               % repr(self.get_type()))
+        return result
 
-        self._type = workflow_type
-
-        self.java_binary = workflow_hwobj.getProperty('java_binary')
-
-        workflow_config = workflow_hwobj['workflows'][workflow_type]
-
-        self.invocation_classname = workflow_config.getProperty(
-            name='application'
-        )
-
-        self.invocation_classname = workflow_config.getProperty(
-            name='application'
-        )
-
-        if workflow_config.hasObject('wavelengths'):
-            dd = {}
-            for wavelength in workflow_config['wavelengths']:
-                dd[wavelength.getProperty('role')] = (
-                    wavelength.getProperty('value')
-                )
-                self.set_wavelengths(dd)
-
-        dd = {}
-        if workflow_hwobj.hasObject('invocation_properties'):
-            dd = workflow_hwobj['invocation_properties'].getProperties()
-        self.set_invocation_properties(dd)
-
-        dd = {}
-        if workflow_hwobj.hasObject('invocation_options'):
-            dd = workflow_hwobj['invocation_options'].getProperties()
-        self.set_invocation_options(dd)
-
-        dd = {}
-        if workflow_hwobj.hasObject('workflow_properties'):
-            dd = workflow_hwobj['workflow_properties'].getProperties()
-        self.set_workflow_properties(dd)
-
-        dd = {'wdir':os.path.join(self.path_template.process_directory,
-                                  workflow_hwobj.getProperty('gphl_subdir'))
-              }
-        if workflow_hwobj.hasObject('workflow_options'):
-            dd.update(workflow_hwobj['workflow_options'].getProperties())
-        if workflow_config.hasObject('options'):
-            dd.update(workflow_config['options'].getProperties())
-            relative_file_path = dd.get('file')
-            if relative_file_path is not None:
-                # Special case - this option must be modified before use
-                path = HardwareRepository().findInRepository(relative_file_path)
-                dd['file'] = path
-        self.set_workflow_options(dd)
-
-    # Keyword-value dictionary of connection_parameters (for py4j connection)
-    def get_connection_parameters(self):
-        return dict(self._connection_parameters)
-    def set_connection_parameters(self, valueDict):
-        dd = self._connection_parameters
-        dd.clear()
-        if valueDict:
-            dd.update(valueDict)
-
-    # Keyword-value dictionary of invocation_properties (for execution command)
-    def get_invocation_properties(self):
-        return dict(self._invocation_properties)
-    def set_invocation_properties(self, valueDict):
-        dd = self._invocation_properties
-        dd.clear()
-        if valueDict:
-            dd.update(valueDict)
-
-    # Keyword-value dictionary of invocation_options (for execution command)
-    def get_invocation_options(self):
-        return dict(self._invocation_options)
-    def set_invocation_options(self, valueDict):
-        dd = self._invocation_options
-        dd.clear()
-        if valueDict:
-            dd.update(valueDict)
-
-    # Keyword-value dictionary of workflow_properties (for execution command)
-    def get_workflow_properties(self):
-        return dict(self._workflow_properties)
-    def set_workflow_properties(self, valueDict):
-        dd = self._workflow_properties
-        dd.clear()
-        if valueDict:
-            dd.update(valueDict)
 
     # Keyword-value dictionary of workflow_options (for execution command)
     def get_workflow_options(self):
@@ -1433,41 +1346,7 @@ class GphlWorkflow(TaskNode):
 # Collect hardware object utility function.
 #
 def to_collect_dict(data_collection, session, sample, centred_pos=None):
-    """ return [{'comment': '',
-          'helical': 0,
-          'motors': {},
-          'take_snapshots': False,
-          'fileinfo': {'directory': '/data/id14eh4/inhouse/opid144/' +\
-                                    '20120808/RAW_DATA',
-                       'prefix': 'opid144', 'run_number': 1,
-                       'process_directory': '/data/id14eh4/inhouse/' +\
-                                            'opid144/20120808/PROCESSED_DATA'},
-          'in_queue': 0,
-          'detector_mode': 2,
-          'shutterless': 0,
-          'sessionId': 32368,
-          'do_inducedraddam': False,
-          'sample_reference': {},
-          'processing': 'False',
-          'residues': '',
-          'dark': True,
-          'scan4d': 0,
-          'input_files': 1,
-          'oscillation_sequence': [{'exposure_time': 1.0,
-                                    'kappaStart': 0.0,
-                                    'phiStart': 0.0,
-                                    'start_image_number': 1,
-                                    'number_of_images': 1,
-                                    'overlap': 0.0,
-                                    'start': 0.0,
-                                    'range': 1.0,
-                                    'number_of_passes': 1}],
-          'nb_sum_images': 0,
-          'EDNA_files_dir': '',
-          'anomalous': 'False',
-          'file_exists': 0,
-          'experiment_type': 'SAD',
-          'skip_images': 0}]"""
+    """ """
 
     acquisition = data_collection.acquisitions[0]
     acq_params = acquisition.acquisition_parameters

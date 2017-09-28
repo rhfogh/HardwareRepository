@@ -12,6 +12,10 @@ __date__ = "06/04/17"
 import logging
 import uuid
 import time
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
 
 import gevent
 import gevent.event
@@ -81,6 +85,8 @@ class GphlWorkflow(HardwareObject, object):
 
         self.rotation_axis_roles = self.getProperty('rotation_axis_roles').split()
         self.translation_axis_roles = self.getProperty('translation_axis_roles').split()
+        self.java_binary = self.getProperty('java_binary')
+        self.gphl_subdir = self.getProperty('gphl_subdir')
 
         workflow_connection = GphlWorkflowConnection()
         dd = (self['connection_parameters'].getProperties()
@@ -116,18 +122,63 @@ class GphlWorkflow(HardwareObject, object):
 
 
     def get_available_workflows(self):
-        """Get list of workflow description dictionaries.
+        """Get list of workflow description dictionaries."""
 
-        The structure is modeled on the EDNAworkflow function of the same name;
-        for now the dictionaries have items 'name' and 'doc'"""
+        # TODO this could be cached for speed
 
-        result = []
+        result = OrderedDict()
+        if self.hasObject('workflow_options'):
+            options = self['workflow_options'].getProperties()
+        else:
+            options = {}
+        if self.hasObject('workflow_properties'):
+            properties = self['workflow_properties'].getProperties()
+        else:
+            properties = {}
+        if self.hasObject('invocation_options'):
+            invocation_options = self['invocation_options'].getProperties()
+        else:
+            invocation_options = {}
+        if self.hasObject('invocation_properties'):
+            invocation_properties = self['invocation_properties'].getProperties()
+        else:
+            invocation_properties = {}
 
         for wf_node in self['workflows']:
-            result.append(dict((
-                ('name',wf_node.name()),
-                ('doc', wf_node.getProperty('documentation', default_value=''))
-            )))
+            name = wf_node.name()
+            wf_dict = {'name':name,
+                       'application':wf_node.getProperty('application'),
+                       'documentation':wf_node.getProperty('documentation',
+                                                           default_value=''),
+                       'collect_data':wf_node.getProperty('collect_data',
+                                                           default_value='true')
+            }
+            result[name] = wf_dict
+            wf_dict['options'] = dd = options.copy()
+            if wf_node.hasObject('options'):
+                dd.update(wf_node['options'].getProperties())
+                relative_file_path = dd.get('file')
+                if relative_file_path is not None:
+                    # Special case - this option must be modified before use
+                    dd['file'] = HardwareRepository().findInRepository(
+                        relative_file_path
+                    )
+            wf_dict['properties'] = dd = properties.copy()
+            if wf_node.hasObject('properties'):
+                dd.update(wf_node['properties'].getProperties())
+            wf_dict['invocation_properties'] = dd = invocation_properties.copy()
+            if wf_node.hasObject('invocation_properties'):
+                dd.update(wf_node['invocation_properties'].getProperties())
+            wf_dict['invocation_options'] = dd = invocation_options.copy()
+            if wf_node.hasObject('invocation_options'):
+                dd.update(wf_node['invocation_options'].getProperties())
+
+            if wf_node.hasObject('wavelengths'):
+                wf_dict['wavelengths'] = dd = OrderedDict()
+                for wavelength in wf_node['wavelengths']:
+                    dd[wavelength.getProperty('role')] = (
+                        wavelength.getProperty('value')
+                    )
         #
         return result
 
@@ -249,6 +300,34 @@ class GphlWorkflow(HardwareObject, object):
         isInterleaved = geometric_strategy.isInterleaved
         allowed_widths = geometric_strategy.allowedWidths
         default_width_index = geometric_strategy.defaultWidthIdx or 0
+
+        # NBNB TODO query width
+
+        # NBNB TODO userModifiable
+
+        orientations = {}
+        total_width = 0
+        for sweep in geometric_strategy.sweeps:
+            total_width += sweep.width
+            rotation_id = sweep.goniostatSweepSetting._id
+            ll = orientations.get(rotation_id, [])
+            ll.append(sweep)
+            orientations[rotation_id] = ll
+
+        print ('@~@~ total rotation angle', total_width)
+
+        for rotation_id, ll in sorted(orientations.items()):
+            goniostatRotation = ll[0].goniostatSweepSetting
+            angles = list(goniostatRotation.axisSettings.get(x)
+                          for x in self.rotation_axis_roles)
+            print('@~@~ axes', self.rotation_axis_roles)
+            print('@~@~ angles', angles)
+            for sweep in ll:
+                wavelength = sweep.beamSetting.wavelength
+                start = sweep.start
+                width = sweep.width
+                print('@~@~ sweep', wavelength, start, width)
+
 
         # TODO put user display/query here
 
@@ -530,9 +609,6 @@ class GphlWorkflow(HardwareObject, object):
 
         workflow_model = self._queue_entry.get_data_model()
         sample_model = workflow_model.get_sample_node()
-        resolution_hwobj = self._queue_entry.beamline_setup.getObjectByRole(
-            "resolution"
-        )
 
         cp = workflow_model.processing_parameters
         cell_params = list(getattr(cp, x)
@@ -544,11 +620,7 @@ class GphlWorkflow(HardwareObject, object):
         else:
             unitCell = None
 
-        ss = queue_model_enumerables.ORIG_EDNA_SPACEGROUPS.get(cp.space_group)
-        if ss:
-            space_group = int(ss)
-        else:
-            space_group = None
+        space_group = queue_model_enumerables.SPACEGROUP_NUMBERS.get(cp.space_group)
 
         wavelengths = []
         for role, value in workflow_model.get_wavelengths().items():

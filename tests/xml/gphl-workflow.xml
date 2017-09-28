@@ -99,6 +99,8 @@
                 the inbuilt collision checker, move the goniostat to each
                 position, and ask for centring.
             </documentation>
+            <!-- Workflow includes data collection (for serting user interface) -->
+            <collect_data>false</collect_data>
             <options>
                 <!-- Name for translation calibration output -->
                 <calibration>transcal</calibration>
@@ -118,6 +120,8 @@
             <documentation>Diffractometer calibration.
                 Designed for use by beamline personnel.
             </documentation>
+            <!-- Workflow includes data collection (for serting user interface) -->
+            <collect_data>true</collect_data>
             <!-- Default wavelengths (in A) and their roles -->
             <!-- role must one of GphlMessages.WavelengthRoles -->
             <wavelengths>
@@ -144,6 +148,8 @@
                 Data collection workflow 1.
                 Includes initial characterisation and complete collection
             </documentation>
+            <!-- Workflow includes data collection (for serting user interface) -->
+            <collect_data>true</collect_data>
             <!-- Default wavelengths (in A) and their roles -->
             <!-- role must one of GphlMessages.WavelengthRoles -->
             <wavelengths>

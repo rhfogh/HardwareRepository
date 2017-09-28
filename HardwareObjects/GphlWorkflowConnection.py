@@ -163,6 +163,7 @@ class GphlWorkflowConnection(object):
     def start_workflow(self, workflow_queue, workflow_model_obj):
 
         self.workflow_queue = workflow_queue
+        workflow_hwobj = workflow_model_obj.workflow_hwobj
 
         if self.get_state() != States.OFF:
             # NB, for now workflow is started as the connection is made,
@@ -170,30 +171,36 @@ class GphlWorkflowConnection(object):
             raise RuntimeError("Workflow is already running, cannot be started")
 
         self._workflow_name = workflow_model_obj.get_type()
+        params = workflow_model_obj.get_workflow_parameters()
 
-        # TODO Here we make and send the workflow start-run message
-        # NB currently done under 'wfrun' alias
-        #  This forks off the server process and returns None
-        commandList = [workflow_model_obj.java_binary]
+        commandList = [workflow_hwobj.java_binary]
 
-        for keyword, value in workflow_model_obj.get_invocation_properties().items():
+        for keyword, value in params.get('invocation_properties',{}).items():
             commandList.extend(General.javaProperty(keyword, value))
 
-        for keyword, value in workflow_model_obj.get_invocation_options().items():
+        for keyword, value in params.get('invocation_options',{}).items():
             commandList.extend(General.commandOption(keyword, value))
 
-        commandList.append(workflow_model_obj.invocation_classname)
+        commandList.append(params['application'])
 
-        for keyword, value in workflow_model_obj.get_workflow_properties().items():
+        for keyword, value in params.get('properties',{}).items():
             commandList.extend(General.javaProperty(keyword, value))
 
-        workflow_options = workflow_model_obj.get_workflow_options()
+
+        workflow_options = dict(params.get('options',{}))
         calibration_name = workflow_options.get('calibration')
         if calibration_name:
             # Expand calibration base name
             workflow_options['calibration'] = (
                 '%s_%s' % (calibration_name,  workflow_model_obj.get_name())
             )
+        path_template = workflow_model_obj.get_path_template()
+        if 'prefix' in workflow_options:
+            workflow_options['prefix'] = path_template.base_prefix
+
+        workflow_options['wdir'] = os.path.join(
+            path_template.process_directory, workflow_hwobj.gphl_subdir
+        )
         for keyword, value in workflow_options.items():
             commandList.extend(General.commandOption(keyword, value))
         #
