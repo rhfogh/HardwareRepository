@@ -29,7 +29,6 @@ MessageIntents = dict((x,x) for x in _MessageIntents)
 IndexingFormats = ('IDXREF', )
 
 AbsorptionEdges = ('K', 'LI', 'LII', 'LIII', 'MI', 'MII', 'MIII', 'MIV', 'MV')
-
 # # Currently not used
 # WavelengthRoles = OrderedDict((('PEAK','Peak'),('REMOTE','Remote'),
 #                                ('RINF','Rising inflection'),
@@ -76,8 +75,10 @@ ChemicalElements = OrderedDict((
 
 CentringStatus = ('NEXT', 'DONE')
 
-# CrystalSystems = ('TRICLINIC', 'MONOCLINIC', 'ORTHORHOMBIC', 'TETRAGONAL',
-#                   'TRIGONAL', 'HEXAGONAL', 'CUBIC')
+CrystalSystems = ('TRICLINIC', 'MONOCLINIC', 'ORTHORHOMBIC', 'TETRAGONAL',
+                  'TRIGONAL', 'HEXAGONAL', 'CUBIC')
+
+PointGroups = ('1', '2', '222', '4', '422', '6', '622', '32',  '23',  '432')
 
 ParsedMessage = namedtuple('ParsedMessage', ('message_type', 'payload',
                                              'enactment_id', 'correlation_id'))
@@ -614,12 +615,13 @@ class GoniostatTranslation(PositionerSetting):
 class UserProvidedInfo(MessageData):
     """User-provided information"""
 
-    def __init__(self, scatterers=(), lattice=None, spaceGroup=None, cell=None,
-                 expectedResolution=None, isAnisotropic=None,
-                 phasingWavelengths=()):
+    def __init__(self, scatterers=(), lattice=None, pointGroup=None,
+                 spaceGroup=None, cell=None, expectedResolution=None,
+                 isAnisotropic=None, phasingWavelengths=()):
 
         self._scatterers = scatterers
         self._lattice = lattice
+        self._pointGroup = pointGroup
         self._spaceGroup = spaceGroup
         self._cell = cell
         self._expectedResolution = expectedResolution
@@ -633,6 +635,10 @@ class UserProvidedInfo(MessageData):
     @property
     def lattice(self):
         return self._lattice
+
+    @property
+    def pointGroup(self):
+        return self._pointGroup
 
     @property
     def spaceGroup(self):

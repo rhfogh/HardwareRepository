@@ -168,7 +168,6 @@ class QueueManager(HardwareObject, QueueEntryContainer):
             # Definetly not good state, but call post_execute
             # in anyways, there might be code that cleans up things
             # done in _pre_execute or before the exception in _execute.
-            # print('@~@~ __execute_entry recovering from error', entry)
             entry.post_execute()
             entry.handle_exception(ex)
             raise ex

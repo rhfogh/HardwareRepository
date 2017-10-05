@@ -12,10 +12,6 @@ __date__ = "06/04/17"
 import logging
 import uuid
 import time
-try:
-    from collections import OrderedDict
-except ImportError:
-    from ordereddict import OrderedDict
 
 import gevent
 import gevent.event
@@ -28,6 +24,11 @@ from HardwareRepository.HardwareRepository import HardwareRepository
 import queue_model_objects_v1 as queue_model_objects
 import queue_model_enumerables_v1 as queue_model_enumerables
 from queue_entry import QUEUE_ENTRY_STATUS
+
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
 
 States = General.States
 
@@ -60,6 +61,12 @@ class GphlWorkflow(HardwareObject, object):
         # Needed to allow methods to put new actions on the queue
         self._queue_entry = None
 
+        # cache dictionary to handle parameters transferred through signals
+        self._gphl_parameters = {}
+
+        # event to handle waiting for parameter input
+        self._gevent_event = None
+
         # Message - processing function map
         self._processor_functions = {}
 
@@ -82,6 +89,8 @@ class GphlWorkflow(HardwareObject, object):
 
         # Used only here, so let us keep the import out of the module top
         from GphlWorkflowConnection import GphlWorkflowConnection
+
+        self._gevent_event = gevent.event.Event()
 
         self.rotation_axis_roles = self.getProperty('rotation_axis_roles').split()
         self.translation_axis_roles = self.getProperty('translation_axis_roles').split()
@@ -199,6 +208,8 @@ class GphlWorkflow(HardwareObject, object):
         """
 
         self._queue_entry = None
+        if not self._gevent_event.is_set():
+            self._gevent_event.set()
         self.set_state(States.ON)
         self._server_subprocess_names.clear()
         self._workflow_connection._workflow_ended()
@@ -214,6 +225,8 @@ class GphlWorkflow(HardwareObject, object):
 
         try:
             self.set_state(States.RUNNING)
+            if not self._gevent_event.is_set():
+                self._gevent_event.set()
 
             workflow_queue = gevent._threading.Queue()
             # Fork off workflow server process
@@ -238,6 +251,8 @@ class GphlWorkflow(HardwareObject, object):
                     )
                     break
                 else:
+                    logging.getLogger("HWR").info("GPhL queue processing %s"
+                                                  % message_type)
                     response = func(payload, correlation_id)
                     if result_list is not None:
                         result_list.append((response, correlation_id))
@@ -295,13 +310,9 @@ class GphlWorkflow(HardwareObject, object):
         """Display collection strategy for user approval,
         and query parameters needed"""
 
-        result = {}
-
         isInterleaved = geometric_strategy.isInterleaved
         allowed_widths = geometric_strategy.allowedWidths
         default_width_index = geometric_strategy.defaultWidthIdx or 0
-
-        # NBNB TODO query width
 
         # NBNB TODO userModifiable
 
@@ -310,34 +321,121 @@ class GphlWorkflow(HardwareObject, object):
         for sweep in geometric_strategy.sweeps:
             total_width += sweep.width
             rotation_id = sweep.goniostatSweepSetting._id
-            ll = orientations.get(rotation_id, [])
-            ll.append(sweep)
-            orientations[rotation_id] = ll
+            sweeps = orientations.get(rotation_id, [])
+            sweeps.append(sweep)
+            orientations[rotation_id] = sweeps
 
-        print ('@~@~ total rotation angle', total_width)
+        lines = ["""Geometric strategy:
+    Total rotation %d.1 degrees""" % total_width]
 
-        for rotation_id, ll in sorted(orientations.items()):
-            goniostatRotation = ll[0].goniostatSweepSetting
-            angles = list(goniostatRotation.axisSettings.get(x)
-                          for x in self.rotation_axis_roles)
-            print('@~@~ axes', self.rotation_axis_roles)
-            print('@~@~ angles', angles)
-            for sweep in ll:
+        axis_names = self.rotation_axis_roles
+
+        for rotation_id, sweeps in sorted(orientations.items()):
+            goniostatRotation = sweeps[0].goniostatSweepSetting
+            axis_settings = goniostatRotation.axisSettings
+            scan_axis = goniostatRotation.scanAxis
+            ss = "\nOrientation: %s" % ', '.join('%s=%s' % (x, axis_settings.get(x))
+                                                  for x in axis_names)
+            lines.append(ss)
+            for sweep in sweeps:
                 wavelength = sweep.beamSetting.wavelength
                 start = sweep.start
                 width = sweep.width
-                print('@~@~ sweep', wavelength, start, width)
+                ss = ("sweep: wavelength=%s, width=%s degrees"
+                      % (wavelength, width))
+                lines.append(ss)
+        info_text = '\n'.join(lines)
 
 
         # TODO put user display/query here
 
         # For now return default values
-        result['imageWidth'] = allowed_widths[default_width_index]
-        result['transmission'] = 1.0  # 100%
-        result['exposure'] = 0.035  # random value
+        field_list = [
+            {'variableName':'info_text',
+             'uiLabel':'Information',
+             'type':'textblock',
+             'defaultValue':info_text,
+             'textChoices':[str(x) for x in allowed_widths],
+             },
+            {'variableName':'imageWidth',
+             'uiLabel':'Image width',
+             'type':'combo',
+             'defaultValue':str(allowed_widths[default_width_index]),
+             'textChoices':[str(x) for x in allowed_widths],
+             },
+
+            # NB Transmissio i9s in % in UI, but in 0-1 in workflow
+            {'variableName':'transmission',
+             'uiLabel':'Transmission',
+             'type':'text',
+             'value':'100',
+             'unit':'%',
+             'lowerBound':0.0,
+             'upperBound':100.0,
+             },
+            {'variableName':'exposure',
+             'uiLabel':'Exposure Time',
+             'type':'text',
+             'value':'0.037',
+             'unit':'s',
+             'lowerBound':0.0,
+             'upperBound':0.1,
+             },
+        ]
         if isInterleaved:
-            result['wedgeWidth'] = 10
-        #
+            field_list.append({'variableName':'wedgeWidth',
+                              'uiLabel':'Images per wedge',
+                              'type':'text',
+                              'value':'10',
+                              'unit':'',
+                              'lowerBound':0,
+                              'upperBound':1000,}
+                          )
+        # ednaxmlhelper does not work, elementtrees used wrong. Skip this xml!
+        # xml_description = General.createDawnBeanDecoderXML(field_list)
+        self._gphl_parameters = dict(
+            (x['variableName'], x.get('value') or x.get('defaultValue'))
+            for x in field_list
+        )
+        self.emit('parametersNeeded', (field_list, ))
+        self._gevent_event.clear()
+        while not self._gevent_event.is_set():
+            self._gevent_event.wait()
+            time.sleep(0.1)
+
+        params = self._gphl_parameters
+        result = {}
+        tag = 'imageWidth'
+        value = params.get(tag)
+        if value:
+            result[tag] = float(value)
+        tag = 'exposure'
+        value = params.get(tag)
+        if value:
+            result[tag] = float(value)
+        tag = 'transmission'
+        value = params.get(tag)
+        if value:
+            # Convert from % to fraction
+            result[tag] = float(value)/100
+        tag = 'wedgeWidth'
+        value = params.get(tag)
+        if value:
+            result[tag] = int(value)
+
+        return result
+
+    def set_gphl_parameters(self, parameter_values):
+
+        logging.getLogger('HWR').debug("Setting GPhL parameters: %s"
+                                       % parameter_values)
+        self._gphl_parameters.clear()
+        self._gphl_parameters.update(parameter_values)
+        self._gevent_event.set()
+
+    def get_gphl_parameters(self):
+        result =  self._gphl_parameters.copy()
+        logging.getLogger('HWR').debug("Getting GPhL parameters: %s" % result)
         return result
 
 
@@ -620,7 +718,10 @@ class GphlWorkflow(HardwareObject, object):
         else:
             unitCell = None
 
-        space_group = queue_model_enumerables.SPACEGROUP_NUMBERS.get(cp.space_group)
+        space_group = queue_model_enumerables.SPACEGROUP_NUMBERS.get(
+            cp.space_group
+        )
+        point_group = None
 
         wavelengths = []
         for role, value in workflow_model.get_wavelengths().items():
@@ -631,6 +732,7 @@ class GphlWorkflow(HardwareObject, object):
         userProvidedInfo = self.GphlMessages.UserProvidedInfo(
             scatterers=(),
             lattice=None,
+            pointGroup=point_group,
             spaceGroup=space_group,
             cell=unitCell,
             expectedResolution=workflow_model.get_resolution(),

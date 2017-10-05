@@ -72,11 +72,3 @@ def commandOption(keyword, value):
         return ['-' + keyword]
     else:
         return ['-' + keyword, str(value)]
-
-
-def int2Float(value):
-    """Convert int to float"""
-    if isinstance(value, int):
-        return float(value)
-    else:
-        return value

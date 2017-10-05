@@ -789,17 +789,17 @@ class GphlWorkflowConnection(object):
         cls = self._gateway.jvm.astra.messagebus.messages.information.SampleCentredImpl
 
         if sampleCentred.interleaveOrder:
-            result = cls(General.int2Float(sampleCentred.imageWidth),
+            result = cls(float(sampleCentred.imageWidth),
                          sampleCentred.wedgeWidth,
-                         General.int2Float(sampleCentred.exposure),
-                         General.int2Float(sampleCentred.transmission),
+                         float(sampleCentred.exposure),
+                         float(sampleCentred.transmission),
                          list(sampleCentred.interleaveOrder)
                          # self._gateway.jvm.String(sampleCentred.interleaveOrder).toCharArray()
                          )
         else:
-            result = cls(General.int2Float(sampleCentred.imageWidth),
-                         General.int2Float(sampleCentred.exposure),
-                         General.int2Float(sampleCentred.transmission)
+            result = cls(float(sampleCentred.imageWidth),
+                         float(sampleCentred.exposure),
+                         float(sampleCentred.transmission)
                          )
 
         beamstopSetting = sampleCentred.beamstopSetting
@@ -854,6 +854,9 @@ class GphlWorkflowConnection(object):
                     userProvidedInfo.lattice
                 )
             )
+        xx = userProvidedInfo.pointGroup
+        if xx:
+            builder = builder.pointGroup(xx)
         xx = userProvidedInfo.spaceGroup
         if xx:
             builder = builder.spaceGroup(xx)
@@ -864,7 +867,7 @@ class GphlWorkflowConnection(object):
             )
         if userProvidedInfo.expectedResolution:
             builder = builder.expectedResolution(
-                General.int2Float(userProvidedInfo.expectedResolution)
+                float(userProvidedInfo.expectedResolution)
             )
         xx = userProvidedInfo.isAnisotropic
         if xx is not None:
@@ -898,8 +901,8 @@ class GphlWorkflowConnection(object):
         if unitCell is None:
             return None
 
-        lengths = [General.int2Float(x) for x in unitCell.lengths]
-        angles = [General.int2Float(x) for x in unitCell.angles]
+        lengths = [float(x) for x in unitCell.lengths]
+        angles = [float(x) for x in unitCell.angles]
         return self._gateway.jvm.astra.messagebus.messages.domain_types.UnitCellImpl(
             lengths[0], lengths[1], lengths[2], angles[0], angles[1], angles[2]
         )
@@ -913,7 +916,7 @@ class GphlWorkflowConnection(object):
             str(phasingWavelength.id)
         )
         return self._gateway.jvm.astra.messagebus.messages.information.PhasingWavelengthImpl(
-            javaUuid, General.int2Float(phasingWavelength.wavelength),
+            javaUuid, float(phasingWavelength.wavelength),
             phasingWavelength.role
         )
 
@@ -927,7 +930,7 @@ class GphlWorkflowConnection(object):
         javaRotationId = self._gateway.jvm.java.util.UUID.fromString(
             str(gts.requestedRotationId)
         )
-        axisSettings = dict(((x, General.int2Float(y))
+        axisSettings = dict(((x, float(y))
                              for x,y in gts.axisSettings.items()))
         newRotation = gts.newRotation
         if newRotation:
@@ -947,7 +950,7 @@ class GphlWorkflowConnection(object):
 
         grs = goniostatRotation
         javaUuid = self._gateway.jvm.java.util.UUID.fromString(str(grs.id))
-        axisSettings = dict(((x, General.int2Float(y))
+        axisSettings = dict(((x, float(y))
                              for x,y in grs.axisSettings.items()))
         # NBNB The final None is necessary because there is no non-deprecated
         # constructor that takes two UUIDs. Eventually the deprecated
@@ -964,7 +967,7 @@ class GphlWorkflowConnection(object):
         javaUuid = self._gateway.jvm.java.util.UUID.fromString(
             str(beamStopSetting.id)
         )
-        axisSettings = dict(((x, General.int2Float(y))
+        axisSettings = dict(((x, float(y))
                              for x,y in beamStopSetting.axisSettings.items()))
         return self._gateway.jvm.astra.messagebus.messages.instrumentation.BeamstopSettingImpl(
             axisSettings, javaUuid
