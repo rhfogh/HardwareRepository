@@ -6,9 +6,11 @@ import gevent
 import pprint
 import httplib
 import logging
+# import binascii
 #import threading
 # from xml import etree
-import types
+# import types
+# from XMLRPCServer import SecureXMLRpcRequestHandler
 
 class State(object):
     """
