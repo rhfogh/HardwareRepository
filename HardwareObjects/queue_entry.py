@@ -1306,7 +1306,7 @@ class GphlWorkflowQueueEntry(BaseQueueEntry):
     def pre_execute(self):
         BaseQueueEntry.pre_execute(self)
         qc = self.get_queue_controller()
-        self.workflow_hwobj = self.beamline_setup.gphl_workflow_hwobj
+        self.workflow_hwobj = self.beamline_setup.getObjectByRole('gphl_workflow')
 
         qc.connect(self.workflow_hwobj, 'stateChanged',
                    self.workflow_state_handler)
