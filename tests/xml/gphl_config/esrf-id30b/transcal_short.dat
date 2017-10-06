@@ -1,0 +1,8 @@
+# Settings for running TransCal on a mini-Kappa (short protocol, without SOC)
+0   0       0
+0   0     180
+0  61.5    60
+0  61.5  -120
+0  180    120
+0  180    -60
+

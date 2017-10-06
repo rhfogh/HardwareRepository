@@ -8,7 +8,7 @@
     <java_binary>/MXCuBE/gphl_java/bin/java</java_binary>
     <!-- GPHL configuration subdirectory
          (will be searched for in HardwareObjects config xml directories-->
-    <gphl_config_subdir>gphl_config</gphl_config_subdir>
+    <gphl_config_subdir>gphl_config/esrf-id30b</gphl_config_subdir>
 
     <!-- Rotation axis role names, space separated, in out-to-in order. -->
     <!-- Must match Instrunmentation.nml config file NB modify for beamline -->
@@ -43,24 +43,24 @@
     <!-- Syntax as for invocation properties, but located differently-->
     <workflow_properties>
         <!-- Location of XDS binary -->
-        <co.gphl.sdcp.xdsbin>/MXCuBE/softwares/Xds/XDS-INTEL64_Linux_x86_64/xds_par</co.gphl.sdcp.xdsbin>
+        <co.gphl.sdcp.xdsbin>/MXCuBE/softwares/XDS/xds_par</co.gphl.sdcp.xdsbin>
         <!-- Location of GPhL .license directory -->
         <!--<co.gphl.wf.bdg_licence_dir>/MXCuBE/softwares/Server-nightly-alpha-bdg-linux64</co.gphl.wf.bdg_licence_dir>-->
-        <co.gphl.wf.bdg_licence_dir>/MXCuBE/gphl_java_classes/licenses</co.gphl.wf.bdg_licence_dir>
+        <co.gphl.wf.bdg_licence_dir>/MXCuBE/softwares/GPhL-ESRF-20171005/20171005</co.gphl.wf.bdg_licence_dir>
         <!-- Location of stratcal binary -->
-        <co.gphl.wf.stratcal.bin>/MXCuBE/softwares/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/stratcal</co.gphl.wf.stratcal.bin>
+        <co.gphl.wf.stratcal.bin>/MXCuBE/softwares/GPhL-ESRF-20171005/20171005/bin/linux64/stratcal</co.gphl.wf.stratcal.bin>
         <!-- Location of stratcal-specific license directory - OPTIONAL ->
         <co.gphl.wf.stratcal.bdg_licence_dir>/MXCuBE/softwares/Server-nightly-alpha-bdg-linux64</co.gphl.wf.stratcal.bdg_licence_dir>
         -->
         <!-- Location of simcal binary -->
-        <co.gphl.wf.simcal_predict.bin>/MXCuBE/softwares/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/simcal_predict</co.gphl.wf.simcal_predict.bin>
+        <co.gphl.wf.simcal_predict.bin>/MXCuBE/softwares/GPhL-ESRF-20171005/20171005/bin/linux64/simcal_predict</co.gphl.wf.simcal_predict.bin>
         <!-- Location of simcal-specific license directory - OPTIONAL ->
         <co.gphl.wf.simcal_predict.bdg_licence_dir>/MXCuBE/softwares/Server-nightly-alpha-bdg-linux64</co.gphl.wf.stratcal.bdg_licence_dir>
         -->
         <!-- Location of transcal binary -->
-        <co.gphl.wf.transcal.bin>/MXCuBE/softwares/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/transcal</co.gphl.wf.transcal.bin>
+        <co.gphl.wf.transcal.bin>/MXCuBE/softwares/GPhL-ESRF-20171005/20171005/bin/linux64/transcal</co.gphl.wf.transcal.bin>
         <!-- Location of recen binary -->
-        <co.gphl.wf.recen.bin>/MXCuBE/softwares/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/recen</co.gphl.wf.recen.bin>
+        <co.gphl.wf.recen.bin>/MXCuBE/softwares/GPhL-ESRF-20171005/20171005/bin/linux64/recen</co.gphl.wf.recen.bin>
         <!-- Path of application that analyses diffractcal (aka rotational
         calibration) data. In practice, this will almost always be a wrapper
         script that sets up the environment properly. -->
@@ -108,7 +108,10 @@
                 <!-- The name is the relative path from the Repository directory -->
                 <!-- grid: Grid definition [axis_name:start:end:step], slowest-varying to fastest varying -->
                 <!-- EITHER file OR grid must be set. NBNB REDO! -->
-                <file>gphl_config/TransCalTest.inp</file>
+                <file>gphl_config/esrf-id30b/transcal_short.dat</file>
+                <!-- copy calibration result to confdiguration directory, replacing previous value -->
+                <newconfig/>
+                <!-- udateconfig option, automaticallly updates entiere configuration -->
                 <!--<grid>grid_axes_spec</grid>-->
                 <!-- Path of file to dump persisted instrumentation configuration. OPTIONAL-->
                 <instcfgout>/MXCuBE/mxcube/gphl_transcal_out.nml</instcfgout>
@@ -139,6 +142,8 @@
                 <instcfgout>/MXCuBE/mxcube/gphl_diffractcal_out.nml</instcfgout>
                 <!-- NBNB replace later -->
                 <charpattern>generic</charpattern>
+                <!-- copy calibration result to confdiguration directory, replacing previous value -->
+                <newconfig/>
             </options>
         </DiffractometerCalibration>
 
