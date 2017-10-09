@@ -326,13 +326,13 @@ class BaseQueueEntry(QueueEntryContainer):
 
         if self.get_data_model().is_executed():
             if self.status == QUEUE_ENTRY_STATUS.SUCCESS:
-                view.set_background_color(widget_colors.LIGHT_GREEN)
+                view.setBackgroundColor(widget_colors.LIGHT_GREEN)
             elif self.status == QUEUE_ENTRY_STATUS.WARNING:
-                view.set_background_color(widget_colors.LIGHT_YELLOW)
+                view.setBackgroundColor(widget_colors.LIGHT_YELLOW)
             elif self.status == QUEUE_ENTRY_STATUS.FAILED:
-                view.set_background_color(widget_colors.LIGHT_RED)
+                view.setBackgroundColor(widget_colors.LIGHT_RED)
         else:
-            view.set_background_color(widget_colors.WHITE)
+            view.setBackgroundColor(widget_colors.WHITE)
 
     def stop(self):
         """
@@ -348,7 +348,7 @@ class BaseQueueEntry(QueueEntryContainer):
 
         if view and isinstance(ex, QueueExecutionException):
             if ex.origin is self:
-                view.set_background_color(widget_colors.LIGHT_RED)
+                view.setBackgroundColor(widget_colors.LIGHT_RED)
 
     def __str__(self):
         s = '<%s object at %s> [' % (self.__class__.__name__, hex(id(self)))
@@ -583,8 +583,20 @@ class SampleCentringQueueEntry(BaseQueueEntry):
             #pos = shape_history.Point(None, cpos, None) #, True)
         self._data_model.set_centring_result(cpos)
 
-        # Get tasks associated with this centring
-        tasks = self.get_data_model().get_tasks()
+        # # Get tasks associated with this centring
+        # tasks = self.get_data_model().get_tasks()
+        #
+        # for task in tasks:
+        #     cpos = pos.get_centred_positions()[0]
+        #
+        #     if pos.qub_point is not None:
+        #         snapshot = self.shape_history.\
+        #                    get_snapshot([pos.qub_point])
+        #     else:
+        #         snapshot = self.shape_history.get_snapshot([])
+        #
+        #     cpos.snapshot_image = snapshot
+        #     task.set_centred_positions(cpos)
 
         self.get_view().setText(1, 'Input accepted')
 
@@ -660,7 +672,6 @@ class DataCollectionQueueEntry(BaseQueueEntry):
                    self.collect_number_of_frames)
 
         data_model = self.get_data_model()
-
         if data_model.get_parent():
             gid = data_model.get_parent().lims_group_id
             data_model.lims_group_id = gid
@@ -970,7 +981,7 @@ class CharacterisationQueueEntry(BaseQueueEntry):
 
         self.data_analysis_hwobj = self.beamline_setup.data_analysis_hwobj
         self.diffractometer_hwobj = self.beamline_setup.diffractometer_hwobj
-        #should be an other way how to get queue_model_hwobj:
+        #There should be another way how to get queue_model_hwobj:
         self.queue_model_hwobj = self.get_view().listView().parent().queue_model_hwobj
         self.session_hwobj = self.beamline_setup.session_hwobj
 

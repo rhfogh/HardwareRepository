@@ -381,6 +381,16 @@ class BeamlineSetup(HardwareObject):
 
         return resolution
  
+    #def _get_detector_mode(self):
+    #    """
+    #    Descript. :
+    #    """
+    #    try:
+    #        detector_mode = int(self.detector_hwobj.get_detector_mode())
+    #    except (AttributeError, TypeError):
+    #        detector_mode = 1
+    #    return detector_mode
+
     def _get_omega_axis_position(self):
         result = 0
 

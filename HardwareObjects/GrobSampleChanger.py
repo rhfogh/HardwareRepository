@@ -104,6 +104,7 @@ class GrobSampleChanger(Equipment):
       pass
 
     def getLoadedSample(self):
+        # TODO ERROR this function should return a sample, not a dictionary
       return self.loaded_sample_dict
 
     def _setMovingState(self):

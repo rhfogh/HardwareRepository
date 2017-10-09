@@ -36,27 +36,29 @@ class ISPyBClient2Mockup(HardwareObject):
                 logging.getLogger("HWR").debug('LDAP Server is not available')
 
         self.loginType = self.getProperty("loginType") or "proposal"
-        # self.session_hwobj = self.getObjectByRole('session')
-        # self.beamline_name = self.session_hwobj.beamline_name
-        self.beamline_name = self.getProperty("beamline_name")
+        self.session_hwobj = self.getObjectByRole('session')
+        if self.session_hwobj:
+            self.beamline_name = self.session_hwobj.beamline_name
+        else:
+            self.beamline_name = self.getProperty("beamline_name")
 
     def login (self,loginID, psd, ldap_connection=None):
 
         # to simulate wrong loginID
         if loginID == "wrong":
-	    return {'status':{ "code": "error", "msg": "loginID 'wrong' does not exist!" }, 'Proposal': None, 'Session': None} 
+            return {'status':{ "code": "error", "msg": "loginID 'wrong' does not exist!" }, 'Proposal': None, 'Session': None}
         # to simulate wrong psd
         if psd == "wrong":
-	    return {'status':{ "code": "error", "msg": "Wrong password!" }, 'Proposal': None, 'Session': None}
+            return {'status':{ "code": "error", "msg": "Wrong password!" }, 'Proposal': None, 'Session': None}
         # to simulate ispybDown, but login succeed
         if psd == "ispybDown":
-	    return {'status':{ "code": "ispybDown", "msg": "ispyb is down" }, 'Proposal': None, 'Session': None}
+            return {'status':{ "code": "ispybDown", "msg": "ispyb is down" }, 'Proposal': None, 'Session': None}
  
         new_session = False
         if psd == "nosession":
-	    new_session=True
+            new_session=True
         prop=self.get_proposal(loginID,"")
-	return {'status':{ "code": "ok", "msg": "Successful login" }, 'Proposal': prop['Proposal'],
+        return {'status':{ "code": "ok", "msg": "Successful login" }, 'Proposal': prop['Proposal'],
                  'session': {"session": prop['Session'],"new_session_flag":new_session, "is_inhouse": False},
                  'local_contact': "BL Scientist",
                  'person': prop['Person'],
