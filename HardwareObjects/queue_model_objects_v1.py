@@ -925,19 +925,38 @@ class XRFSpectrumResult(object):
         self.mca_config = None
 
 class SampleCentring(TaskNode):
-    def __init__(self, name = None, motor_positions=None):
+    """Task for sampole centring
+
+    kappa and kappa_phi settings are applied first, and assume that the
+    beamline does have axes with exactly these names
+
+    Other motor_positions are applied afterwards, but in random order.
+    motor_positions override kappa and kappa_phi if both are set
+
+    Since setting one motor can change the position of another
+    (on ESRF ID30B setting kappa and kappa_phi changes the translation otors)
+     the order is important.
+
+    """
+    def __init__(self, name=None, kappa=None, kappa_phi=None,
+                 motor_positions=None):
         TaskNode.__init__(self)
         self._tasks = []
-        self._starting_position = CentredPosition(
-            motor_dict=motor_positions or {}
-        )
+        self._other_motor_positions = (motor_positions.copy()
+                                       if motor_positions else {})
         self._centring_result = None
 
         if name:
             self.set_name(name)
+
+        if 'kappa' in self._other_motor_positions:
+            kappa = self._other_motor_positions.pop('kappa')
+
+        if 'kappa_phi' in self._other_motor_positions:
+            kappa_phi = self._other_motor_positions.pop('kappa_phi')
  
-        # self.kappa = kappa
-        # self.kappa_phi = kappa_phi
+        self.kappa = kappa
+        self.kappa_phi = kappa_phi
 
     def add_task(self, task_node):
         self._tasks.append(task_node)
@@ -948,14 +967,14 @@ class SampleCentring(TaskNode):
     def get_name(self):
         return self._name
 
-    # def get_kappa(self):
-    #     return self._starting_position.get_kappa_value()
-    #
-    # def get_kappa_phi(self):
-    #     return self._starting_position.get_kappa_phi_value()
+    def get_kappa(self):
+        return self.kappa
 
-    def get_starting_position(self):
-        return self._starting_position
+    def get_kappa_phi(self):
+        return self.kappa_phi
+
+    def get_other_motor_positions(self):
+        return self._other_motor_positions.copy()
 
     def get_centring_result(self):
         return self._centring_result

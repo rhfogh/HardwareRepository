@@ -559,8 +559,23 @@ class SampleCentringQueueEntry(BaseQueueEntry):
         self.get_view().setText(1, 'Waiting for input')
         log = logging.getLogger("user_level_log")
 
-        dd = self.get_data_model().get_starting_position().as_dict()
-        motor_positions = dict((key, val) for key,val in dd.items() if key)
+        kappa = self._data_model.get_kappa()
+        phi = self._data_model.get_kappa_phi()
+
+
+        # kappa and kappa_phi settings are applied first, and assume that the
+        # beamline does have axes with exactly these names
+        #
+        # Other motor_positions are applied afterwards, but in random order.
+        # motor_positions override kappa and kappa_phi if both are set
+        #
+        # Since setting one motor can change the position of another
+        # (on ESRF ID30B setting kappa and kappa_phi changes the translation motors)
+        # the order is important.
+
+        self.diffractometer_hwobj.moveMotors({"kappa": kappa, "kappa_phi":phi})
+
+        motor_positions = self.get_data_model().get_other_motor_positions()
         if motor_positions:
             self.diffractometer_hwobj.moveMotors(motor_positions)
 
@@ -577,7 +592,7 @@ class SampleCentringQueueEntry(BaseQueueEntry):
             msg = "No centred position selected, using current position."
             log.info(msg)
 
-            # Create a centred postions of the current postion
+            # Create a centred positions of the current position
             pos_dict = self.diffractometer_hwobj.getPositions()
             cpos = queue_model_objects.CentredPosition(pos_dict)
             #pos = shape_history.Point(None, cpos, None) #, True)

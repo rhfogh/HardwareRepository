@@ -15,7 +15,7 @@
     <rotation_axis_roles>phi kappa kappa_phi</rotation_axis_roles>
     <!-- Translation axis role names, space separated. -->
     <!-- Must match Instrunmentation.nml config file NB modify for beamline -->
-    <translation_axis_roles>sampx sampy phiy</translation_axis_roles>
+    <translation_axis_roles>phiy sampy sampx</translation_axis_roles>
 
     <!-- Hosts and ports for py4j java-python gateway, all OPTIONAL-->
     <!-- If not set will use py4j default values, which are as given below-->
