@@ -569,16 +569,22 @@ class GphlWorkflowConnection(object):
         if py4jGoniostatRotation is None:
             return None
 
-        # NB the translation link is NOT converted.
-        # If present it will(must) be set when the GoniostatTranslation is
-        # created
-
         uuidString = py4jGoniostatRotation.getId().toString()
 
         axisSettings = py4jGoniostatRotation.getAxisSettings()
         #
-        return GphlMessages.GoniostatRotation(id=uuid.UUID(uuidString),
+        result = GphlMessages.GoniostatRotation(id=uuid.UUID(uuidString), 
                                           **axisSettings)
+					  
+	
+	py4jGoniostatTranslation = py4jGoniostatRotation.getTranslation()
+	if py4jGoniostatTranslation:
+	    translationAxisSettings = py4jGoniostatTranslation.getAxisSettings()
+            translationUuidString = py4jGoniostatTranslation.getId().toString()
+	    translation = GphlMessages.GoniostatTranslation(id=uuid.UUID(translationUuidString),
+	                                                    rotation=result,
+                                                            **translationAxisSettings)
+        return result							    
 
     def _BeamstopSetting_to_python(self, py4jBeamstopSetting):
         if py4jBeamstopSetting is None:

@@ -1,0 +1,22 @@
+# Invariant root directory where images and processing input/output files are written.
+# Users/workflows may specify directories for images and input/output files
+# beneath this root.
+co.gphl.beamline.imageRoot = /scratch_fs1/pkeller/ImageRoots_test/id30b-esrf/
+
+# Number of digits for image number in image filenames.
+co.gphl.beamline.maskWidth = 4
+
+# Suffix of image filenames written by this beamline.
+co.gphl.beamline.detectorSuffix = .cbf
+
+# Key in Scan.filenameParams that is used to specify any per-scan subdirectories
+# that may be created to accommodate very complex file naming schemes. It is only
+# needed when the beamline restrictions on the filename prefix become severe. 
+
+# subdir: path relative to imageRoot where a scan's images should be written.
+co.gphl.beamline.subdirKeyName = subdir
+
+# Input for recen: (trans_x, trans_y, trans_z) for a given (omega, kappa, phi)
+# that achieves centring for the current sample or pin.
+co.gphl.beamline.recen.initokp = 0 0 0
+co.gphl.beamline.recen.initxyz = 0.343, -0.16655, -0.17265

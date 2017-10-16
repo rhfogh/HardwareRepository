@@ -7,7 +7,6 @@ import copy
 import os
 import logging
 import queue_model_enumerables_v1 as queue_model_enumerables
-from HardwareRepository.HardwareRepository import HardwareRepository
 
 class TaskNode(object):
     """
@@ -183,7 +182,7 @@ class TaskGroup(TaskNode):
     def __init__(self):
         TaskNode.__init__(self)
         self.lims_group_id = None
-        self.interleave_num_images = None
+
 
 class Sample(TaskNode):
     def __init__(self):
@@ -926,19 +925,38 @@ class XRFSpectrumResult(object):
         self.mca_config = None
 
 class SampleCentring(TaskNode):
-    def __init__(self, name = None, motor_positions=None):
+    """Task for sampole centring
+
+    kappa and kappa_phi settings are applied first, and assume that the
+    beamline does have axes with exactly these names
+
+    Other motor_positions are applied afterwards, but in random order.
+    motor_positions override kappa and kappa_phi if both are set
+
+    Since setting one motor can change the position of another
+    (on ESRF ID30B setting kappa and kappa_phi changes the translation otors)
+     the order is important.
+
+    """
+    def __init__(self, name=None, kappa=None, kappa_phi=None,
+                 motor_positions=None):
         TaskNode.__init__(self)
         self._tasks = []
-        self._starting_position = CentredPosition(
-            motor_dict=motor_positions or {}
-        )
+        self._other_motor_positions = (motor_positions.copy()
+                                       if motor_positions else {})
         self._centring_result = None
 
         if name:
             self.set_name(name)
+
+        if 'kappa' in self._other_motor_positions:
+            kappa = self._other_motor_positions.pop('kappa')
+
+        if 'kappa_phi' in self._other_motor_positions:
+            kappa_phi = self._other_motor_positions.pop('kappa_phi')
  
-        # self.kappa = kappa
-        # self.kappa_phi = kappa_phi
+        self.kappa = kappa
+        self.kappa_phi = kappa_phi
 
     def add_task(self, task_node):
         self._tasks.append(task_node)
@@ -949,14 +967,14 @@ class SampleCentring(TaskNode):
     def get_name(self):
         return self._name
 
-    # def get_kappa(self):
-    #     return self._starting_position.get_kappa_value()
-    #
-    # def get_kappa_phi(self):
-    #     return self._starting_position.get_kappa_phi_value()
+    def get_kappa(self):
+        return self.kappa
 
-    def get_starting_position(self):
-        return self._starting_position
+    def get_kappa_phi(self):
+        return self.kappa_phi
+
+    def get_other_motor_positions(self):
+        return self._other_motor_positions.copy()
 
     def get_centring_result(self):
         return self._centring_result
@@ -1146,7 +1164,6 @@ class AcquisitionParameters(object):
         self.kappa_phi = float()
         self.exp_time = float()
         self.num_passes = int()
-        self.num_lines = 1
         self.energy = int()
         self.centred_position = CentredPosition()
         self.resolution = float()
@@ -1159,11 +1176,7 @@ class AcquisitionParameters(object):
         self.detector_mode = str()
         self.induce_burn = False
         self.mesh_steps = int()
-        self.mesh_range = ()        
-        self.mesh_snapshot = None
-        self.comments = ""
-        self.in_queue = False
-        self.in_interleave = False
+        self.mesh_range = ()
 
 
 class Crystal(object):
@@ -1361,7 +1374,7 @@ def to_collect_dict(data_collection, session, sample, centred_pos=None):
                           'run_number': acquisition.path_template.run_number,
                           'process_directory': acquisition.\
                           path_template.process_directory},
-             'in_queue': acq_params.in_queue,
+             #'in_queue': 0,
              'detector_mode': acq_params.detector_mode,
              'shutterless': acq_params.shutterless,
              'sessionId': session.session_id,
@@ -1385,9 +1398,7 @@ def to_collect_dict(data_collection, session, sample, centred_pos=None):
                                        'overlap': acq_params.overlap,
                                        'start': acq_params.osc_start,
                                        'range': acq_params.osc_range,
-                                       'number_of_passes': acq_params.num_passes,
-                                       'number_of_lines': acq_params.num_lines,
-                                       'mesh_range': acq_params.mesh_range}],
+                                       'number_of_passes': acq_params.num_passes}],
              'group_id': data_collection.lims_group_id,
              #'nb_sum_images': 0,
              'EDNA_files_dir': acquisition.path_template.process_directory,
@@ -1592,53 +1603,3 @@ def create_inverse_beam_sw(num_images, sw_size, osc_range,
     subwedges = [sw_pair for pair in zip(w1, w2) for sw_pair in pair]
     
     return subwedges
-
-def create_interleave_sw(interleave_list, num_images, sw_size):
-    """
-    Creates subwedges for interleved collection.
-    Wedges W1, W2, Wm (where m is num_collections) are created:
-    (W1_1, W2_1, ..., W1_m), ... (W1_n-1, W2_n-1, ..., Wm_n-1),
-    (W1_n, W2_n, ..., Wm_n)
-
-    :param interleave_list: list of interleaved items
-    :type interleave_list: list of dict
-
-    :param num_images: number of images of first collection. Based on the
-    first collection certain number of subwedges will be created. If
-    first collection contains more images than others then in the end
-    the rest of images from first collections are created as last subwedge
-    :type num_images: int
-
-    :param sw_size: Number of images in each subwedge
-    :type sw_size: int
-
-    :returns: A list of tuples containing the swb wedges.
-              The tuples are in the form:
-              (collection_index, subwedge_index, subwedge_firt_image,
-               subwedge_start_osc)
-    :rtype: List [(...), (...)]
-    """
-    subwedges = []
-    sw_first_image = None
-    for sw_index in range(num_images / sw_size):
-        for collection_index in range(len(interleave_list)):
-            collection_osc_start = interleave_list[collection_index]["data_model"].\
-               acquisitions[0].acquisition_parameters.osc_start
-            collection_osc_range = interleave_list[collection_index]["data_model"].\
-               acquisitions[0].acquisition_parameters.osc_range
-            collection_first_image = interleave_list[collection_index]["data_model"].\
-               acquisitions[0].acquisition_parameters.first_image
-            collection_num_images = interleave_list[collection_index]["data_model"].\
-               acquisitions[0].acquisition_parameters.num_images
-            if sw_index * sw_size <= collection_num_images:
-                sw_actual_size = sw_size
-                if sw_size > collection_num_images - (sw_index + 1) * sw_size > 0:
-                    sw_actual_size = collection_num_images % sw_size
-                sw_first_image = collection_first_image + sw_index * sw_size
-                sw_osc_start = collection_osc_start + collection_osc_range * sw_index * sw_size
-                sw_osc_range = collection_osc_range * sw_actual_size
-                subwedges.append((collection_index, sw_index, sw_first_image,
-                                  sw_actual_size, sw_osc_start, sw_osc_range))
-        sw_first_image += sw_actual_size
-    return subwedges
-

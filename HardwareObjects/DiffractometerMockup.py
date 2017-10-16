@@ -198,7 +198,7 @@ class DiffractometerMockup(Equipment):
             self.phase_list = []
 
     def set_drawing(self, drawing):
-	self._drawing = drawing
+        self._drawing = drawing
 
     def use_sample_changer(self):
         return True
@@ -441,7 +441,7 @@ class DiffractometerMockup(Equipment):
         Descript. :
         """
         self.emit_progress_message("Auto centring")
-        self.current_centring_procedure = 'DUMMY'
+        # self.current_centring_procedure = 'DUMMY'
         self.emit_centring_started(DiffractometerMockup.C3D_MODE)
         # self.emit('centringSuccessful')
         self.emit_centring_successful()

@@ -6,6 +6,7 @@ access and manipulate this information.
 """
 import os
 import time
+import socket
 
 from HardwareRepository.BaseHardwareObjects import HardwareObject
 import queue_model_objects_v1 as queue_model_objects
@@ -21,8 +22,9 @@ class Session(HardwareObject):
         self.endstation_name = None
         self.session_start_date = None
         self.user_group = ''
+        self.email_extension = None
 
-        self.default_precision = '05'
+        self.default_precision = '04'
         self.suffix = None
         self.base_directory = None
         self.base_process_directory = None
@@ -49,19 +51,33 @@ class Session(HardwareObject):
             getProperty('processed_data_folder_name')
 
         try:
-           inhouse_proposals = self["inhouse_users"]["proposal"]
- 
-           for prop in inhouse_proposals:
-               self.in_house_users.append((prop.getProperty('code'),
-                   str(prop.getProperty('number'))))
-        except:
-           pass
+            inhouse_proposals = self["inhouse_users"]["proposal"]
+            for prop in inhouse_proposals:
+                self.in_house_users.append((prop.getProperty('code'),
+                                            str(prop.getProperty('number'))))
+        except IndexError:
+            pass
 
-        queue_model_objects.PathTemplate.set_path_template_style(self.synchrotron_name) 
+        email_extension = self.getProperty('email_extension')
+        if email_extension:
+            self.email_extension = email_extension
+        else:
+            try:
+                domain = socket.getfqdn().split('.')
+                self.email_extension = '.'.join((domain[-2], domain[-1]))
+            except (TypeError, IndexError):
+                pass
+
+
+        archive_base_directory = self['file_info'].getProperty('archive_base_directory')
+        if archive_base_directory:
+            archive_folder = self['file_info'].getProperty('archive_folder')
+            if self.synchrotron_name and self.synchrotron_name.lower() == 'esrf':
+                archive_folder = os.path.join(archive_folder, time.strftime('%Y'))
+            queue_model_objects.PathTemplate.set_archive_path(archive_base_directory, archive_folder)
+
+        queue_model_objects.PathTemplate.set_path_template_style(self.synchrotron_name)
         queue_model_objects.PathTemplate.set_data_base_path(self.base_directory)
-        queue_model_objects.PathTemplate.set_archive_path(self['file_info'].getProperty('archive_base_directory'),
-                                                          self['file_info'].getProperty('archive_folder'))
-        queue_model_objects.PathTemplate.set_path_template_style(self.getProperty('synchrotron_name'))
 
 
     def get_base_data_directory(self):
@@ -76,30 +92,21 @@ class Session(HardwareObject):
         user_category = ''
         directory = ''
 
-        if self.synchrotron_name == "PETRA":
+        if self.session_start_date:
+            start_time = self.session_start_date.split(' ')[0].replace('-', '')
+        else:
             start_time = time.strftime("%Y%m%d")
-            if os.getenv("SUDO_USER"):
-                user = os.getenv("SUDO_USER")
-            else:
-                user = os.getenv("USER")
-            directory = os.path.join(self.base_directory, str(os.getuid()) + '_'\
-                                     + str(os.getgid()), user, start_time)
-        else: 
-            if self.session_start_date:
-                start_time = self.session_start_date.split(' ')[0].replace('-', '')
-            else:
-                start_time = time.strftime("%Y%m%d")
 
-            if self.is_inhouse():
-                user_category = 'inhouse'
-                directory = os.path.join(self.base_directory, self.endstation_name,
-                                         user_category, self.get_proposal(),
-                                         start_time)
-            else:
-                user_category = 'visitor'
-                directory = os.path.join(self.base_directory, user_category,
-                                         self.get_proposal(), self.endstation_name,
-                                         start_time)
+        if self.is_inhouse():
+            user_category = 'inhouse'
+            directory = os.path.join(self.base_directory, self.endstation_name,
+                                     user_category, self.get_proposal(),
+                                     start_time)
+        else:
+            user_category = 'visitor'
+            directory = os.path.join(self.base_directory, user_category,
+                                     self.get_proposal(), self.endstation_name,
+                                     start_time)
 
         return directory
 

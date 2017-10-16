@@ -1,0 +1,67 @@
+&sdcp_goniostat_setting_list
+id= 'gset01'
+scan_axis_name= 'phi'
+goniostat_axis_settings= 0.0 0.0 0.0
+/
+
+&sdcp_detector_setting_list
+id= 'dset01'
+detector_axis_settings= 291.0
+/
+
+&beam_setting_list
+id= 'bset01'
+! Standard I04 wavelength according to http://www.diamond.ac.uk/Beamlines/Mx/I04.html
+lambda= 0.98
+/
+
+! ################### Default characteristation strategy
+
+&sdcp_strategy_list
+strategy_name= 'InitialCharacterisation'
+type= 'geometric'
+allowed_widths= 0.02 0.03 0.04 0.05 0.06 0.08 0.1 0.12 0.15 0.2 0.3 0.4
+default_width_idx= 6
+/
+
+&stratcal_sweep_list
+goniostat_setting_id= 'gset01'
+detector_setting_id= 'dset01'
+beam_setting_id= 'bset01'
+length_deg= 1.2
+start_deg= 0.0
+/
+
+&stratcal_sweep_list
+goniostat_setting_id= 'gset01'
+detector_setting_id= 'dset01'
+beam_setting_id= 'bset01'
+length_deg= 1.2
+start_deg= 60.0
+/
+
+&stratcal_sweep_list
+goniostat_setting_id= 'gset01'
+detector_setting_id= 'dset01'
+beam_setting_id= 'bset01'
+length_deg= 1.2
+start_deg= 90.0
+/
+
+&stratcal_sweep_list
+goniostat_setting_id= 'gset01'
+detector_setting_id= 'dset01'
+beam_setting_id= 'bset01'
+length_deg= 1.2
+start_deg= 120.0
+/
+
+&stratcal_sweep_list
+goniostat_setting_id= 'gset01'
+detector_setting_id= 'dset01'
+beam_setting_id= 'bset01'
+length_deg= 1.2
+start_deg= 180.0
+/
+
+
