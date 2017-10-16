@@ -501,7 +501,7 @@ class GphlWorkflow(HardwareObject, object):
 
         new_dcg_name = 'GPhL Data Collection'
         new_dcg_model = queue_model_objects.TaskGroup()
-        new_dcg_model.set_enabled(False)
+        new_dcg_model.set_enabled(True)
         new_dcg_model.set_name(new_dcg_name)
         new_dcg_model.set_number(
             gphl_workflow_model.get_next_number_for_name(new_dcg_name)
@@ -589,7 +589,7 @@ class GphlWorkflow(HardwareObject, object):
             data_collection = queue_model_objects.DataCollection([acq], crystal)
             data_collections.append(data_collection)
 
-            data_collection.set_enabled(False)
+            data_collection.set_enabled(True)
             data_collection.set_name(path_template.get_prefix())
             data_collection.set_number(path_template.run_number)
             queue_model_hwobj.add_child(new_dcg_model, data_collection)
