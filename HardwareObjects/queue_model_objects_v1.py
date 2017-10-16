@@ -170,6 +170,15 @@ class TaskNode(object):
 
         return s
 
+    def get_sample_node(self):
+        """get Sample task node that this entry is executed on"""
+
+        result = self
+        while result is not None and not isinstance(result, Sample):
+            result = result._parent
+        #
+        return result
+
 
 class RootNode(TaskNode):
     def __init__(self):
@@ -1344,15 +1353,6 @@ class GphlWorkflow(TaskNode):
             dd.update(valueDict)
             if 'prefix' in dd:
                 self.get_path_template().base_prefix = dd.pop('prefix')
-
-    def get_sample_node(self):
-        """get Sample task node that this entry is executed on"""
-
-        result = self
-        while result is not None and not isinstance(result, Sample):
-            result = result._parent
-        #
-        return result
 
 
 #
