@@ -12,6 +12,7 @@ __date__ = "06/04/17"
 import logging
 import uuid
 import time
+import os
 
 import gevent
 import gevent.event
@@ -136,14 +137,22 @@ class GphlWorkflow(HardwareObject, object):
         # TODO this could be cached for speed
 
         result = OrderedDict()
-        if self.hasObject('workflow_options'):
-            options = self['workflow_options'].getProperties()
-        else:
-            options = {}
         if self.hasObject('workflow_properties'):
             properties = self['workflow_properties'].getProperties()
         else:
             properties = {}
+        if self.hasObject('gphl_program_locations'):
+            dd = self['gphl_program_locations'].getProperties()
+            prefix = self.getProperty('gphl_installation_dir')
+            if prefix:
+                dd = dict((key, os.path.join(prefix, val))
+                          for key, val in dd.items())
+            properties.update(dd)
+
+        if self.hasObject('workflow_options'):
+            options = self['workflow_options'].getProperties()
+        else:
+            options = {}
         if self.hasObject('invocation_options'):
             invocation_options = self['invocation_options'].getProperties()
         else:
@@ -476,9 +485,9 @@ class GphlWorkflow(HardwareObject, object):
         collection_proposal = payload
 
         beamline_setup_hwobj = self._queue_entry.beamline_setup
-        resolution_hwobj = self._queue_entry.beamline_setup.getObjectByRole(
-            "resolution"
-        )
+        # resolution_hwobj = self._queue_entry.beamline_setup.getObjectByRole(
+        #     "resolution"
+        # )
         queue_model_hwobj = HardwareRepository().getHardwareObject(
             'queue-model'
         )
@@ -562,9 +571,11 @@ class GphlWorkflow(HardwareObject, object):
             # Path_template
             path_template = beamline_setup_hwobj.get_default_path_template()
             acq.path_template = path_template
-            path_template.directory = session.get_image_directory(
-                relative_image_dir
-            )
+            # The below led to relative_image_dir appearing twice:
+            # path_template.directory = session.get_image_directory(
+            #     relative_image_dir
+            # )
+            path_template.directory = session.get_image_directory()
             filename_params = scan.filenameParams
             ss = filename_params.get('run_number')
             path_template.run_number = int(ss) if ss else 1
