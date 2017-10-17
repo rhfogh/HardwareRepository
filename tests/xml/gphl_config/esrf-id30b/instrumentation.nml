@@ -43,7 +43,7 @@ gonio_name= "MiniKappa"
 ! Kappa axis calculated for alpha = 24, home position at -46 degree
 gonio_axis_dirs= 1.0 0.0 0.0,
    ! Numbers for abs(home) = 46 degrees: still need to figure out signs
-   0.913545457643, -0.282545014, -0.292581885, 
+   0.913545457643, -0.282543013685, -0.292581855621,
    1.0 0.0 0.0
 gonio_axis_datum_settings= 0 0 0
 gonio_axis_limits= 0, 360, -4, 256, 0, 360
