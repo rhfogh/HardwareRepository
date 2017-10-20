@@ -168,8 +168,6 @@ class GphlWorkflow(HardwareObject, object):
                        'application':wf_node.getProperty('application'),
                        'documentation':wf_node.getProperty('documentation',
                                                            default_value=''),
-                       'collect_data':wf_node.getProperty('collect_data',
-                                                           default_value='true')
             }
             result[name] = wf_dict
             wf_dict['options'] = dd = options.copy()
@@ -191,9 +189,9 @@ class GphlWorkflow(HardwareObject, object):
             if wf_node.hasObject('invocation_options'):
                 dd.update(wf_node['invocation_options'].getProperties())
 
-            if wf_node.hasObject('wavelengths'):
-                wf_dict['wavelengths'] = dd = OrderedDict()
-                for wavelength in wf_node['wavelengths']:
+            if wf_node.hasObject('beam_energies'):
+                wf_dict['beam_energies'] = dd = OrderedDict()
+                for wavelength in wf_node['beam_energies']:
                     dd[wavelength.getProperty('role')] = (
                         wavelength.getProperty('value')
                     )
@@ -358,6 +356,9 @@ class GphlWorkflow(HardwareObject, object):
 
         # TODO put user display/query here
 
+        acq_parameters = (
+            self._queue_entry.beamline_setup.get_default_acquisition_parameters()
+        )
         # For now return default values
         field_list = [
             {'variableName':'info_text',
@@ -373,11 +374,11 @@ class GphlWorkflow(HardwareObject, object):
              'textChoices':[str(x) for x in allowed_widths],
              },
 
-            # NB Transmissio i9s in % in UI, but in 0-1 in workflow
+            # NB Transmission is in % in UI, but in 0-1 in workflow
             {'variableName':'transmission',
              'uiLabel':'Transmission',
              'type':'text',
-             'value':'100',
+             'value':str(acq_parameters.transmission),
              'unit':'%',
              'lowerBound':0.0,
              'upperBound':100.0,
@@ -385,10 +386,12 @@ class GphlWorkflow(HardwareObject, object):
             {'variableName':'exposure',
              'uiLabel':'Exposure Time',
              'type':'text',
-             'value':'0.037',
+             # NBNB TODO fill in from config
+             'value':str(acq_parameters.exp_time),
              'unit':'s',
-             'lowerBound':0.0,
-             'upperBound':0.1,
+             # NBNB TODO fill in from config
+             'lowerBound':0.003,
+             'upperBound':6000,
              },
         ]
         if isInterleaved:
@@ -495,7 +498,7 @@ class GphlWorkflow(HardwareObject, object):
             'queue'
         )
 
-        relative_image_dir = collection_proposal.relativeImageDir
+        # relative_image_dir = collection_proposal.relativeImageDir
 
         session = self._queue_entry.beamline_setup.getObjectByRole(
             "session"
@@ -540,10 +543,10 @@ class GphlWorkflow(HardwareObject, object):
             # acq_parameters.overlap = overlap
             acq_parameters.exp_time = scan.exposure.time
             acq_parameters.num_passes = 1
-            acq_parameters.resolution = gphl_workflow_model.get_resolution()
+            acq_parameters.resolution = gphl_workflow_model.get_detector_resolution()
             acq_parameters.energy = General.h_over_e/sweep.beamSetting.wavelength
             # NB TODO comes in as 0 <= x <- 1  Check this is OK.
-            acq_parameters.transmission = scan.exposure.transmission
+            acq_parameters.transmission = scan.exposure.transmission * 100
             # acq_parameters.shutterless = self._has_shutterless()
             # acq_parameters.detector_mode = self._get_roi_modes()
             acq_parameters.inverse_beam = False
@@ -576,6 +579,7 @@ class GphlWorkflow(HardwareObject, object):
             #     relative_image_dir
             # )
             path_template.directory = session.get_image_directory()
+            path_template.process_directory = session.get_process_directory()
             filename_params = scan.filenameParams
             ss = filename_params.get('run_number')
             path_template.run_number = int(ss) if ss else 1
@@ -735,9 +739,11 @@ class GphlWorkflow(HardwareObject, object):
         point_group = None
 
         wavelengths = []
-        for role, value in workflow_model.get_wavelengths().items():
+        for role, value in workflow_model.get_beam_energies().items():
+            wavelength = General.h_over_e/value
             wavelengths.append(
-                self.GphlMessages.PhasingWavelength(wavelength=value, role=role)
+                self.GphlMessages.PhasingWavelength(wavelength=wavelength,
+                                                    role=role)
             )
 
         userProvidedInfo = self.GphlMessages.UserProvidedInfo(
@@ -746,7 +752,7 @@ class GphlWorkflow(HardwareObject, object):
             pointGroup=point_group,
             spaceGroup=space_group,
             cell=unitCell,
-            expectedResolution=workflow_model.get_resolution(),
+            expectedResolution=workflow_model.get_expected_resolution(),
             isAnisotropic=None,
             phasingWavelengths=wavelengths
         )

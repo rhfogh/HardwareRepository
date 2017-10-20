@@ -1,5 +1,9 @@
 <object class="GphlWorkflow">
 
+    <!-- Characterisation beamline energy in keV -->
+    <!-- For now hardwired in instrumentation.nml file  - this is jsut a reflection-->
+    <characterisation_energy>12.7</characterisation_energy>
+
     <!-- Global phasing installation directory -->
     <!-- os.path.joined with individual gphl_program_locations (below)-->
     <gphl_installation_dir>/MXCuBE/softwares/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64</gphl_installation_dir>
@@ -108,8 +112,6 @@
                 the inbuilt collision checker, move the goniostat to each
                 position, and ask for centring.
             </documentation>
-            <!-- Workflow includes data collection (for serting user interface) -->
-            <collect_data>false</collect_data>
             <options>
                 <!-- Name for translation calibration output -->
                 <calibration>transcal</calibration>
@@ -132,16 +134,15 @@
             <documentation>Diffractometer calibration.
                 Designed for use by beamline personnel.
             </documentation>
-            <!-- Workflow includes data collection (for serting user interface) -->
-            <collect_data>true</collect_data>
             <!-- Default wavelengths (in A) and their roles -->
             <!-- role must one of GphlMessages.WavelengthRoles -->
-            <wavelengths>
-                <wavelength>
-                    <role>PEAK</role>
-                    <value>1.0</value>
-                </wavelength>
-            </wavelengths>
+            <beam_energies>
+                <beam_energy>
+                    <role>pk</role>
+                    <!-- beamline energies in keV -->
+                    <value>12.7</value>
+                </beam_energy>
+            </beam_energies>
             <options>
                 <!-- Name of initial strategy from library to use -->
                 <strategy>InitialCharacterisation</strategy>
@@ -162,16 +163,15 @@
                 Data collection workflow 1.
                 Includes initial characterisation and complete collection
             </documentation>
-            <!-- Workflow includes data collection (for serting user interface) -->
-            <collect_data>true</collect_data>
             <!-- Default wavelengths (in A) and their roles -->
             <!-- role must one of GphlMessages.WavelengthRoles -->
-            <wavelengths>
-                <wavelength>
-                    <role>PEAK</role>
-                    <value>1.0</value>
-                </wavelength>
-            </wavelengths>
+            <beam_energies>
+                <beam_energy>
+                    <role>pk</role>
+                    <!-- beamline energies in keV -->
+                    <value>12.7</value>
+                </beam_energy>
+            </beam_energies>
             <options>
                 <!-- Name of initial strategy from library to use -->
                 <strategy>InitialCharacterisation</strategy>

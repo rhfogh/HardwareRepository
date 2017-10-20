@@ -1290,8 +1290,10 @@ class GphlWorkflow(TaskNode):
         self._type = str()
         self._number = 0
         self.set_requires_centring(False)
-        self._wavelengths = {}
-        self._resolution = None
+        self._beam_energies = {}
+        self._characterisation_energy = None
+        self._detector_resolution = None
+        self._expected_resolution = None
 
     # Workflow name (string) - == path_template.base_prefix.
     def get_name(self):
@@ -1318,16 +1320,28 @@ class GphlWorkflow(TaskNode):
         )
 
     # Expected resolution (optional float).
-    def get_resolution(self):
-        return self._resolution
-    def set_resolution(self, value):
-        self._resolution = value
+    def get_expected_resolution(self):
+        return self._expected_resolution
+    def set_expected_resolution(self, value):
+        self._expected_resolution = value
 
-    # role:value wavelengths dictionary (wavelengths in A)
-    def get_wavelengths(self):
-        return self._wavelengths.copy()
-    def set_wavelengths(self, value):
-        self._wavelengths = dict(value)
+    # Detector resolution (determines detector distance).
+    def get_detector_resolution(self):
+        return self._detector_resolution
+    def set_detector_resolution(self, value):
+        self._detector_resolution = value
+
+    # Characterisation energy.
+    def get_characterisation_energy(self):
+        return self._characterisation_energy
+    def set_characterisation_energy(self, value):
+        self._characterisation_energy = value
+
+    # role:value beam_energy dictionary (in keV)
+    def get_beam_energies(self):
+        return self._beam_energies.copy()
+    def set_beam_energies(self, value):
+        self._beam_energies = dict(value)
 
     def get_path_template(self):
         return self.path_template

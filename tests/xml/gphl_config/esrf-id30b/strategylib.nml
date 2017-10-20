@@ -11,8 +11,8 @@ detector_axis_settings= 291.0
 
 &beam_setting_list
 id= 'bset01'
-! Standard I04 wavelength according to http://www.diamond.ac.uk/Beamlines/Mx/I04.html
-lambda= 0.98
+! Standard ESRF ID30B wavelength, matching 12.7 keV
+lambda= 0.97625196850393714
 /
 
 ! ################### Default characteristation strategy
