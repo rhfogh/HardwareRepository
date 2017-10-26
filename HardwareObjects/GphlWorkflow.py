@@ -368,7 +368,7 @@ class GphlWorkflow(HardwareObject, object):
              'textChoices':[str(x) for x in allowed_widths],
              },
             {'variableName':'imageWidth',
-             'uiLabel':'Image width',
+             'uiLabel':'Oscillation range',
              'type':'combo',
              'defaultValue':str(allowed_widths[default_width_index]),
              'textChoices':[str(x) for x in allowed_widths],

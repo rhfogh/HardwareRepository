@@ -6,7 +6,7 @@
 
     <!-- Global phasing installation directory -->
     <!-- os.path.joined with individual gphl_program_locations (below)-->
-    <gphl_installation_dir>/MXCuBE/softwares/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64</gphl_installation_dir>
+    <gphl_installation_dir>/MXCuBE/softwares/GPhL-ESRF-20171005/20171005/bin/linux64/</gphl_installation_dir>
 
     <!--&lt;!&ndash; Timeout before workflow application execution is aborted&ndash;&gt;-->
     <!--<execution_timeout>3600</execution_timeout>-->
