@@ -66,7 +66,7 @@ class GphlWorkflow(HardwareObject, object):
         self._gphl_parameters = {}
 
         # event to handle waiting for parameter input
-        self._gevent_event = None
+        self._return_parameters = None
 
         # Message - processing function map
         self._processor_functions = {}
@@ -90,8 +90,6 @@ class GphlWorkflow(HardwareObject, object):
 
         # Used only here, so let us keep the import out of the module top
         from GphlWorkflowConnection import GphlWorkflowConnection
-
-        self._gevent_event = gevent.event.Event()
 
         self.rotation_axis_roles = self.getProperty('rotation_axis_roles').split()
         self.translation_axis_roles = self.getProperty('translation_axis_roles').split()
@@ -215,8 +213,8 @@ class GphlWorkflow(HardwareObject, object):
         """
 
         self._queue_entry = None
-        if not self._gevent_event.is_set():
-            self._gevent_event.set()
+        # if not self._gevent_event.is_set():
+        #     self._gevent_event.set()
         self.set_state(States.ON)
         self._server_subprocess_names.clear()
         self._workflow_connection._workflow_ended()
@@ -232,8 +230,6 @@ class GphlWorkflow(HardwareObject, object):
 
         try:
             self.set_state(States.RUNNING)
-            if not self._gevent_event.is_set():
-                self._gevent_event.set()
 
             workflow_queue = gevent._threading.Queue()
             # Fork off workflow server process
@@ -409,13 +405,15 @@ class GphlWorkflow(HardwareObject, object):
             (x['variableName'], x.get('value') or x.get('defaultValue'))
             for x in field_list
         )
-        self.emit('parametersNeeded', (field_list, ))
-        self._gevent_event.clear()
-        while not self._gevent_event.is_set():
-            self._gevent_event.wait()
-            time.sleep(0.1)
+        self._return_parameters = gevent.event.AsyncResult()
+        self.emit('gphlParametersNeeded', (field_list, self._return_parameters))
+        # self._gevent_event.clear()
+        # while not self._gevent_event.is_set():
+        #     self._gevent_event.wait()
+        #     time.sleep(0.1)
 
-        params = self._gphl_parameters
+        params = self._return_parameters.get()
+        self._return_parameters = None
         result = {}
         tag = 'imageWidth'
         value = params.get(tag)
