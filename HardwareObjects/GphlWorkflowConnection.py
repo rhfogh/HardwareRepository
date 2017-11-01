@@ -575,16 +575,17 @@ class GphlWorkflowConnection(object):
         #
         result = GphlMessages.GoniostatRotation(id=uuid.UUID(uuidString), 
                                           **axisSettings)
-					  
-	
-	py4jGoniostatTranslation = py4jGoniostatRotation.getTranslation()
-	if py4jGoniostatTranslation:
-	    translationAxisSettings = py4jGoniostatTranslation.getAxisSettings()
+
+        py4jGoniostatTranslation = py4jGoniostatRotation.getTranslation()
+        if py4jGoniostatTranslation:
+            translationAxisSettings = py4jGoniostatTranslation.getAxisSettings()
             translationUuidString = py4jGoniostatTranslation.getId().toString()
-	    translation = GphlMessages.GoniostatTranslation(id=uuid.UUID(translationUuidString),
-	                                                    rotation=result,
-                                                            **translationAxisSettings)
-        return result							    
+            # Next line creates Translation and links it to Rotation
+            GphlMessages.GoniostatTranslation(
+                id=uuid.UUID(translationUuidString), rotation=result,
+                **translationAxisSettings
+            )
+        return result
 
     def _BeamstopSetting_to_python(self, py4jBeamstopSetting):
         if py4jBeamstopSetting is None:

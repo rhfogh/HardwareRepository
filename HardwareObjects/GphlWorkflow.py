@@ -17,6 +17,7 @@ import os
 import gevent
 import gevent.event
 import gevent._threading
+from dispatcher import dispatcher
 
 import General
 from HardwareRepository.BaseHardwareObjects import HardwareObject
@@ -62,8 +63,8 @@ class GphlWorkflow(HardwareObject, object):
         # Needed to allow methods to put new actions on the queue
         self._queue_entry = None
 
-        # cache dictionary to handle parameters transferred through signals
-        self._gphl_parameters = {}
+        # # cache dictionary to handle parameters transferred through signals
+        # self._gphl_parameters = {}
 
         # event to handle waiting for parameter input
         self._return_parameters = None
@@ -323,7 +324,7 @@ class GphlWorkflow(HardwareObject, object):
         total_width = 0
         for sweep in geometric_strategy.sweeps:
             total_width += sweep.width
-            rotation_id = sweep.goniostatSweepSetting._id
+            rotation_id = sweep.goniostatSweepSetting.id
             sweeps = orientations.get(rotation_id, [])
             sweeps.append(sweep)
             orientations[rotation_id] = sweeps
@@ -337,32 +338,35 @@ class GphlWorkflow(HardwareObject, object):
             goniostatRotation = sweeps[0].goniostatSweepSetting
             axis_settings = goniostatRotation.axisSettings
             scan_axis = goniostatRotation.scanAxis
-            ss = "\nOrientation: %s" % ', '.join('%s=%s' % (x, axis_settings.get(x))
-                                                  for x in axis_names)
+            ss = ("\nOrientation: "
+                  + ', '.join('%s= %s' % (x, axis_settings.get(x))
+                              for x in axis_names if x != scan_axis)
+                  )
             lines.append(ss)
             for sweep in sweeps:
                 wavelength = sweep.beamSetting.wavelength
                 start = sweep.start
                 width = sweep.width
-                ss = ("sweep: wavelength=%s, width=%s degrees"
-                      % (wavelength, width))
+                ss = ("sweep: %s=% 6.1f, energy= %s keV, width= %s degrees"
+                      % (scan_axis, start, General.h_over_e/wavelength, width))
                 lines.append(ss)
         info_text = '\n'.join(lines)
-
-
-        # TODO put user display/query here
 
         acq_parameters = (
             self._queue_entry.beamline_setup.get_default_acquisition_parameters()
         )
         # For now return default values
         field_list = [
-            {'variableName':'info_text',
-             'uiLabel':'Information',
+            {'variableName':'_info',
+             'uiLabel':'Data collection plan',
              'type':'textblock',
              'defaultValue':info_text,
-             'textChoices':[str(x) for x in allowed_widths],
              },
+            # {'variableName':'_cplx',
+            #  'uiLabel':'Indexing solution',
+            #  'type':'textblock',
+            #  'defaultValue':'Coming soon ...',
+            #  },
             {'variableName':'imageWidth',
              'uiLabel':'Oscillation range',
              'type':'combo',
@@ -374,7 +378,7 @@ class GphlWorkflow(HardwareObject, object):
             {'variableName':'transmission',
              'uiLabel':'Transmission',
              'type':'text',
-             'value':str(acq_parameters.transmission),
+             'defaultValue':str(acq_parameters.transmission),
              'unit':'%',
              'lowerBound':0.0,
              'upperBound':100.0,
@@ -382,8 +386,7 @@ class GphlWorkflow(HardwareObject, object):
             {'variableName':'exposure',
              'uiLabel':'Exposure Time',
              'type':'text',
-             # NBNB TODO fill in from config
-             'value':str(acq_parameters.exp_time),
+             'defaultValue':str(acq_parameters.exp_time),
              'unit':'s',
              # NBNB TODO fill in from config
              'lowerBound':0.003,
@@ -394,23 +397,18 @@ class GphlWorkflow(HardwareObject, object):
             field_list.append({'variableName':'wedgeWidth',
                               'uiLabel':'Images per wedge',
                               'type':'text',
-                              'value':'10',
+                              'defaultValue':'10',
                               'unit':'',
                               'lowerBound':0,
                               'upperBound':1000,}
                           )
-        # ednaxmlhelper does not work, elementtrees used wrong. Skip this xml!
-        # xml_description = General.createDawnBeanDecoderXML(field_list)
-        self._gphl_parameters = dict(
-            (x['variableName'], x.get('value') or x.get('defaultValue'))
-            for x in field_list
-        )
         self._return_parameters = gevent.event.AsyncResult()
-        self.emit('gphlParametersNeeded', (field_list, self._return_parameters))
-        # self._gevent_event.clear()
-        # while not self._gevent_event.is_set():
-        #     self._gevent_event.wait()
-        #     time.sleep(0.1)
+        responses = dispatcher.send('gphlParametersNeeded', self,
+                                    field_list, self._return_parameters)
+        if not responses:
+            self._return_parameters.set_exception(
+                RuntimeError("Signal 'gphlParametersNeeded' is not connected")
+            )
 
         params = self._return_parameters.get()
         self._return_parameters = None
@@ -435,20 +433,6 @@ class GphlWorkflow(HardwareObject, object):
 
         return result
 
-    def set_gphl_parameters(self, parameter_values):
-
-        logging.getLogger('HWR').debug("Setting GPhL parameters: %s"
-                                       % parameter_values)
-        self._gphl_parameters.clear()
-        self._gphl_parameters.update(parameter_values)
-        self._gevent_event.set()
-
-    def get_gphl_parameters(self):
-        result =  self._gphl_parameters.copy()
-        logging.getLogger('HWR').debug("Getting GPhL parameters: %s" % result)
-        return result
-
-
     def setup_data_collection(self, payload, correlation_id):
         geometric_strategy = payload
         # NB this call also asks for OK/abort of strategy, hence put first
@@ -464,7 +448,6 @@ class GphlWorkflow(HardwareObject, object):
 
                 if user_modifiable:
                     # Query user for new rotationSetting and make it,
-                    # sweepSetting = 'New Instance'
                     logging.getLogger('HWR').warning(
                         "User modification of sweep settings not implemented. Ignored"
                     )
@@ -486,9 +469,6 @@ class GphlWorkflow(HardwareObject, object):
         collection_proposal = payload
 
         beamline_setup_hwobj = self._queue_entry.beamline_setup
-        # resolution_hwobj = self._queue_entry.beamline_setup.getObjectByRole(
-        #     "resolution"
-        # )
         queue_model_hwobj = HardwareRepository().getHardwareObject(
             'queue-model'
         )
