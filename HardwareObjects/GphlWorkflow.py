@@ -608,12 +608,158 @@ class GphlWorkflow(HardwareObject, object):
 
     def select_lattice(self, payload, correlation_id):
         choose_lattice = payload
-        #pass
-        raise NotImplementedError()
 
-        ## Display solution and query user for lattice
+        solution_format = choose_lattice.format
 
-        ## Create SelectedLattice and return it
+        # Must match bravaisLattices column
+        lattices = choose_lattice.lattices
+
+        # First letter must match first letter of BravaisLattice
+        crystal_system = choose_lattice.crystalSystem
+
+        # Color green (figuratively) if matches lattices,
+        # or otherwise if matches crystalSystem
+
+        dd = self.parse_indexing_solution(solution_format,
+                                          choose_lattice.solutions)
+
+        field_list = [
+            {'variableName':'_cplx',
+             'uiLabel':'Select indexing solution:',
+             'type':'selection_table',
+             'header':dd['header'],
+             'colours':None,
+             'defaultValue':(dd['solutions'],),
+             },
+        ]
+
+        # colour matching lattices green
+        colour_check = lattices
+        if crystal_system and not colour_check:
+            colour_check = (crystal_system,)
+        if colour_check:
+            colours = [None] * len(dd['solutions'])
+            for ii, line in enumerate(dd['solutions']):
+                if any(x in line for x in colour_check):
+                    colours[ii] = 'green'
+            field_list[0]['colours'] = colours
+
+        self._return_parameters = gevent.event.AsyncResult()
+        responses = dispatcher.send('gphlParametersNeeded', self,
+                                    field_list, self._return_parameters)
+        if not responses:
+            self._return_parameters.set_exception(
+                RuntimeError("Signal 'gphlParametersNeeded' is not connected")
+            )
+
+        params = self._return_parameters.get()
+        ll = str(params['_cplx'][0]).split()
+        if ll[0] == '*':
+            del ll[0]
+        #
+        return  self.GphlMessages.SelectedLattice(format=solution_format,
+                                                  solution=ll)
+
+    def parse_indexing_solution(self, solution_format, text):
+
+        # Solution table. for format IDXREF will look like
+        """
+*********** DETERMINATION OF LATTICE CHARACTER AND BRAVAIS LATTICE ***********
+
+ The CHARACTER OF A LATTICE is defined by the metrical parameters of its
+ reduced cell as described in the INTERNATIONAL TABLES FOR CRYSTALLOGRAPHY
+ Volume A, p. 746 (KLUWER ACADEMIC PUBLISHERS, DORDRECHT/BOSTON/LONDON, 1989).
+ Note that more than one lattice character may have the same BRAVAIS LATTICE.
+
+ A lattice character is marked "*" to indicate a lattice consistent with the
+ observed locations of the diffraction spots. These marked lattices must have
+ low values for the QUALITY OF FIT and their implicated UNIT CELL CONSTANTS
+ should not violate the ideal values by more than
+ MAXIMUM_ALLOWED_CELL_AXIS_RELATIVE_ERROR=  0.03
+ MAXIMUM_ALLOWED_CELL_ANGLE_ERROR=           1.5 (Degrees)
+
+  LATTICE-  BRAVAIS-   QUALITY  UNIT CELL CONSTANTS (ANGSTROEM & DEGREES)
+ CHARACTER  LATTICE     OF FIT      a      b      c   alpha  beta gamma
+
+ *  44        aP          0.0      56.3   56.3  102.3  90.0  90.0  90.0
+ *  31        aP          0.0      56.3   56.3  102.3  90.0  90.0  90.0
+ *  33        mP          0.0      56.3   56.3  102.3  90.0  90.0  90.0
+ *  35        mP          0.0      56.3   56.3  102.3  90.0  90.0  90.0
+ *  34        mP          0.0      56.3  102.3   56.3  90.0  90.0  90.0
+ *  32        oP          0.0      56.3   56.3  102.3  90.0  90.0  90.0
+ *  14        mC          0.1      79.6   79.6  102.3  90.0  90.0  90.0
+ *  10        mC          0.1      79.6   79.6  102.3  90.0  90.0  90.0
+ *  13        oC          0.1      79.6   79.6  102.3  90.0  90.0  90.0
+ *  11        tP          0.1      56.3   56.3  102.3  90.0  90.0  90.0
+    37        mC        250.0     212.2   56.3   56.3  90.0  90.0  74.6
+    36        oC        250.0      56.3  212.2   56.3  90.0  90.0 105.4
+    28        mC        250.0      56.3  212.2   56.3  90.0  90.0  74.6
+    29        mC        250.0      56.3  125.8  102.3  90.0  90.0  63.4
+    41        mC        250.0     212.3   56.3   56.3  90.0  90.0  74.6
+    40        oC        250.0      56.3  212.2   56.3  90.0  90.0 105.4
+    39        mC        250.0     125.8   56.3  102.3  90.0  90.0  63.4
+    30        mC        250.0      56.3  212.2   56.3  90.0  90.0  74.6
+    38        oC        250.0      56.3  125.8  102.3  90.0  90.0 116.6
+    12        hP        250.1      56.3   56.3  102.3  90.0  90.0  90.0
+    27        mC        500.0     125.8   56.3  116.8  90.0 115.5  63.4
+    42        oI        500.0      56.3   56.3  219.6 104.8 104.8  90.0
+    15        tI        500.0      56.3   56.3  219.6  75.2  75.2  90.0
+    26        oF        625.0      56.3  125.8  212.2  83.2 105.4 116.6
+     9        hR        750.0      56.3   79.6  317.1  90.0 100.2 135.0
+     1        cF        999.0     129.6  129.6  129.6 128.6  75.7 128.6
+     2        hR        999.0      79.6  116.8  129.6 118.9  90.0 109.9
+     3        cP        999.0      56.3   56.3  102.3  90.0  90.0  90.0
+     5        cI        999.0     116.8   79.6  116.8  70.1  39.8  70.1
+     4        hR        999.0      79.6  116.8  129.6 118.9  90.0 109.9
+     6        tI        999.0     116.8  116.8   79.6  70.1  70.1  39.8
+     7        tI        999.0     116.8   79.6  116.8  70.1  39.8  70.1
+     8        oI        999.0      79.6  116.8  116.8  39.8  70.1  70.1
+    16        oF        999.0      79.6   79.6  219.6  90.0 111.2  90.0
+    17        mC        999.0      79.6   79.6  116.8  70.1 109.9  90.0
+    18        tI        999.0     116.8  129.6   56.3  64.3  90.0 118.9
+    19        oI        999.0      56.3  116.8  129.6  61.1  64.3  90.0
+    20        mC        999.0     116.8  116.8   56.3  90.0  90.0 122.4
+    21        tP        999.0      56.3  102.3   56.3  90.0  90.0  90.0
+    22        hP        999.0      56.3  102.3   56.3  90.0  90.0  90.0
+    23        oC        999.0     116.8  116.8   56.3  90.0  90.0  57.6
+    24        hR        999.0     162.2  116.8   56.3  90.0  69.7  77.4
+    25        mC        999.0     116.8  116.8   56.3  90.0  90.0  57.6
+    43        mI        999.0      79.6  219.6   56.3 104.8 135.0  68.8
+
+ For protein crystals the possible space group numbers corresponding  to"""
+
+        # find headers lines
+        solutions = []
+        if solution_format == 'IDXREF':
+            lines = text.splitlines()
+            for indx in range(len(lines)):
+                if 'BRAVAIS-' in lines[indx]:
+                    # Used as marker for first header line
+                    header = ['%s\n%s' % (lines[indx], lines[indx + 1])]
+                    break
+            else:
+                raise ValueError(
+                    "Substring 'BRAVAIS-' missing in %s indexing solution")
+
+            for indx in range(indx, len(lines)):
+                line = lines[indx]
+                ss = line.strip()
+                if ss:
+                    # we are skipping blank line at the start
+                    if solutions or ss[0] == '*':
+                        # First real line will start with a '*
+                        # Subsequent non=-empty lines will also be used
+                        solutions.append(line)
+                elif solutions:
+                    # we have finished - empty non-initial line
+                    break
+
+
+            #
+            return {'header':header, 'solutions':solutions}
+        else:
+            raise ValueError("GPhL: Indexing format %s is not known"
+                             % repr(solution_format))
 
     def process_centring_request(self, payload, correlation_id):
         request_centring = payload

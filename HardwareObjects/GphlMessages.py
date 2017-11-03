@@ -77,6 +77,9 @@ CentringStatus = ('NEXT', 'DONE')
 
 CrystalSystems = ('TRICLINIC', 'MONOCLINIC', 'ORTHORHOMBIC', 'TETRAGONAL',
                   'TRIGONAL', 'HEXAGONAL', 'CUBIC')
+# Map from single letter code tro Crystal system name
+# # NB trigonal and hexagonal DO both have code 'h'
+crystalSystemMap = dict(zip('amothhc', CrystalSystems))
 
 PointGroups = ('1', '2', '222', '4', '422', '6', '622', '32',  '23',  '432')
 
@@ -215,7 +218,7 @@ class ChooseLattice(Payload):
     """Choose lattice instruction"""
     _intent = "COMMAND"
 
-    def __init__(self, format, solutions, lattices=None):
+    def __init__(self, format, solutions, crystalSystem=None, lattices=None):
         if format in IndexingFormats:
             self._format = format
         else:
@@ -229,11 +232,17 @@ class ChooseLattice(Payload):
         else:
             self._lattices = frozenset(lattices)
         self._solutions = solutions
+        self._crystalSystem = crystalSystem
 
     @property
     def format(self):
         """format of solutions string"""
         return self._format
+
+    @property
+    def crystalSystem(self):
+        """One-letter code for crystal system (one of 'amothhc')"""
+        return self._crystalSystem
 
     @property
     def lattices(self):
