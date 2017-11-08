@@ -84,6 +84,9 @@ class GphlWorkflow(HardwareObject, object):
         # Translation axis role names
         self.translation_axis_roles = []
 
+        # Switch for 'move-to-fine-zoom' message for translational calibration
+        self._use_fine_zoom = False
+
     def _init(self):
         pass
 
@@ -772,6 +775,34 @@ class GphlWorkflow(HardwareObject, object):
         goniostatRotation = request_centring.goniostatRotation
         # goniostatTranslation = goniostatRotation.translation
         #
+
+        if request_centring.currentSettingNo < 2:
+            # Start without fine zoom setting
+            self._use_fine_zoom = False
+        elif (not self._use_fine_zoom
+              and goniostatRotation.translation is not None):
+            # We are moving to having recentered positions -
+            # prompt for fine zoom
+            self._use_fine_zoom = True
+            info_text = """Automatic sample re-centering is now active
+Switch to maximum zoom before continuing"""
+            field_list = [
+                {'variableName':'_info',
+                 'uiLabel':'Data collection plan',
+                 'type':'textblock',
+                 'defaultValue':info_text,
+                 },
+            ]
+            self._return_parameters = gevent.event.AsyncResult()
+            responses = dispatcher.send('gphlParametersNeeded', self,
+                                        field_list, self._return_parameters)
+            if not responses:
+                self._return_parameters.set_exception(
+                    RuntimeError("Signal 'gphlParametersNeeded' is not connected")
+                )
+
+            dummy = self._return_parameters.get()
+            self._return_parameters = None
 
         goniostatTranslation = self.center_sample(goniostatRotation)
 

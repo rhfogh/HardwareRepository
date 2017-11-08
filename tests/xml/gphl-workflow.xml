@@ -105,7 +105,7 @@
 
     <!-- List of supported workflows, with options for each -->
     <workflows>
-        <TranslationalCalibrationTest>
+        <TranslationalCalibration>
             <application>co.gphl.wf.workflows.WFTransCal</application>
             <documentation>Translational calibration.
                 Designed for use by beamline personnel.
@@ -120,15 +120,15 @@
                 <!-- The name is the relative path from the Repository directory -->
                 <!-- grid: Grid definition [axis_name:start:end:step], slowest-varying to fastest varying -->
                 <!-- EITHER file OR grid must be set. NBNB REDO! -->
-                <file>gphl_config/esrf-id30b/transcal_short.dat</file>
-                <!-- copy calibration result to confdiguration directory, replacing previous value -->
+                <file>gphl_config/esrf-id30b/transcal_2stage.json</file>
+                <!-- copy calibration result to configuration directory, replacing previous value -->
                 <newconfig/>
-                <!-- udateconfig option, automaticallly updates entiere configuration -->
+                <!-- updateconfig option, automaticallly updates entire configuration -->
                 <!--<grid>grid_axes_spec</grid>-->
                 <!-- Path of file to dump persisted instrumentation configuration. OPTIONAL-->
                 <instcfgout>/MXCuBE/mxcube/gphl_transcal_out.nml</instcfgout>
             </options>
-        </TranslationalCalibrationTest>
+        </TranslationalCalibration>
 
         <DiffractometerCalibration>
             <application>co.gphl.wf.workflows.WFDiffractCal</application>
