@@ -92,19 +92,10 @@ class GphlWorkflow(HardwareObject, object):
 
     def init(self):
 
-        # Used only here, so let us keep the import out of the module top
-        from GphlWorkflowConnection import GphlWorkflowConnection
-
         self.rotation_axis_roles = self.getProperty('rotation_axis_roles').split()
         self.translation_axis_roles = self.getProperty('translation_axis_roles').split()
         self.java_binary = self.getProperty('java_binary')
         self.gphl_subdir = self.getProperty('gphl_subdir')
-
-        workflow_connection = GphlWorkflowConnection()
-        dd = (self['connection_parameters'].getProperties()
-              if self.hasObject('connection_parameters') else {})
-        workflow_connection.init(**dd)
-        self._workflow_connection = workflow_connection
 
 
         relative_file_path = self.getProperty('gphl_config_subdir')
@@ -129,8 +120,26 @@ class GphlWorkflow(HardwareObject, object):
             'WorkflowFailed':self.workflow_failed,
         }
 
+    def activate(self):
+        """If not already active, set up connections and turn ON"""
+        if self.get_state() == States.OFF:
+            # Used only here, so let us keep the import out of the module top
+            from GphlWorkflowConnection import GphlWorkflowConnection
 
-        self.set_state(States.ON)
+            workflow_connection = GphlWorkflowConnection()
+            dd = (self['connection_parameters'].getProperties()
+                  if self.hasObject('connection_parameters') else {})
+            workflow_connection.init(**dd)
+            self._workflow_connection = workflow_connection
+
+            self.set_state(States.ON)
+
+    def shutdown(self):
+        """Shut down workflow and connection. Triggered on program quit."""
+        workflow_connection = self._workflow_connection
+        if workflow_connection is not None:
+            workflow_connection._workflow_ended()
+            workflow_connection._close_connection()
 
 
     def get_available_workflows(self):

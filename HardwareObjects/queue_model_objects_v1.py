@@ -1281,7 +1281,7 @@ class Workflow(TaskNode):
         return self.path_template
 
 class GphlWorkflow(TaskNode):
-    def __init__(self, workflow_hwobj=None):
+    def __init__(self, workflow_hwobj):
         TaskNode.__init__(self)
         self.workflow_hwobj = workflow_hwobj
         self.path_template = PathTemplate()
@@ -1294,6 +1294,10 @@ class GphlWorkflow(TaskNode):
         self._characterisation_energy = None
         self._detector_resolution = None
         self._expected_resolution = None
+
+        # Activate workflow if not done yet
+        # Must be done here, so as to postpone creation of connection.
+        workflow_hwobj.activate()
 
     # Workflow name (string) - == path_template.base_prefix.
     def get_name(self):

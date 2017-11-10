@@ -238,7 +238,15 @@ class GphlWorkflowConnection(object):
                                           self._running_process.returncode))
 
     def _workflow_ended(self):
+        if self.get_state() == States.OFF:
+            # No workflow to abort
+            return
+
         logging.getLogger('HWR').debug("GPhL workflow ended")
+        if self._await_result is not None:
+            # We are awaiting an answer - give an abort
+            self._await_result.append((GphlMessages.BeamlineAbort(),None))
+            time.sleep(0.2)
 
         self._enactment_id = None
         self._workflow_name = None
@@ -247,9 +255,10 @@ class GphlWorkflowConnection(object):
         self.set_state(States.OFF)
 
         xx = self._running_process
+        self._running_process = None
         if xx is not None:
             try:
-                if xx.poll() is not None:
+                if xx.poll() is None:
                     xx.send_signal(signal.SIGINT)
                     time.sleep(3)
                     if xx.poll() is not None:
@@ -263,25 +272,23 @@ class GphlWorkflowConnection(object):
                     % xx)
                 logging.getLogger('HWR').info("Error was:",
                     exc_info=True)
-            self._running_process = None
 
     def _close_connection(self):
 
-        # TODO - should maybe be called when object is deleted?
-        # NBNB currently not called
-
         logging.getLogger('HWR').debug("GPhL Close connection ")
         xx = self._gateway
+        self._gateway = None
         if xx is not None:
             try:
                 # Exceptions 'can easily happen' (py4j docs)
-                # We prefer to catch them here than to have them caught and echoed downstream
-                xx.shutdown(raise_exception=True)
+                # We could catch them here than to have them caught and echoed downstream
+                # but it seems to keep the program open (??)
+                # xx.shutdown(raise_exception=True)
+                xx.shutdown()
             except:
                 logging.getLogger('HWR').debug(
                     "Exception during py4j gateway shutdown. Ignored"
                 )
-            self._gateway = None
 
     def abort_workflow(self, message=None):
         """Abort workflow - may be called from controller in any state"""
@@ -331,6 +338,8 @@ class GphlWorkflowConnection(object):
 
             self.workflow_queue.put_nowait((message_type, payload,
                                             correlation_id, None))
+
+        logging.getLogger('HWR').debug("Text info message - return None")
         #
         return None
 
@@ -377,6 +386,7 @@ class GphlWorkflowConnection(object):
 
             self.workflow_queue.put_nowait((message_type, payload,
                                             correlation_id, None))
+            logging.getLogger('HWR').debug("Subprocess start/stop - return None")
             return None
 
         elif  message_type in ('RequestConfiguration',
@@ -396,6 +406,11 @@ class GphlWorkflowConnection(object):
             result, correlation_id = self._await_result.pop(0)
             self._await_result = None
             self.set_state(States.RUNNING)
+
+            logging.getLogger('HWR').debug(
+                "GPhL - response=%s jobId=%s messageId=%s"
+                % (result.__class__.__name__, enactment_id, correlation_id)
+            )
             return self._response_to_server(result, correlation_id)
 
         elif message_type in ('WorkflowAborted',
@@ -404,6 +419,7 @@ class GphlWorkflowConnection(object):
             self.workflow_queue.put_nowait((message_type, payload,
                                             correlation_id, None))
             self.workflow_queue.put_nowait(StopIteration)
+            logging.getLogger('HWR').debug("Aborting - return None")
             return None
 
         else:
@@ -803,11 +819,6 @@ class GphlWorkflowConnection(object):
             correlation_id = self._gateway.jvm.java.util.UUID.fromString(
                 correlation_id
             )
-
-        logging.getLogger('HWR').debug(
-            "GPhL - response=%s jobId=%s messageId=%s"
-            % (payload.__class__.__name__, enactment_id, correlation_id)
-        )
 
         py4j_payload = self._payload_to_java(payload)
 
