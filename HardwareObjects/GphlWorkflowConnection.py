@@ -261,10 +261,10 @@ class GphlWorkflowConnection(object):
                 if xx.poll() is None:
                     xx.send_signal(signal.SIGINT)
                     time.sleep(3)
-                    if xx.poll() is not None:
+                    if xx.poll() is None:
                         xx.terminate()
                         time.sleep(9)
-                        if xx.poll() is not None:
+                        if xx.poll() is None:
                             xx.kill()
             except:
                 logging.getLogger('HWR').info(
