@@ -1,0 +1,697 @@
+&setup_list
+    sg_name = 'I4     '
+    res_limit_def = 2.0
+    cell_dim = 0.0, 0.0, 0.0
+    cell_ang_deg = 0.0, 0.0, 0.0
+    cell_dim_sd = 0.08675, 0.08675, 0.0856276, 0.0856276
+    cell_ang_sd_deg = 0.0, 0.0, 0.0
+    u_mat_ang_deg = 0.0, 0.0, 0.0
+    u_mat_sd_deg = 0.145, 0.145, 0.145
+    cell_a_axis = 58.2780821909, -39.8027581762, -50.4509106924
+    cell_b_axis = -0.580160065422, -68.430832233, 53.3176745408
+    cell_c_axis = -63.425929632, -35.0202970123, -45.6371471129
+    cell_ref_ang_deg = 0.0, 0.0, 0.0
+    sigma_n = 0.0
+    b_wilson = 0.0
+    b6_wilson = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+    lambda_def = 1.0
+    lambda_sd = 0.000199999994948
+    beam = 0.0, 0.0, 1.0, 1.0
+    beam_sd_deg = 0.002, 0.02
+    pol_plane_n = 0.0, 1.0, 0.0
+    pol_frac = 0.980000019073
+    d_sensor = 0.32
+    mu_air_def = -1.0
+    mu_sensor_def = -1.0
+    min_zeta = 0.15
+    min_lorentz = 0.02
+    det_name = 'PILATUS6M                       '
+    det_x_axis = 1.0, 0.0, 0.0
+    det_y_axis = 0.0, 1.0, 0.0
+    det_qx = 0.172
+    det_qy = 0.172
+    det_nx = 2463
+    det_ny = 2527
+    det_org_x = 1251.68
+    det_org_y = 1203.26
+    det_coord_def = 291.0
+    two_theta_axis = 0.0, 0.0, 0.0
+    omega_axis = 1.0, 0.0, 0.0
+    kappa_axis = 0.913545457643, -0.287606238476, 0.287606238476
+    phi_axis = 1.0, 0.0, 0.0
+    spindle_axis = 0.0, 0.0, 0.0
+    alpha_deg = 50.0
+    c_phi = 107.61
+    r_phi = 40.0
+    c_kappa = 89.0
+    r_kappa = 33.0
+    trans_x_axis = 1.0, 0.0, 0.0
+    trans_y_axis = 0.0, 1.0, 1.0
+    trans_z_axis = 0.0, 0.0, 1.0, 1.0
+    cen_phi_deg = 0.0
+    cen_kappa_deg = 0.0
+    cen_vec = 0.0, 0.0, 0.0
+    cone_radius = 40.0
+    cone_s_height = -109.6
+    beam_stop_radius = 2.0
+    beam_stop_s_length = 120.0
+    beam_stop_s_distance = 60.0
+    orient_mode = 0
+    part_mode = 0
+    exposure_def = 1.0
+    gain = 1.0
+    background = 10.1
+    psf_gamma = 0.0
+    pix_quantile = 0.0
+    img_blending = 0.0
+    n_rays = 2001
+    pert_mode = 0
+    sim_mode = 0
+    gen_mode = 0
+    bcg_mode = 0
+    n_vertices = 0
+    n_triangles = 0
+    n_segments = 60
+    n_orients = 0
+    n_sweeps = 4
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1, 487
+    seg_ny_limits = 1, 195
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 495, 981
+    seg_ny_limits = 1, 195
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 989, 1475
+    seg_ny_limits = 1, 195
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1483, 1969
+    seg_ny_limits = 1, 195
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1977, 2463
+    seg_ny_limits = 1, 195
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1, 487
+    seg_ny_limits = 213, 407
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 495, 981
+    seg_ny_limits = 213, 407
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 989, 1475
+    seg_ny_limits = 213, 407
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1483, 1969
+    seg_ny_limits = 213, 407
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1977, 2463
+    seg_ny_limits = 213, 407
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1, 487
+    seg_ny_limits = 425, 619
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 495, 981
+    seg_ny_limits = 425, 619
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 989, 1475
+    seg_ny_limits = 425, 619
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1483, 1969
+    seg_ny_limits = 425, 619
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1977, 2463
+    seg_ny_limits = 425, 619
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1, 487
+    seg_ny_limits = 637, 831
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 495, 981
+    seg_ny_limits = 637, 831
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 989, 1475
+    seg_ny_limits = 637, 831
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1483, 1969
+    seg_ny_limits = 637, 831
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1977, 2463
+    seg_ny_limits = 637, 831
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1, 487
+    seg_ny_limits = 849, 1043
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 495, 981
+    seg_ny_limits = 849, 1043
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 989, 1475
+    seg_ny_limits = 849, 1043
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1483, 1969
+    seg_ny_limits = 849, 1043
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1977, 2463
+    seg_ny_limits = 849, 1043
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1, 487
+    seg_ny_limits = 1061, 1255
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 495, 981
+    seg_ny_limits = 1061, 1255
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 989, 1475
+    seg_ny_limits = 1061, 1255
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1483, 1969
+    seg_ny_limits = 1061, 1255
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1977, 2463
+    seg_ny_limits = 1061, 1255
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1, 487
+    seg_ny_limits = 1273, 1467
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 495, 981
+    seg_ny_limits = 1273, 1467
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 989, 1475
+    seg_ny_limits = 1273, 1467
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1483, 1969
+    seg_ny_limits = 1273, 1467
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1977, 2463
+    seg_ny_limits = 1273, 1467
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1, 487
+    seg_ny_limits = 1485, 1679
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 495, 981
+    seg_ny_limits = 1485, 1679
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 989, 1475
+    seg_ny_limits = 1485, 1679
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1483, 1969
+    seg_ny_limits = 1485, 1679
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1977, 2463
+    seg_ny_limits = 1485, 1679
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1, 487
+    seg_ny_limits = 1697, 1891
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 495, 981
+    seg_ny_limits = 1697, 1891
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 989, 1475
+    seg_ny_limits = 1697, 1891
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1483, 1969
+    seg_ny_limits = 1697, 1891
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1977, 2463
+    seg_ny_limits = 1697, 1891
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1, 487
+    seg_ny_limits = 1909, 2103
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 495, 981
+    seg_ny_limits = 1909, 2103
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 989, 1475
+    seg_ny_limits = 1909, 2103
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1483, 1969
+    seg_ny_limits = 1909, 2103
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1977, 2463
+    seg_ny_limits = 1909, 2103
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1, 487
+    seg_ny_limits = 2121, 2315
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 495, 981
+    seg_ny_limits = 2121, 2315
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 989, 1475
+    seg_ny_limits = 2121, 2315
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1483, 1969
+    seg_ny_limits = 2121, 2315
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1977, 2463
+    seg_ny_limits = 2121, 2315
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1, 487
+    seg_ny_limits = 2333, 2527
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 495, 981
+    seg_ny_limits = 2333, 2527
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 989, 1475
+    seg_ny_limits = 2333, 2527
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1483, 1969
+    seg_ny_limits = 2333, 2527
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&segment_list
+    seg_x_axis = 1.0, 0.0, 0.0
+    seg_y_axis = 0.0, 1.0, 0.0
+    seg_nx_limits = 1977, 2463
+    seg_ny_limits = 2333, 2527
+    seg_org_x = 0.0
+    seg_org_y = 0.0
+    seg_coord = 0.0
+/
+
+&sweep_list
+    lambda = 1.0
+    mu_air = -1.0
+    mu_sensor = -1.0
+    res_limit = 2.0
+    exposure = 0.1
+    trans_xyz = 2.25086971664, 0.0526566230394, -0.284598554874
+    det_coord = 291.0
+    two_theta_deg = 0.0
+    omega_deg = 45.0
+    kappa_deg = 0.0
+    phi_deg = 0.0
+    spindle_deg = 0.0
+    step_deg = 0.1
+    n_frames = 12
+    axis_no = 3
+    image_no = 1
+    name_template = 'InitialCharacterisation_????.cbf',
+/
