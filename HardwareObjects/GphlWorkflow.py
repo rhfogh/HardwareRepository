@@ -443,6 +443,10 @@ class GphlWorkflow(HardwareObject, object):
         if value:
             result[tag] = int(value)
 
+        if isInterleaved:
+            # NBNB TODO put in config
+            result['interleaveOrder'] = 'g s b'
+
         return result
 
     def setup_data_collection(self, payload, correlation_id):
@@ -488,17 +492,17 @@ class GphlWorkflow(HardwareObject, object):
             'queue'
         )
 
-        # relative_image_dir = collection_proposal.relativeImageDir
-
-        session = self._queue_entry.beamline_setup.getObjectByRole(
-            "session"
-        )
-
-        # NBNB TODO for now we are NOT asking for confirmation
-        # and NOT allowing the change of relativeImageDir
-        # Maybe later
-
+        # NBNB creation and use of master_path_template is NOT in testing version yet
         gphl_workflow_model = self._queue_entry.get_data_model()
+        master_path_template = gphl_workflow_model.path_template
+        relative_image_dir = collection_proposal.relativeImageDir
+        if relative_image_dir:
+            master_path_template.directory = os.path.join(
+                master_path_template.directory, relative_image_dir
+            )
+            master_path_template.process_directory = os.path.join(
+                master_path_template.process_directory, relative_image_dir
+            )
 
 
         new_dcg_name = 'GPhL Data Collection'
@@ -562,15 +566,19 @@ class GphlWorkflow(HardwareObject, object):
             )
 
             # Path_template
-            path_template = beamline_setup_hwobj.get_default_path_template()
+            path_template = queue_model_objects.PathTemplate()
+            # Naughty, but we want a clone, right?
+            # NBNB this ONLY works because all the attriutes are immutable values
+            path_template.__dict__.update(master_path_template.__dict__)
             acq.path_template = path_template
-            # The below led to relative_image_dir appearing twice:
-            # path_template.directory = session.get_image_directory(
-            #     relative_image_dir
-            # )
-            path_template.directory = session.get_image_directory()
-            path_template.process_directory = session.get_process_directory()
             filename_params = scan.filenameParams
+            subdir = filename_params.get('subdir')
+            if subdir:
+                path_template.directory = os.path.join(path_template.directory,
+                                                       subdir)
+                path_template.process_directory = os.path.join(
+                    path_template.process_directory, subdir
+                )
             ss = filename_params.get('run_number')
             path_template.run_number = int(ss) if ss else 1
             prefix = filename_params.get('prefix', '')
@@ -615,7 +623,8 @@ class GphlWorkflow(HardwareObject, object):
         return self.GphlMessages.CollectionDone(
             status=status,
             proposalId=collection_proposal.id,
-            imageRoot=path_template.directory
+            # Only if you want to override prior information rootdir, which we do not
+            # imageRoot=path_template.directory
         )
 
     def select_lattice(self, payload, correlation_id):
@@ -925,7 +934,7 @@ Switch to maximum zoom before continuing"""
         for text in sample_model.lims_code, sample_model.code, sample_model.name:
             if text:
                 try:
-                    existing_uuid = uuid.UUID(text)
+                    sampleId = uuid.UUID(text)
                 except:
                     # The error expected if this goes wrong is ValueError.
                     # But whatever the error we want to continue
@@ -934,15 +943,15 @@ Switch to maximum zoom before continuing"""
                     # Text was a valid uuid string. Use the uuid.
                     break
         else:
-            existing_uuid = None
+            sampleId = uuid.uuid1()
 
         # TODO re-check if this is correct
         rootDirectory = workflow_model.path_template.directory
 
         priorInformation = self.GphlMessages.PriorInformation(
-            sampleId=existing_uuid or uuid.uuid1(),
+            sampleId=sampleId,
             sampleName=(sample_model.name or sample_model.code
-                        or sample_model.lims_code),
+                        or sample_model.lims_code or str(sampleId)),
             rootDirectory=rootDirectory,
             userProvidedInfo=userProvidedInfo
         )

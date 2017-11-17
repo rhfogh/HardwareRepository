@@ -1,6 +1,6 @@
 &sdcp_instrument_list
 calibration_name= 'Initial'
-beamline_name= 'ID30B Ideal'
+beamline_name= 'ID30B'
 coord_sys_name= 'ESRF'
 nominal_beam_dir= 0.0  0.0  1.0
 
@@ -40,23 +40,26 @@ background= 8.0
 det_filename_suffix= '.cbf'
 
 gonio_name= "MiniKappa"
-! Kappa axis calculated for alpha = 24, home position at -46 degree
+! Kappa axis calculated for alpha = 24,
+! component of kappa perpendicular to omega is vertical at omega = -46 degree
 gonio_axis_dirs= 1.0 0.0 0.0,
-   ! Numbers for abs(home) = 46 degrees: still need to figure out signs
-   0.913545457643, -0.282543013685, -0.292581855621,
+   ! Numbers for home = -46 degrees
+   0.913545457643, -0.282545014, -0.292581885, 
    1.0 0.0 0.0
 gonio_axis_datum_settings= 0 0 0
-gonio_axis_limits= 0, 360, -4, 256, 0, 360
+gonio_axis_limits= , , -8, 256, , ,
 gonio_axis_names= 'phi' 'kappa' 'kappa_phi'
 gonio_axis_scannable= 'True' 'False' 'False'
 gonio_axis_calibratable= 'False' 'True' 'True'
 
-gonio_centring_axis_dirs= 1.0,  0.0,  0.0,
-                          0.0,  -1.0,  0.0,
-                          0.0,  0.0,  -1.0
+! Nominal centring axis directions with correct signs
+gonio_centring_axis_dirs= -1.0,  0.0,  0.0,
+                           0.0, -1.0,  0.0,
+                           0.0,  0.0, -1.0
+! Actual limits on centring axes
 gonio_centring_axis_limits= -116.998, 10.5, -2.396, 2.4, -2.3988, 2.4
 ! At omega=0: sampx parallel to beam, sampy perpendicular.
-! phiy along omega 
+! phiy antiparallel to omega 
 gonio_centring_axis_names= 'phiy', 'sampy', 'sampx'
 
 !? FIXME! Sort out ID30B beamstop on the fly (or delete it?) 

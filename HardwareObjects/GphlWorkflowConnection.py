@@ -526,7 +526,7 @@ class GphlWorkflowConnection(object):
     def _ChooseLattice_to_python(self, py4jChooseLattice):
         format = py4jChooseLattice.getFormat().toString()
         solutions = py4jChooseLattice.getSolutions()
-        lattices = py4jChooseLattice.getLattice()
+        lattices = py4jChooseLattice.getLattices()
         return GphlMessages.ChooseLattice(format=format, solutions=solutions,
                                           lattices=lattices)
 
@@ -868,7 +868,7 @@ class GphlWorkflowConnection(object):
             builder = builder.sampleName(xx)
         xx = priorInformation.rootDirectory
         if xx:
-            builder = builder.sampleName(xx)
+            builder = builder.rootDirectory(xx)
         # images not implemented yet - awaiting uses
         # indexingResults not implemented yet - awaiting uses
         builder = builder.userProvidedInfo(
