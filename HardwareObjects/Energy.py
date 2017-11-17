@@ -31,6 +31,7 @@ class Energy(Equipment):
         self.default_en = None
         self.ctrl = None
         self.en_lims = []
+        self.__energy_change = None
 
         try:
             self.energy_motor =  self.getObjectByRole("energy")
@@ -52,7 +53,7 @@ class Energy(Equipment):
         except KeyError:
             logging.getLogger("HWR").info("No controller used")
 
-        if self.energy_motor is not None:
+        if self.energy_motor:
             self.energy_motor.connect('positionChanged', self.energyPositionChanged)
             self.energy_motor.connect('stateChanged', self.energyStateChanged)
 
@@ -67,9 +68,9 @@ class Energy(Equipment):
 
     def getCurrentEnergy(self):
         logging.getLogger('user_level_log').debug("Get current energy")
-        if self.energy_motor is not None:
+        if self.energy_motor:
             try:
-                return self.energy_motor.getPosition()
+                return  self.energy_motor.getPosition()
             except:
                 logging.getLogger("HWR").exception("EnergyHO: could not read current energy")
                 return None
@@ -87,7 +88,7 @@ class Energy(Equipment):
         if not self.tunable:
             return None
 
-        if self.energy_motor is not None:
+        if self.energy_motor:
             try:
                 self.en_lims = self.energy_motor.getLimits()
                 return self.en_lims 
@@ -114,7 +115,7 @@ class Energy(Equipment):
 
         try:
             value=float(value)
-        except (TypeError,ValueError) as diag:
+        except (TypeError,ValueError),diag:
             logging.getLogger('user_level_log').error("Energy: invalid energy (%s)" % value)
             return False
 
@@ -133,10 +134,11 @@ class Energy(Equipment):
                 self.moveEnergyCmdFailed()
             else:
                 self.moveEnergyCmdFinished(True)
+
+        self.__energy_change = gevent.spawn(change_egy)
+
         if wait:
-            change_egy()
-        else:
-            gevent.spawn(change_egy)
+            self.__energy_change.get()
 
     def moveEnergyCmdStarted(self):
         self.moving = True
@@ -168,7 +170,8 @@ class Energy(Equipment):
 
     def cancelMoveEnergy(self):
         logging.getLogger('user_level_log').info("Cancel move")
-        self.moveEnergy.abort()
+        if self.__energy_change:
+            self.__energy_change.kill()
 
     def move_energy(self, energy, wait=True):
         current_en = self.getCurrentEnergy()
@@ -181,10 +184,11 @@ class Energy(Equipment):
                 try:
                     if self.ctrl:
                         self.ctrl.moveEnergy(energy)
-                        self.ctrl.quick_realign()
+                        #self.ctrl.quick_realign()
+                        self.ctrl.centrebeam_exec()
                     else:
                         self.executeCommand("moveEnergy", energy, wait=True)
-                except RuntimeError as AttributeError:
+                except RuntimeError, AttributeError:
                     self.energy_motor.move(energy)
             else:
                 self.energy_motor.move(energy)
@@ -196,7 +200,7 @@ class Energy(Equipment):
             self.emit('valueChanged', (pos, ))
 
     def energyStateChanged(self, state):
-        print(state)
+        print state
 
     def get_value(self):
         #generic method used by the beamline setup
