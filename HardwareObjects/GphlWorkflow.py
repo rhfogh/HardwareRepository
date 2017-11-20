@@ -456,7 +456,7 @@ class GphlWorkflow(HardwareObject, object):
         user_modifiable = geometric_strategy.isUserModifiable
 
         goniostatSweepSettings = {}
-        goniostatTranslations = []
+        queue_entries = []
         for sweep in geometric_strategy.sweeps:
             sweepSetting = sweep.goniostatSweepSetting
             requestedRotationId = sweepSetting.id
@@ -470,9 +470,21 @@ class GphlWorkflow(HardwareObject, object):
                 goniostatSweepSettings[sweepSetting.id] = sweepSetting
                 # NB there is no provision for NOT making a new translation
                 # object if you are making no changes
-                goniostatTranslation = self.center_sample(sweepSetting,
-                                                          requestedRotationId)
-                goniostatTranslations.append(goniostatTranslation)
+                queue_entry = self.enqueue_sample_centring(
+                    goniostatRotation=sweepSetting)
+                queue_entries.append(
+                    (queue_entry, sweepSetting, requestedRotationId)
+                )
+
+        # NB, split in two loops to get all centrings on queue (and so visible) before execution
+
+        goniostatTranslations = []
+        for queue_entry, goniostatRotation, requestedRotationId in queue_entries:
+            goniostatTranslations.append(
+                self.execute_sample_centring(
+                    queue_entry, goniostatRotation, requestedRotationId
+                )
+            )
 
         sampleCentred = self.GphlMessages.SampleCentred(
             goniostatTranslations=goniostatTranslations,
@@ -504,7 +516,6 @@ class GphlWorkflow(HardwareObject, object):
                 master_path_template.process_directory, relative_image_dir
             )
 
-
         new_dcg_name = 'GPhL Data Collection'
         new_dcg_model = queue_model_objects.TaskGroup()
         new_dcg_model.set_enabled(True)
@@ -518,6 +529,7 @@ class GphlWorkflow(HardwareObject, object):
         # There will be exactly one for the kinds of collection we are doing
         crystal = sample.crystals[0]
         data_collections = []
+        snapshot_count = gphl_workflow_model.get_snapshot_count()
         for scan in collection_proposal.scans:
             sweep = scan.sweep
             acq = queue_model_objects.Acquisition()
@@ -539,14 +551,16 @@ class GphlWorkflow(HardwareObject, object):
             acq_parameters.num_passes = 1
             acq_parameters.resolution = gphl_workflow_model.get_detector_resolution()
             acq_parameters.energy = General.h_over_e/sweep.beamSetting.wavelength
-            # NB TODO comes in as 0 <= x <- 1  Check this is OK.
             acq_parameters.transmission = scan.exposure.transmission * 100
             # acq_parameters.shutterless = self._has_shutterless()
             # acq_parameters.detector_mode = self._get_roi_modes()
             acq_parameters.inverse_beam = False
             # acq_parameters.take_dark_current = True
             # acq_parameters.skip_existing_images = False
-            # acq_parameters.take_snapshots = True
+
+            # Only snapshots before first scan
+            acq_parameters.take_snapshots = snapshot_count
+            snapshot_count = 0
 
             # Edna also sets screening_id
             # Edna also sets osc_end
@@ -785,7 +799,7 @@ class GphlWorkflow(HardwareObject, object):
     def process_centring_request(self, payload, correlation_id):
         request_centring = payload
 
-        logging.info ('Start centring no. %s of %s'
+        logging.getLogger('user_level_log').info ('Start centring no. %s of %s'
                       % (request_centring.currentSettingNo,
                          request_centring.totalRotations))
 
@@ -802,6 +816,10 @@ class GphlWorkflow(HardwareObject, object):
             # We are moving to having recentered positions -
             # prompt for fine zoom
             self._use_fine_zoom = True
+
+            # TODO NBNB should pass zoom motor value into  self.enqueue_sample_centring
+            # but how teh "£$%%^^ do you get the maximum zoom motor value to pass??
+
             info_text = """Automatic sample re-centering is now active
 Switch to maximum zoom before continuing"""
             field_list = [
@@ -822,7 +840,9 @@ Switch to maximum zoom before continuing"""
             dummy = self._return_parameters.get()
             self._return_parameters = None
 
-        goniostatTranslation = self.center_sample(goniostatRotation)
+        centring_queue_entry = self.enqueue_sample_centring(goniostatRotation)
+        goniostatTranslation = self.execute_sample_centring(centring_queue_entry,
+                                                            goniostatRotation)
 
         if (request_centring.currentSettingNo >=
                 request_centring.totalRotations):
@@ -835,7 +855,7 @@ Switch to maximum zoom before continuing"""
             goniostatTranslation=goniostatTranslation
         )
 
-    def center_sample(self, goniostatRotation, requestedRotationId=None):
+    def enqueue_sample_centring(self, goniostatRotation):
 
         queue_model_hwobj = HardwareRepository().getHardwareObject(
             'queue-model'
@@ -871,9 +891,18 @@ Switch to maximum zoom before continuing"""
                                     centring_model)
         centring_entry = queue_manager.get_entry_with_model(centring_model)
 
+        return centring_entry
+
+    def execute_sample_centring(self, centring_entry, goniostatRotation,
+                                requestedRotationId=None):
+
+        queue_manager = HardwareRepository().getHardwareObject(
+            'queue'
+        )
+
         queue_manager.execute_entry(centring_entry)
 
-        centring_result = centring_model.get_centring_result()
+        centring_result = centring_entry.get_data_model().get_centring_result()
         if centring_result:
             positionsDict = centring_result.as_dict()
             dd = dict((x, positionsDict[x])
@@ -951,7 +980,9 @@ Switch to maximum zoom before continuing"""
         priorInformation = self.GphlMessages.PriorInformation(
             sampleId=sampleId,
             sampleName=(sample_model.name or sample_model.code
-                        or sample_model.lims_code or str(sampleId)),
+                        or sample_model.lims_code or
+                        workflow_model.path_template.get_prefix()
+                        or str(sampleId)),
             rootDirectory=rootDirectory,
             userProvidedInfo=userProvidedInfo
         )

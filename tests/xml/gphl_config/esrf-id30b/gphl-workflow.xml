@@ -155,8 +155,8 @@
                 <instcfgout>/users/blissadm/local/gphl/gphl_diffractcal_out.nml</instcfgout>
                 <!-- NBNB replace later -->
                 <charpattern>multiorientation</charpattern>
-                <!-- copy calibration result to confdiguration directory, replacing previous value -->
-                <newconfig/>
+                <!--&lt;!&ndash; copy calibration result to configuration directory, replacing previous value &ndash;&gt;-->
+                <!--<newconfig/>-->
 		<appdir>analysis</appdir>
             </options>
         </DiffractometerCalibration>

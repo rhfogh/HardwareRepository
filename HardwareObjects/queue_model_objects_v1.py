@@ -1295,6 +1295,8 @@ class GphlWorkflow(TaskNode):
         self._detector_resolution = None
         self._expected_resolution = None
 
+        self._snapshot_count = None
+
         # Activate workflow if not done yet
         # Must be done here, so as to postpone creation of connection.
         workflow_hwobj.activate()
@@ -1310,6 +1312,12 @@ class GphlWorkflow(TaskNode):
         return self._type
     def set_type(self, value):
         self._type = value
+
+    # Number of snapshots to take at start of data collection.
+    def get_snapshot_count(self):
+        return self._snapshot_count
+    def set_snapshot_count(self, value):
+        self._snapshot_count = value
 
     # Starting run number. Unnecessary.
     # Left in as it is modified by signal when edited.

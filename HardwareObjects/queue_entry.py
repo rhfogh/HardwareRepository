@@ -1357,6 +1357,7 @@ class GphlWorkflowQueueEntry(BaseQueueEntry):
         logging.getLogger('queue_exec').debug(
             "In GphlWorkflowQueueEntry.stop"
         )
+        self.workflow_hwobj.abort()
         self.get_view().setText(1, 'Stopped')
         raise QueueAbortedException('Queue stopped', self)
 

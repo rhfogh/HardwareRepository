@@ -139,7 +139,7 @@ goniostat_axis_settings= 0.0 180.0 180.0
 /
 
 &sdcp_goniostat_setting_list
-id= 'dsdcp_detector_setting_listcalgsetk225_p90'
+id= 'dcalgsetk225_p90'
 scan_axis_name= 'phi'
 goniostat_axis_settings= 0.0 225.0 90.0
 /
