@@ -296,7 +296,6 @@ class GphlWorkflowConnection(object):
         logging.getLogger('HWR').info("Aborting workflow: %s" % message)
         logging.getLogger('user_level_log').info("Aborting workflow ...")
 
-
         if self._await_result is not None:
             # Workflow waiting for answer - send abort
             self._await_result = [(GphlMessages.BeamlineAbort(), None)]

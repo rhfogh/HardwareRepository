@@ -15,6 +15,8 @@ class ResolutionMockup(BaseHardwareObjects.Equipment):
         self.detmState = None
         self.current_wavelength = 10
         self.energy = 12
+        # We need some kind of value to avoid errors:
+        self.det_radius = 250
 
     def beam_centre_updated(self, beam_pos_dict):
         pass
@@ -50,7 +52,8 @@ class ResolutionMockup(BaseHardwareObjects.Equipment):
             return None
 
     def dist2res(self, dist=None):
-        dist = 520
+        if dist is None:
+            dist = 520
 
         try:
             ttheta = math.atan(self.det_radius / dist)

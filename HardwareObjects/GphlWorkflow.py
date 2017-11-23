@@ -34,6 +34,9 @@ except ImportError:
 
 States = General.States
 
+# Used to pass to priorInformation when no wavelengths are set (DiffractCal)
+DUMMY_WAVELENGTH = 999.999
+
 
 class GphlWorkflow(HardwareObject, object):
     """Global Phasing workflow runner.
@@ -176,6 +179,7 @@ class GphlWorkflow(HardwareObject, object):
         for wf_node in self['workflows']:
             name = wf_node.name()
             wf_dict = {'name':name,
+                       'strategy_type':wf_node.getProperty('strategy_type'),
                        'application':wf_node.getProperty('application'),
                        'documentation':wf_node.getProperty('documentation',
                                                            default_value=''),
@@ -332,14 +336,28 @@ class GphlWorkflow(HardwareObject, object):
 
         # NBNB TODO userModifiable
 
-        orientations = {}
+        orientations = OrderedDict()
         total_width = 0
+        detectorSetting = None
+        beamSetting = None
         for sweep in geometric_strategy.sweeps:
+            if detectorSetting is None:
+                detectorSetting = sweep.detectorSetting
+            if beamSetting is None:
+                beamSetting = sweep.beamSetting
             total_width += sweep.width
             rotation_id = sweep.goniostatSweepSetting.id
             sweeps = orientations.get(rotation_id, [])
             sweeps.append(sweep)
             orientations[rotation_id] = sweeps
+
+        # First set beam_energy and give it time to settle,
+        # so detector distance will trigger correct resolution later
+        collect_hwobj = self._queue_entry.beamline_setup.getObjectByRole(
+            'collect'
+        )
+        beam_energy = General.h_over_e/beamSetting.wavelength
+        collect_hwobj.set_energy(beam_energy)
 
         lines = ["""Geometric strategy:
     Total rotation %d.1 degrees""" % total_width]
@@ -359,8 +377,8 @@ class GphlWorkflow(HardwareObject, object):
                 wavelength = sweep.beamSetting.wavelength
                 start = sweep.start
                 width = sweep.width
-                ss = ("sweep: %s=% 6.1f, energy= %s keV, width= %s degrees"
-                      % (scan_axis, start, General.h_over_e/wavelength, width))
+                ss = ("sweep: energy= %s keV, %s=% 6.1f, width= %s degrees"
+                      % (General.h_over_e/wavelength, scan_axis, start, width))
                 lines.append(ss)
         info_text = '\n'.join(lines)
 
@@ -371,14 +389,9 @@ class GphlWorkflow(HardwareObject, object):
         field_list = [
             {'variableName':'_info',
              'uiLabel':'Data collection plan',
-             'type':'textblock',
+             'type':'textarea',
              'defaultValue':info_text,
              },
-            # {'variableName':'_cplx',
-            #  'uiLabel':'Indexing solution',
-            #  'type':'textblock',
-            #  'defaultValue':'Coming soon ...',
-            #  },
             {'variableName':'imageWidth',
              'uiLabel':'Oscillation range',
              'type':'combo',
@@ -405,6 +418,34 @@ class GphlWorkflow(HardwareObject, object):
              'upperBound':6000,
              },
         ]
+
+        detectorDistance = detectorSetting.axisSettings.get('Distance')
+        if detectorDistance:
+            resolution_hwobj = self._queue_entry.beamline_setup.getObjectByRole(
+                'resolution'
+            )
+            resolution_hwobj.move(resolution_hwobj.dist2res(detectorDistance))
+            field_list.append(
+                {'variableName':'detector_distance',
+                 'uiLabel':'Detector distance',
+                 'type':'text',
+                 'defaultValue':str(detectorDistance),
+                 'readOnly':True,
+                 }
+            )
+            field_list.append(
+                {'variableName':'detector_resolution',
+                 'uiLabel':'Equivalent detector resolution (A)',
+                 'type':'text',
+                 'defaultValue':str(resolution_hwobj.getPosition()),
+                 'readOnly':True,
+                 }
+            )
+        else:
+            logging.getLogger('HWR').warning(
+                "Detector distance not set by workflow runner"
+            )
+
         if isInterleaved:
             field_list.append({'variableName':'wedgeWidth',
                               'uiLabel':'Images per wedge',
@@ -814,31 +855,42 @@ class GphlWorkflow(HardwareObject, object):
         elif (not self._use_fine_zoom
               and goniostatRotation.translation is not None):
             # We are moving to having recentered positions -
-            # prompt for fine zoom
+            # Set or prompt for fine zoom
             self._use_fine_zoom = True
 
-            # TODO NBNB should pass zoom motor value into  self.enqueue_sample_centring
-            # but how teh "£$%%^^ do you get the maximum zoom motor value to pass??
+            zoom_motor = self.getObjectByRole('zoom')
+            if zoom_motor:
+                # Zoom to the last predefined position
+                # - that should be the largest magnification
+                ll = zoom_motor.getPredefinedPositionsList()
+                if ll:
+                    logging.getLogger('user_level_log').info (
+                        'Sample re-centering now active - Zooming in.')
+                    zoom_motor.moveToPosition(ll[-1])
+                else:
+                    logging.getLogger('HWR').warning (
+                        'No predefined positions for zoom motor.')
+            else:
+                # Ask user to zoom
+                info_text = """Automatic sample re-centering is now active
+    Switch to maximum zoom before continuing"""
+                field_list = [
+                    {'variableName':'_info',
+                     'uiLabel':'Data collection plan',
+                     'type':'textarea',
+                     'defaultValue':info_text,
+                     },
+                ]
+                self._return_parameters = gevent.event.AsyncResult()
+                responses = dispatcher.send('gphlParametersNeeded', self,
+                                            field_list, self._return_parameters)
+                if not responses:
+                    self._return_parameters.set_exception(
+                        RuntimeError("Signal 'gphlParametersNeeded' is not connected")
+                    )
 
-            info_text = """Automatic sample re-centering is now active
-Switch to maximum zoom before continuing"""
-            field_list = [
-                {'variableName':'_info',
-                 'uiLabel':'Data collection plan',
-                 'type':'textblock',
-                 'defaultValue':info_text,
-                 },
-            ]
-            self._return_parameters = gevent.event.AsyncResult()
-            responses = dispatcher.send('gphlParametersNeeded', self,
-                                        field_list, self._return_parameters)
-            if not responses:
-                self._return_parameters.set_exception(
-                    RuntimeError("Signal 'gphlParametersNeeded' is not connected")
-                )
-
-            dummy = self._return_parameters.get()
-            self._return_parameters = None
+                dummy = self._return_parameters.get()
+                self._return_parameters = None
 
         centring_queue_entry = self.enqueue_sample_centring(goniostatRotation)
         goniostatTranslation = self.execute_sample_centring(centring_queue_entry,
@@ -940,12 +992,71 @@ Switch to maximum zoom before continuing"""
         )
         point_group = None
 
+        # field_list = [
+        #     {'variableName':'expected_resolution',
+        #      'uiLabel':'Predicted experimental resolution (A)',
+        #      'type':'text',
+        #      'defaultValue':'2',
+        #      'unit':'A',
+        #      'lowerBound':0.0,
+        #      },
+        # ]
+        # wavelength_roles = []
+        # wavelengths = []
+        # for role, value in workflow_model.get_beam_energies().items():
+        #     wavelength_roles.append(role)
+        #     field_list.append(
+        #         {'variableName':role,
+        #          'uiLabel':'%s beam energy (keV)' % role,
+        #          'type':'text',
+        #          'defaultValue':str(value),
+        #          'unit':'keV',
+        #          'lowerBound':0.0,
+        #          },
+        #     )
+        #
+        # self._return_parameters = gevent.event.AsyncResult()
+        # responses = dispatcher.send('gphlParametersNeeded', self,
+        #                             field_list, self._return_parameters)
+        # if not responses:
+        #     self._return_parameters.set_exception(
+        #         RuntimeError("Signal 'gphlParametersNeeded' is not connected")
+        #     )
+        #
+        # params = self._return_parameters.get()
+        #
+        # beam_energy_dict = OrderedDict()
+        # for role in wavelength_roles:
+        #     value = params.get(role)
+        #     if value:
+        #         wavelength = General.h_over_e/float(value)
+        #         beam_energy_dict[role] = value
+        #         wavelengths.append(
+        #             self.GphlMessages.PhasingWavelength(wavelength=wavelength,
+        #                                                 role=role)
+        #         )
+        #     else:
+        #         raise ValueError('BeamEnergy %s has invalid value: %s'
+        #                          % (role, value))
+        # workflow_model.set_beam_energies(beam_energy_dict)
+        #
+        # expected_resolution = float(params['expected_resolution'])
+        # workflow_model.set_expected_resolution(expected_resolution)
+        # print ('@~@~ expres', params['expected_resolution'], expected_resolution,
+        #        workflow_model.get_expected_resolution())
+
         wavelengths = []
-        for role, value in workflow_model.get_beam_energies().items():
-            wavelength = General.h_over_e/value
+        beam_energies = workflow_model.get_beam_energies()
+        if beam_energies:
+            for role, value in beam_energies.items():
+                wavelength = General.h_over_e/value
+                wavelengths.append(
+                    self.GphlMessages.PhasingWavelength(wavelength=wavelength,
+                                                        role=role)
+                )
+        else:
             wavelengths.append(
-                self.GphlMessages.PhasingWavelength(wavelength=wavelength,
-                                                    role=role)
+                self.GphlMessages.PhasingWavelength(wavelength=DUMMY_WAVELENGTH)
             )
 
         userProvidedInfo = self.GphlMessages.UserProvidedInfo(

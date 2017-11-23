@@ -8,6 +8,11 @@ import os
 import logging
 import queue_model_enumerables_v1 as queue_model_enumerables
 
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
+
 class TaskNode(object):
     """
     Objects that inherit TaskNode can be added to and handled by
@@ -1208,7 +1213,7 @@ class CentredPosition(object):
     """
     Class that represents a centred position.
     Can also be initialized with a mxcube motor dict
-    which simply is a dictonary with the motornames and
+    which simply is a dictionary with the motornames and
     their corresponding values.
     """
     MOTOR_POS_DELTA = 1E-4
@@ -1290,7 +1295,7 @@ class GphlWorkflow(TaskNode):
         self._type = str()
         self._number = 0
         self.set_requires_centring(False)
-        self._beam_energies = {}
+        self._beam_energies = OrderedDict()
         self._characterisation_energy = None
         self._detector_resolution = None
         self._expected_resolution = None
@@ -1353,7 +1358,7 @@ class GphlWorkflow(TaskNode):
     def get_beam_energies(self):
         return self._beam_energies.copy()
     def set_beam_energies(self, value):
-        self._beam_energies = dict(value)
+        self._beam_energies = OrderedDict(value)
 
     def get_path_template(self):
         return self.path_template

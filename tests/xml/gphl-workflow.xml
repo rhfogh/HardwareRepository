@@ -107,6 +107,7 @@
     <workflows>
         <TranslationalCalibration>
             <application>co.gphl.wf.workflows.WFTransCal</application>
+            <strategy_type>transcal</strategy_type>
             <documentation>Translational calibration.
                 Designed for use by beamline personnel.
                 Will produce a series of goniostat positions compatible with
@@ -132,43 +133,37 @@
 
         <DiffractometerCalibration>
             <application>co.gphl.wf.workflows.WFDiffractCal</application>
+            <strategy_type>diffractcal</strategy_type>
             <documentation>Diffractometer calibration.
                 Designed for use by beamline personnel.
             </documentation>
             <!-- Default wavelengths (in A) and their roles -->
-            <!-- role must one of GphlMessages.WavelengthRoles -->
-            <beam_energies>
-                <beam_energy>
-                    <role>pk</role>
-                    <!-- beamline energies in keV -->
-                    <value>12.7</value>
-                </beam_energy>
-            </beam_energies>
             <options>
                 <!-- Name of initial strategy from library to use -->
-                <strategy>InitialCharacterisation</strategy>
+                <!-- <strategy>DiffractCal</strategy> -->
+                <strategy>DiffractCal_ex</strategy>
                 <!-- Name for diffractometer calibration output -->
                 <calibration>diffractcal</calibration>
                 <!-- Path of file to dump persisted instrumentation configuration. OPTIONAL-->
                 <instcfgout>/MXCuBE/mxcube/gphl_diffractcal_out.nml</instcfgout>
                 <!-- Pattern name for characterisation collections - used for all data here-->
                 <charpattern>multiorientation</charpattern>
-                <!-- copy calibration result to confdiguration directory, replacing previous value -->
+                <!-- copy calibration result to configuration directory, replacing previous value -->
                 <newconfig/>
             </options>
         </DiffractometerCalibration>
 
-        <DataCollection1>
+        <SingleWavelengthAcquisition>
             <application>co.gphl.wf.workflows.WFSimpleCharToProcessing</application>
+            <strategy_type>acquisition</strategy_type>
             <documentation>
-                Data collection workflow 1.
+                Single wavelength data acquisition.
                 Includes initial characterisation and complete collection
             </documentation>
             <!-- Default wavelengths (in A) and their roles -->
-            <!-- role must one of GphlMessages.WavelengthRoles -->
             <beam_energies>
                 <beam_energy>
-                    <role>pk</role>
+                    <role>Acquisition</role>
                     <!-- beamline energies in keV -->
                     <value>12.7</value>
                 </beam_energy>
@@ -188,6 +183,85 @@
                 <!-- Default prefix - will be overwritten from user input -->
                 <prefix>gphl_data</prefix>
             </options>
-        </DataCollection1>
+        </SingleWavelengthAcquisition>
+
+        <TwoWavelengthMAD>
+            <application>co.gphl.wf.workflows.WFSimpleCharToProcessing</application>
+            <strategy_type>acquisition</strategy_type>
+            <documentation>
+                Two-wavelength MAD data acquisition.
+                Includes initial characterisation and complete collection
+            </documentation>
+            <!-- Default wavelengths (in A) and their roles -->
+            <beam_energies>
+                <beam_energy>
+                    <role>Peak</role>
+                    <!-- beamline energies in keV -->
+                    <value>12.7</value>
+                </beam_energy>
+                <beam_energy>
+                    <role>Remote</role>
+                    <!-- beamline energies in keV -->
+                    <value>12.72</value>
+                </beam_energy>
+            </beam_energies>
+            <options>
+                <!-- Name of initial strategy from library to use -->
+                <strategy>InitialCharacterisation</strategy>
+                <!-- Working subdirectory for workflow-side application data-->
+                <appdir>calculations</appdir>
+                <!-- Pattern name for inverse-beam collections -->
+                <ibpattern>ib_interleaved</ibpattern>
+                <!-- Pattern name for non-inverse-beam collections -->
+                <pattern>interleaved</pattern>
+                <!-- NBNB replace later -->
+                <!-- Pattern name for characterisation collections -->
+                <charpattern>generic</charpattern>
+                <!-- Default prefix - will be overwritten from user input -->
+                <prefix>gphl_data</prefix>
+            </options>
+        </TwoWavelengthMAD>
+
+        <ThreeWavelengthMAD>
+            <application>co.gphl.wf.workflows.WFSimpleCharToProcessing</application>
+            <strategy_type>acquisition</strategy_type>
+            <documentation>
+                Three-wavelength MAD data acquisition.
+                Includes initial characterisation and complete collection
+            </documentation>
+            <!-- Default wavelengths (in A) and their roles -->
+            <beam_energies>
+                <beam_energy>
+                    <role>Peak</role>
+                    <!-- beamline energies in keV -->
+                    <value>12.7</value>
+                </beam_energy>
+                <beam_energy>
+                    <role>Rising_Inflection</role>
+                    <!-- beamline energies in keV -->
+                    <value>12.69</value>
+                </beam_energy>
+                <beam_energy>
+                    <role>Falling_Inflection</role>
+                    <!-- beamline energies in keV -->
+                    <value>12.71</value>
+                </beam_energy>
+            </beam_energies>
+            <options>
+                <!-- Name of initial strategy from library to use -->
+                <strategy>InitialCharacterisation</strategy>
+                <!-- Working subdirectory for workflow-side application data-->
+                <appdir>calculations</appdir>
+                <!-- Pattern name for inverse-beam collections -->
+                <ibpattern>ib_interleaved</ibpattern>
+                <!-- Pattern name for non-inverse-beam collections -->
+                <pattern>interleaved</pattern>
+                <!-- NBNB replace later -->
+                <!-- Pattern name for characterisation collections -->
+                <charpattern>generic</charpattern>
+                <!-- Default prefix - will be overwritten from user input -->
+                <prefix>gphl_data</prefix>
+            </options>
+        </ThreeWavelengthMAD>
     </workflows>
 </object>
