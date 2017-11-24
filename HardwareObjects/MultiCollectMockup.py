@@ -39,6 +39,7 @@ class MultiCollectMockup(AbstractMultiCollect, HardwareObject):
 
     @task
     def loop(self, owner, data_collect_parameters_list):
+        print('@~@~ in mock loop')
         failed_msg = "Data collection failed!"
         failed = True
         collections_analyse_params = []
@@ -46,18 +47,33 @@ class MultiCollectMockup(AbstractMultiCollect, HardwareObject):
         self.emit("collectStarted", (owner, 1))
         
         for data_collect_parameters in data_collect_parameters_list:
+            print('@~@~ loop[ing over parameter dicts')
             logging.debug("collect parameters = %r", data_collect_parameters)
             failed = False
-       	    data_collect_parameters["status"]='Data collection successful'
-	    osc_id, sample_id, sample_code, sample_location = self.update_oscillations_history(data_collect_parameters)
+            data_collect_parameters["status"]='Data collection successful'
+            osc_id, sample_id, sample_code, sample_location = self.update_oscillations_history(data_collect_parameters)
             self.emit('collectOscillationStarted', (owner, sample_id, sample_code, sample_location, data_collect_parameters, osc_id))
             data_collect_parameters["status"]='Running'
-	    data_collect_parameters["status"]='Data collection successful'
+
+            self.do_collect(owner, data_collect_parameters)
+
+            data_collect_parameters["status"]='Data collection successful'
             self.emit("collectOscillationFinished", (owner, True, data_collect_parameters["status"], "12345", osc_id, data_collect_parameters))
 
-	self.emit("collectEnded", owner, not failed, failed_msg if failed else "Data collection successful")
-	logging.getLogger('HWR').info("data collection successful in loop")
+        self.emit("collectEnded", owner, not failed, failed_msg if failed else "Data collection successful")
+        logging.getLogger('HWR').info("data collection successful in loop")
         self.emit("collectReady", (True, ))
+
+    def do_collect(self, owner, data_collect_parameters):
+        """Actual collection - here as hook for emulator"""
+
+        self.data_collection_hook(data_collect_parameters)
+
+
+        for tt in sorted(data_collect_parameters.items()):
+            print('--> %s %s' % tt)
+        # data collection done
+        self.data_collection_end_hook(data_collect_parameters)
 
     @task
     def take_crystal_snapshots(self, number_of_snapshots):
@@ -65,6 +81,10 @@ class MultiCollectMockup(AbstractMultiCollect, HardwareObject):
 
     @task
     def data_collection_hook(self, data_collect_parameters):
+        return
+
+    @task
+    def data_collection_end_hook(self, data_collect_parameters):
         return
 
     def do_prepare_oscillation(self, start, end, exptime, npass):

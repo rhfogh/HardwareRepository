@@ -1,0 +1,30 @@
+<object class="MultiCollectEmulator">
+
+  <!-- First part must mirror collect-mockup.xml -->
+  <object href="/transmission-mockup" role="transmission"/>
+  <object href="/diffractometer-mockup" role="diffractometer"/>
+  <object href="/sc-mockup" role="sample_changer"/>
+  <object href="/resolution-mockup" role="resolution"/>
+  <object href="/energy-mockup" role="energy"/>
+  <object href="/lims-client-mockup" role="dbserver"/>
+
+  <auto_processing>
+    <program>
+      <executable>none_present_executable</executable>
+      <event>after</event>
+    </program>
+  </auto_processing>
+
+  <!-- From here on specific to emulator -->
+  <directory_prefix>emulator</directory_prefix>
+
+  <!-- Simcal memory pool option, in Gb - should be 50-66% of available memory -->
+  <simcal_memory_pool>9</simcal_memory_pool>
+  <!-- Both thread number variables should be less than all available threads -->
+  <!-- stack size taken from PK example - who knows what is best. -->
+  <environment_variables>
+    <OMP_STACKSIZE>16M</OMP_STACKSIZE>
+    <OMP_THREAD_LIMIT>6</OMP_THREAD_LIMIT>
+    <OMP_NUM_THREADS>6</OMP_NUM_THREADS>
+  </environment_variables>
+</object>
