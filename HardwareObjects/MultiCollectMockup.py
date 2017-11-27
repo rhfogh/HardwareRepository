@@ -68,10 +68,6 @@ class MultiCollectMockup(AbstractMultiCollect, HardwareObject):
         """Actual collection - here as hook for emulator"""
 
         self.data_collection_hook(data_collect_parameters)
-
-
-        for tt in sorted(data_collect_parameters.items()):
-            print('--> %s %s' % tt)
         # data collection done
         self.data_collection_end_hook(data_collect_parameters)
 

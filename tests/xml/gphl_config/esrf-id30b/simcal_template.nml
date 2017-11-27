@@ -1,15 +1,15 @@
 &setup_list
-    sg_name = 'I4     '
-    res_limit_def = 2.0
+    sg_name = ' '
+    res_limit_def = 0.0
     cell_dim = 0.0, 0.0, 0.0
     cell_ang_deg = 0.0, 0.0, 0.0
-    cell_dim_sd = 0.08675, 0.08675, 0.0856276, 0.0856276
+    cell_dim_sd = 0.0, 0.0, 0.0
     cell_ang_sd_deg = 0.0, 0.0, 0.0
     u_mat_ang_deg = 0.0, 0.0, 0.0
-    u_mat_sd_deg = 0.145, 0.145, 0.145
-    cell_a_axis = 58.2780821909, -39.8027581762, -50.4509106924
-    cell_b_axis = -0.580160065422, -68.430832233, 53.3176745408
-    cell_c_axis = -63.425929632, -35.0202970123, -45.6371471129
+    u_mat_sd_deg = 0.0, 0.0, 0.0
+    cell_a_axis = 0.0, 0.0, 0.0
+    cell_b_axis = 0.0, 0.0, 0.0
+    cell_c_axis = 0.0, 0.0, 0.0
     cell_ref_ang_deg = 0.0, 0.0, 0.0
     sigma_n = 0.0
     b_wilson = 0.0
@@ -677,20 +677,20 @@
 /
 
 &sweep_list
-    lambda = 1.0
+    lambda = 0.0
     mu_air = -1.0
     mu_sensor = -1.0
-    res_limit = 2.0
-    exposure = 0.1
-    trans_xyz = 2.25086971664, 0.0526566230394, -0.284598554874
-    det_coord = 291.0
+    res_limit = 0.0
+    exposure = 0.0
+    trans_xyz = 0.0, 0.0, 0.0
+    det_coord = 0.0
     two_theta_deg = 0.0
-    omega_deg = 45.0
+    omega_deg = 0.0
     kappa_deg = 0.0
     phi_deg = 0.0
     spindle_deg = 0.0
-    step_deg = 0.1
-    n_frames = 12
+    step_deg = 0.0
+    n_frames = 1
     axis_no = 3
     image_no = 1
     name_template = 'InitialCharacterisation_????.cbf',

@@ -16,7 +16,13 @@
   </auto_processing>
 
   <!-- From here on specific to emulator -->
+
+  <!-- Name of test sampe to use - source of input parameter file -->
+  <sample_name>4k61</sample_name>
+
+
   <directory_prefix>emulator</directory_prefix>
+  <object href="/gphl-workflow" role="gphl_workflow"/>
 
   <!-- Simcal memory pool option, in Gb - should be 50-66% of available memory -->
   <simcal_memory_pool>9</simcal_memory_pool>

@@ -21,7 +21,8 @@
  
   <!-- Procedures and routines -->
   <object href="/energyscan-mockup" role="energyscan"/>
-  <object href="/collect-mockup" role="collect"/>
+  <!--<object href="/collect-mockup" role="collect"/>-->
+  <object href="/collect-emulator" role="collect"/>
   <!--<object href="/xrfscan-mockup" role="xrfscan"/>-->
   <object href="/detector-mockup" role="detector"/>
 
