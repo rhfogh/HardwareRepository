@@ -72,3 +72,11 @@ def commandOption(keyword, value):
         return ['-' + keyword]
     else:
         return ['-' + keyword, str(value)]
+
+def to_ascii(text):
+    """Rough-and-ready conversion to bytes, intended for ascii contexts"""
+
+    if hasattr(text, 'encode'):
+        return text.encode('utf8', 'replace')
+    else:
+        return text

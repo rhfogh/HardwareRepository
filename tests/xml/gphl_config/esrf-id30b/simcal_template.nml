@@ -16,7 +16,7 @@
     b6_wilson = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
     lambda_def = 1.0
     lambda_sd = 0.000199999994948
-    beam = 0.0, 0.0, 1.0, 1.0
+    beam = 0.0, 0.0, 1.0
     beam_sd_deg = 0.002, 0.02
     pol_plane_n = 0.0, 1.0, 0.0
     pol_frac = 0.980000019073
@@ -47,7 +47,7 @@
     r_kappa = 33.0
     trans_x_axis = 1.0, 0.0, 0.0
     trans_y_axis = 0.0, 1.0, 1.0
-    trans_z_axis = 0.0, 0.0, 1.0, 1.0
+    trans_z_axis = 0.0, 0.0, 1.0
     cen_phi_deg = 0.0
     cen_kappa_deg = 0.0
     cen_vec = 0.0, 0.0, 0.0
@@ -73,7 +73,7 @@
     n_triangles = 0
     n_segments = 60
     n_orients = 0
-    n_sweeps = 4
+    n_sweeps = 1
 /
 
 &segment_list

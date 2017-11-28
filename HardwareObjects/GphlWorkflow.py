@@ -351,14 +351,6 @@ class GphlWorkflow(HardwareObject, object):
             sweeps.append(sweep)
             orientations[rotation_id] = sweeps
 
-        # First set beam_energy and give it time to settle,
-        # so detector distance will trigger correct resolution later
-        collect_hwobj = self._queue_entry.beamline_setup.getObjectByRole(
-            'collect'
-        )
-        beam_energy = General.h_over_e/beamSetting.wavelength
-        collect_hwobj.set_energy(beam_energy)
-
         lines = ["""Geometric strategy:
     Total rotation %d.1 degrees""" % total_width]
 
@@ -419,12 +411,20 @@ class GphlWorkflow(HardwareObject, object):
              },
         ]
 
+
+        # First set beam_energy and give it time to settle,
+        # so detector distance will trigger correct resolution later
+        collect_hwobj = self._queue_entry.beamline_setup.getObjectByRole(
+            'collect'
+        )
+        collect_hwobj.set_wavelength(beamSetting.wavelength)
+
         detectorDistance = detectorSetting.axisSettings.get('Distance')
         if detectorDistance:
-            resolution_hwobj = self._queue_entry.beamline_setup.getObjectByRole(
-                'resolution'
-            )
-            resolution_hwobj.move(resolution_hwobj.dist2res(detectorDistance))
+            # NBNB If this is ever set to editable, distance and resolution
+            # must be varied in sync
+            collect_hwobj.move_detector(detectorDistance)
+            resolution = collect_hwobj.get_resolution()
             field_list.append(
                 {'variableName':'detector_distance',
                  'uiLabel':'Detector distance',
@@ -437,7 +437,7 @@ class GphlWorkflow(HardwareObject, object):
                 {'variableName':'detector_resolution',
                  'uiLabel':'Equivalent detector resolution (A)',
                  'type':'text',
-                 'defaultValue':str(resolution_hwobj.getPosition()),
+                 'defaultValue':str(resolution),
                  'readOnly':True,
                  }
             )
@@ -483,7 +483,13 @@ class GphlWorkflow(HardwareObject, object):
         value = params.get(tag)
         if value:
             result[tag] = int(value)
-
+        # TODO NBNB must be modified if we make distance/resolution editable
+        tag = 'detector_distance'
+        value = params.get(tag)
+        if value:
+            collect_hwobj.move_detector(float(value))
+            resolution = collect_hwobj.get_resolution()
+            result['resolution'] = resolution
         if isInterleaved:
             # NBNB TODO put in config
             result['interleaveOrder'] = 'g s b'
@@ -494,6 +500,10 @@ class GphlWorkflow(HardwareObject, object):
         geometric_strategy = payload
         # NB this call also asks for OK/abort of strategy, hence put first
         parameters = self.queryCollectionStrategy(geometric_strategy)
+        # Put resolution value in workflow model object
+        gphl_workflow_model = self._queue_entry.get_data_model()
+        gphl_workflow_model.set_detector_resolution(parameters.pop('resolution'))
+
         user_modifiable = geometric_strategy.isUserModifiable
 
         goniostatSweepSettings = {}
@@ -623,7 +633,7 @@ class GphlWorkflow(HardwareObject, object):
             # Path_template
             path_template = queue_model_objects.PathTemplate()
             # Naughty, but we want a clone, right?
-            # NBNB this ONLY works because all the attriutes are immutable values
+            # NBNB this ONLY works because all the attributes are immutable values
             path_template.__dict__.update(master_path_template.__dict__)
             acq.path_template = path_template
             filename_params = scan.filenameParams
