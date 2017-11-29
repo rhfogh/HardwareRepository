@@ -22,6 +22,8 @@ class MultiCollectEmulator(MultiCollectMockup):
         self._detector_distance = 300.
         self._wavelength = 1.0
 
+        self._counter = 1
+
         
     def init(self):
         MultiCollectMockup.init(self)
@@ -29,19 +31,19 @@ class MultiCollectEmulator(MultiCollectMockup):
         if not self.gphl_workflow_hwobj:
             raise ValueError("Emulator requires GPhL workflow installation")
 
-    def make_image_file_template(self, data_collect_parameters):
+    def make_image_file_template(self, data_collect_parameters, suffix=None):
 
         file_parameters = data_collect_parameters["fileinfo"]
+        suffix = suffix or file_parameters.get('suffix')
+        prefix = file_parameters.get('prefix')
+        run_number = file_parameters.get('run_number')
 
-        file_parameters["suffix"] = self.bl_config.detector_fileext
-        image_file_template = "%(prefix)s_%(run_number)s_%%%%%%%%.%(suffix)s" % file_parameters
+        image_file_template = ("%s_%s_????.%s" % (prefix, run_number, suffix))
         file_parameters["template"] = image_file_template
 
     @task
     def data_collection_hook(self, data_collect_parameters):
         print('@~@~ emulator starthook')
-
-        self.make_image_file_template(data_collect_parameters)
 
         # Get program locations
         print('@~@~ properties',  self.gphl_workflow_hwobj,
@@ -83,6 +85,10 @@ class MultiCollectEmulator(MultiCollectMockup):
 
         input_data['setup_list'].update(crystal_input['simcal_crystal_list'])
 
+        input_data['setup_list']['n_sweeps'] = len(
+            data_collect_parameters['oscillation_sequence']
+        )
+
         sweeps = []
         for osc in data_collect_parameters['oscillation_sequence']:
             motors = data_collect_parameters['motors']
@@ -107,6 +113,9 @@ class MultiCollectEmulator(MultiCollectMockup):
             sweep['res_limit'] = resolution
             sweep['det_coord'] = self.get_detector_distance()
 
+            # Must be done here to absorb run number etc.
+            # suffix cbf is needed for xds, apparently
+            self.make_image_file_template(data_collect_parameters, suffix='cbf')
             name_template = os.path.join(
                 data_collect_parameters['fileinfo']['directory'],
                 data_collect_parameters['fileinfo']['template']
@@ -126,18 +135,16 @@ class MultiCollectEmulator(MultiCollectMockup):
         # NB outfile is the echo output of the input file;
         # image files templates ar set in the input file
         file_info = data_collect_parameters['fileinfo']
-        print ('@~@~1 processdir', os.path.exists(file_info['process_directory']),
-               file_info['process_directory'])
-        print ('@~@~1 datadir', os.path.exists(file_info['directory']),
-               file_info['directory'])
         if not os.path.exists(file_info['process_directory']):
             os.makedirs(file_info['process_directory'])
         if not os.path.exists(file_info['directory']):
             os.makedirs(file_info['directory'])
-        infile = os.path.join(file_info['process_directory'], 'simcal_in.nml')
+        infile = os.path.join(file_info['process_directory'],
+                              'simcal_in_%s.nml' % self._counter)
         f90nml.write(input_data, infile, force=True)
-        print('@~@~ infile', infile)
-        outfile = os.path.join(file_info['process_directory'], 'simcal_out.nml')
+        outfile = os.path.join(file_info['process_directory'],
+                               'simcal_out_%s.nml' % self._counter)
+        self._counter += 1
         hklfile = os.path.join(sample_dir, 'sample.hkli')
         command_list = [simcal_executive, '--input', infile, '--output', outfile,
                         '--hkl', hklfile]

@@ -332,6 +332,10 @@ class GphlWorkflow(HardwareObject, object):
 
         isInterleaved = geometric_strategy.isInterleaved
         allowed_widths = geometric_strategy.allowedWidths
+        if not allowed_widths:
+            logging.getLogger('HWR').error(
+                "No allowed image widths returned by strategy - defaults to 0.1 deg")
+            allowed_widths = [0.1]
         default_width_index = geometric_strategy.defaultWidthIdx or 0
 
         # NBNB TODO userModifiable
@@ -492,7 +496,7 @@ class GphlWorkflow(HardwareObject, object):
             result['resolution'] = resolution
         if isInterleaved:
             # NBNB TODO put in config
-            result['interleaveOrder'] = 'g s b'
+            result['interleaveOrder'] = 'gsb'
 
         return result
 

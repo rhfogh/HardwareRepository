@@ -47,7 +47,6 @@ class MultiCollectMockup(AbstractMultiCollect, HardwareObject):
         self.emit("collectStarted", (owner, 1))
         
         for data_collect_parameters in data_collect_parameters_list:
-            print('@~@~ loop[ing over parameter dicts')
             logging.debug("collect parameters = %r", data_collect_parameters)
             failed = False
             data_collect_parameters["status"]='Data collection successful'

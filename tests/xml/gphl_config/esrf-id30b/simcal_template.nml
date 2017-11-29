@@ -66,9 +66,9 @@
     img_blending = 0.0
     n_rays = 2001
     pert_mode = 0
-    sim_mode = 0
+    sim_mode = 1
     gen_mode = 0
-    bcg_mode = 0
+    bcg_mode = -1
     n_vertices = 0
     n_triangles = 0
     n_segments = 60
