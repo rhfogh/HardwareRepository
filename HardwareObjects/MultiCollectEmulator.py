@@ -66,12 +66,61 @@ class MultiCollectEmulator(MultiCollectMockup):
             print ('@~@~ env %s : %s' % tt, type(tt[1]))
 
         # get input data
-        fp = os.path.join(
+        # TODO Get authoritative input template written out from workflow
+        # TODO check with Clemens what parameters are actually needed
+        config_dir = os.path.join(
             HardwareRepository.HardwareRepository().getHardwareRepositoryPath(),
-            self.gphl_workflow_hwobj.getProperty('gphl_config_subdir'),
-            'simcal_template.nml'
+            self.gphl_workflow_hwobj.getProperty('gphl_config_subdir')
         )
-        input_data = f90nml.read(fp)
+
+        # Read simcal input template
+        input_data = f90nml.read(os.path.join(config_dir,
+                                              'simcal_template.nml'))
+
+        # update with instrument data
+        instrument_data = f90nml.read(
+            os.path.join(config_dir,'instrumentation.nml')
+        )['sdcp_instrument_list']
+
+        for tag in input_data['setup_list'].keys():
+            val = instrument_data.get(tag)
+            if val is not None:
+                input_data['setup_list'][tag] = val
+        val = instrument_data.get('cone_height')
+        if val is not None:
+            input_data['setup_list']['cone_s_height'] = val
+        val = instrument_data.get('det_org_dist')
+        if val is not None:
+            input_data['setup_list']['det_coord_def'] = val
+        ll = instrument_data['gonio_axis_dirs']
+        input_data['setup_list']['omega_axis'] = ll[:3]
+        input_data['setup_list']['kappa_axis'] = ll[3:6]
+        input_data['setup_list']['phi_axis'] = ll[6:]
+        ll = instrument_data['gonio_centring_axis_dirs']
+        input_data['setup_list']['trans_x_axis'] = ll[:3]
+        input_data['setup_list']['trans_y_axis'] = ll[3:6]
+        input_data['setup_list']['trans_z_axis'] = ll[6:]
+
+        beam_vector = instrument_data.get('beam')
+        if not beam_vector:
+            beam_vector = instrument_data.get('nominal_beam_dir')
+        input_data['setup_list']['beam'] = beam_vector
+
+        # update with diffractcal data
+        fp = os.path.join(config_dir, 'diffractcal.nml')
+        if os.path.isfile(fp):
+            diffractcal_data = f90nml.read(fp)['sdcp_instrument_list']
+            for tag in input_data['setup_list'].keys():
+                val = diffractcal_data.get(tag)
+                if val is not None:
+                    input_data['setup_list'][tag] = val
+            ll = diffractcal_data['gonio_axis_dirs']
+            input_data['setup_list']['omega_axis'] = ll[:3]
+            input_data['setup_list']['kappa_axis'] = ll[3:6]
+            input_data['setup_list']['phi_axis'] = ll[6:]
+            val = instrument_data.get('det_org_dist')
+            if val is not None:
+                input_data['setup_list']['det_coord_def'] = val
 
         sample_dir = os.path.join(
             HardwareRepository.HardwareRepository().getHardwareRepositoryPath(),
@@ -87,6 +136,12 @@ class MultiCollectEmulator(MultiCollectMockup):
 
         input_data['setup_list']['n_sweeps'] = len(
             data_collect_parameters['oscillation_sequence']
+        )
+        input_data['setup_list']['n_rays'] = self.getProperty(
+            'co.gphl.beamline.simcal.nrays'
+        )
+        input_data['setup_list']['background'] = self.getProperty(
+            'co.gphl.beamline.simcal.background'
         )
 
         sweeps = []
@@ -115,6 +170,9 @@ class MultiCollectEmulator(MultiCollectMockup):
 
             # Must be done here to absorb run number etc.
             # suffix cbf is needed for xds, apparently
+            print ('@~@~ data_collect_parameters :')
+            for tt in sorted(data_collect_parameters.items()):
+                print (' --> %s \t %s' % tt)
             self.make_image_file_template(data_collect_parameters, suffix='cbf')
             name_template = os.path.join(
                 data_collect_parameters['fileinfo']['directory'],

@@ -585,11 +585,26 @@ class DiffractometerMockup(Equipment):
         """
         Descript. :
         """
+        # Modified to get values close to pre-set, and within limits
         random_num = random.random()
-        return {"phi": random_num, "focus": random_num * 2, 
-                "phiy" : random_num * 3, "phiz": random_num * 4, 
-                "sampx": random_num * 5, "sampy": random_num * 6,
-		"kappa": 0.0009, "kappa_phi": 311.0, "zoom": 8.53}
+        # return {"phi": random_num, "focus": random_num * 2,
+        #         "phiy" : random_num * 3, "phiz": random_num * 4,
+        #         "sampx": random_num * 5, "sampy": random_num * 6,
+		#         "kappa": 0.0009, "kappa_phi": 311.0, "zoom": 8.53}
+        # Random variation range and limits in mm
+        # TODO get better values, from config
+        transl_var = 0.08
+        transl_limit = 2.0
+        result = self.current_positions_dict.copy()
+        var = (random_num - 0.5) * transl_var
+        for tag in ('phiy', 'phiz', 'sampx', 'sampy'):
+            val = result[tag] + var
+            if abs(val) > transl_limit:
+                val *= (1 - transl_var/transl_limit)
+            result[tag] = val
+        #
+        return result
+
 
     def simulateAutoCentring(self, sample_info = None):
         """
@@ -638,7 +653,12 @@ class DiffractometerMockup(Equipment):
             logging.getLogger("HWR").debug("Move to screen position disabled in BeamLocation phase.")
 
     def move_motors(self, motors_dict):
-        return
+        # Changed to put motor settings in current_positions_dict.
+        # Needed for GPhL workflow
+        dd = self.current_positions_dict
+        for tag in dd:
+            if tag in motors_dict:
+                dd[tag] = motors_dict[tag]
   
     def start_2D_centring(self, coord_x=None, coord_y=None, omega=None):
         """

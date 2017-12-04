@@ -17,15 +17,28 @@
 
   <!-- From here on specific to emulator -->
 
-  <!-- Name of test sampe to use - source of input parameter file -->
+  <!-- Name of test sample to use - source of input parameter file -->
   <sample_name>4k61</sample_name>
 
 
   <directory_prefix>emulator</directory_prefix>
   <object href="/gphl-workflow" role="gphl_workflow"/>
 
+  <!-- Limits and names for translation and rotation motors need setting on beamlkine side  -->
+  <!-- The names are configured for gphl-workflow -->
+  <!-- The limits are not currently checked, but we could do local sanity checks -->
+  <!-- See blemulation file for details -->
+
   <!-- Simcal memory pool option, in Gb - should be 50-66% of available memory -->
   <simcal_memory_pool>9</simcal_memory_pool>
+
+  <!-- Number of rays for simcal ray tracing (2000 minimum for testing, 5000 for use-->
+  <!--<co.gphl.beamline.simcal.nrays>5000</co.gphl.beamline.simcal.nrays>-->
+  <co.gphl.beamline.simcal.nrays>2000</co.gphl.beamline.simcal.nrays>
+
+  <!-- Simcal bacground level -->
+  <co.gphl.beamline.simcal.background>2.0</co.gphl.beamline.simcal.background>
+
   <!-- Both thread number variables should be less than all available threads -->
   <!-- stack size taken from PK example - who knows what is best. -->
   <environment_variables>

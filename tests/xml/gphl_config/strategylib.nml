@@ -234,7 +234,7 @@ length_deg= 60
 /
 
 &stratcal_sweep_list
-group_no= 2
+group_no= 1
 goniostat_setting_id= 'dcalgsetk0_p0'
 detector_setting_id= 'dset01'
 beam_setting_id= 'dcalbset'
@@ -243,7 +243,7 @@ length_deg= 60
 /
 
 &stratcal_sweep_list
-group_no= 3
+group_no= 2
 goniostat_setting_id= 'dcalgsetk45_p90'
 detector_setting_id= 'dset01'
 beam_setting_id= 'dcalbset'
@@ -252,7 +252,7 @@ length_deg= 60
 /
 
 &stratcal_sweep_list
-group_no= 4
+group_no= 2
 goniostat_setting_id= 'dcalgsetk45_p90'
 detector_setting_id= 'dset01'
 beam_setting_id= 'dcalbset'
@@ -261,8 +261,62 @@ length_deg= 60
 /
 
 &stratcal_sweep_list
-group_no= 5
+group_no= 3
 goniostat_setting_id= 'dcalgsetk45_p270'
+detector_setting_id= 'dset01'
+beam_setting_id= 'dcalbset'
+start_deg= 120
+length_deg= 60
+/
+
+&stratcal_sweep_list
+group_no= 3
+goniostat_setting_id= 'dcalgsetk45_p270'
+detector_setting_id= 'dset01'
+beam_setting_id= 'dcalbset'
+start_deg= 300
+length_deg= 60
+/
+
+&stratcal_sweep_list
+group_no= 4
+goniostat_setting_id= 'dcalgsetk90_p0'
+detector_setting_id= 'dset01'
+beam_setting_id= 'dcalbset'
+start_deg= 0
+length_deg= 60
+/
+
+&stratcal_sweep_list
+group_no= 4
+goniostat_setting_id= 'dcalgsetk90_p0'
+detector_setting_id= 'dset01'
+beam_setting_id= 'dcalbset'
+start_deg= 180
+length_deg= 60
+/
+
+&stratcal_sweep_list
+group_no= 5
+goniostat_setting_id= 'dcalgsetk90_p180'
+detector_setting_id= 'dset01'
+beam_setting_id= 'dcalbset'
+start_deg= 60
+length_deg= 60
+/
+
+&stratcal_sweep_list
+group_no= 5
+goniostat_setting_id= 'dcalgsetk90_p180'
+detector_setting_id= 'dset01'
+beam_setting_id= 'dcalbset'
+start_deg= 240
+length_deg= 60
+/
+
+&stratcal_sweep_list
+group_no= 6
+goniostat_setting_id= 'dcalgsetk135_p90'
 detector_setting_id= 'dset01'
 beam_setting_id= 'dcalbset'
 start_deg= 120
@@ -271,7 +325,7 @@ length_deg= 60
 
 &stratcal_sweep_list
 group_no= 6
-goniostat_setting_id= 'dcalgsetk45_p270'
+goniostat_setting_id= 'dcalgsetk135_p90'
 detector_setting_id= 'dset01'
 beam_setting_id= 'dcalbset'
 start_deg= 300
@@ -280,132 +334,78 @@ length_deg= 60
 
 &stratcal_sweep_list
 group_no= 7
-goniostat_setting_id= 'dcalgsetk90_p0'
+goniostat_setting_id= 'dcalgsetk135_p270'
 detector_setting_id= 'dset01'
 beam_setting_id= 'dcalbset'
 start_deg= 0
+length_deg= 60
+/
+
+&stratcal_sweep_list
+group_no= 7
+goniostat_setting_id= 'dcalgsetk135_p270'
+detector_setting_id= 'dset01'
+beam_setting_id= 'dcalbset'
+start_deg= 180
 length_deg= 60
 /
 
 &stratcal_sweep_list
 group_no= 8
-goniostat_setting_id= 'dcalgsetk90_p0'
+goniostat_setting_id= 'dcalgsetk180_p0'
 detector_setting_id= 'dset01'
 beam_setting_id= 'dcalbset'
-start_deg= 180
+start_deg= 60
+length_deg= 60
+/
+
+&stratcal_sweep_list
+group_no= 8
+goniostat_setting_id= 'dcalgsetk180_p0'
+detector_setting_id= 'dset01'
+beam_setting_id= 'dcalbset'
+start_deg= 240
 length_deg= 60
 /
 
 &stratcal_sweep_list
 group_no= 9
-goniostat_setting_id= 'dcalgsetk90_p180'
+goniostat_setting_id= 'dcalgsetk180_p180'
 detector_setting_id= 'dset01'
 beam_setting_id= 'dcalbset'
-start_deg= 60
+start_deg= 120
+length_deg= 60
+/
+
+&stratcal_sweep_list
+group_no= 9
+goniostat_setting_id= 'dcalgsetk180_p180'
+detector_setting_id= 'dset01'
+beam_setting_id= 'dcalbset'
+start_deg= 300
 length_deg= 60
 /
 
 &stratcal_sweep_list
 group_no= 10
-goniostat_setting_id= 'dcalgsetk90_p180'
+goniostat_setting_id= 'dcalgsetk225_p90'
 detector_setting_id= 'dset01'
 beam_setting_id= 'dcalbset'
-start_deg= 240
+start_deg= 0
+length_deg= 60
+/
+
+&stratcal_sweep_list
+group_no= 10
+goniostat_setting_id= 'dcalgsetk225_p90'
+detector_setting_id= 'dset01'
+beam_setting_id= 'dcalbset'
+start_deg= 180
 length_deg= 60
 /
 
 &stratcal_sweep_list
 group_no= 11
-goniostat_setting_id= 'dcalgsetk135_p90'
-detector_setting_id= 'dset01'
-beam_setting_id= 'dcalbset'
-start_deg= 120
-length_deg= 60
-/
-
-&stratcal_sweep_list
-group_no= 12
-goniostat_setting_id= 'dcalgsetk135_p90'
-detector_setting_id= 'dset01'
-beam_setting_id= 'dcalbset'
-start_deg= 300
-length_deg= 60
-/
-
-&stratcal_sweep_list
-group_no= 13
-goniostat_setting_id= 'dcalgsetk135_p270'
-detector_setting_id= 'dset01'
-beam_setting_id= 'dcalbset'
-start_deg= 0
-length_deg= 60
-/
-
-&stratcal_sweep_list
-group_no= 14
-goniostat_setting_id= 'dcalgsetk135_p270'
-detector_setting_id= 'dset01'
-beam_setting_id= 'dcalbset'
-start_deg= 180
-length_deg= 60
-/
-
-&stratcal_sweep_list
-group_no= 15
-goniostat_setting_id= 'dcalgsetk180_p0'
-detector_setting_id= 'dset01'
-beam_setting_id= 'dcalbset'
-start_deg= 60
-length_deg= 60
-/
-
-&stratcal_sweep_list
-group_no= 16
-goniostat_setting_id= 'dcalgsetk180_p0'
-detector_setting_id= 'dset01'
-beam_setting_id= 'dcalbset'
-start_deg= 240
-length_deg= 60
-/
-
-&stratcal_sweep_list
-group_no= 17
-goniostat_setting_id= 'dcalgsetk180_p180'
-detector_setting_id= 'dset01'
-beam_setting_id= 'dcalbset'
-start_deg= 120
-length_deg= 60
-/
-
-&stratcal_sweep_list
-group_no= 18
-goniostat_setting_id= 'dcalgsetk180_p180'
-detector_setting_id= 'dset01'
-beam_setting_id= 'dcalbset'
-start_deg= 300
-length_deg= 60
-/
-
-&stratcal_sweep_list
-group_no= 19
-goniostat_setting_id= 'dcalgsetk225_p90'
-detector_setting_id= 'dset01'
-beam_setting_id= 'dcalbset'
-start_deg= 0
-length_deg= 60
-/
-
-&stratcal_sweep_list
-group_no= 20
-goniostat_setting_id= 'dcalgsetk225_p90'
-detector_setting_id= 'dset01'
-beam_setting_id= 'dcalbset'
-start_deg= 180
-length_deg= 60
-/
-
-&stratcal_sweep_list
-group_no= 21
 goniostat_setting_id= 'dcalgsetk225_p270'
 detector_setting_id= 'dset01'
 beam_setting_id= 'dcalbset'
@@ -414,7 +414,7 @@ length_deg= 60
 /
 
 &stratcal_sweep_list
-group_no= 22
+group_no= 11
 goniostat_setting_id= 'dcalgsetk225_p270'
 detector_setting_id= 'dset01'
 beam_setting_id= 'dcalbset'

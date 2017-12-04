@@ -334,8 +334,8 @@ class GphlWorkflow(HardwareObject, object):
         allowed_widths = geometric_strategy.allowedWidths
         if not allowed_widths:
             logging.getLogger('HWR').error(
-                "No allowed image widths returned by strategy - defaults to 0.1 deg")
-            allowed_widths = [0.1]
+                "No allowed image widths returned by strategy - Set default options")
+            allowed_widths = [0.1, 0.2, 0.5, 1., 2.]
         default_width_index = geometric_strategy.defaultWidthIdx or 0
 
         # NBNB TODO userModifiable
@@ -563,13 +563,6 @@ class GphlWorkflow(HardwareObject, object):
         gphl_workflow_model = self._queue_entry.get_data_model()
         master_path_template = gphl_workflow_model.path_template
         relative_image_dir = collection_proposal.relativeImageDir
-        if relative_image_dir:
-            master_path_template.directory = os.path.join(
-                master_path_template.directory, relative_image_dir
-            )
-            master_path_template.process_directory = os.path.join(
-                master_path_template.process_directory, relative_image_dir
-            )
 
         new_dcg_name = 'GPhL Data Collection'
         new_dcg_model = queue_model_objects.TaskGroup()
@@ -599,6 +592,11 @@ class GphlWorkflow(HardwareObject, object):
             acq_parameters.num_images = scan.width.numImages
             acq_parameters.osc_start = scan.start
             acq_parameters.osc_range = scan.width.imageWidth
+            logging.getLogger('HWR').info(
+                "Scan: %s images of %s deg. starting at %s (%s deg)"
+                % (acq_parameters.num_images, acq_parameters.osc_range,
+                   acq_parameters.first_image, acq_parameters.osc_start)
+            )
             # acq_parameters.kappa = self._get_kappa_axis_position()
             # acq_parameters.kappa_phi = self._get_kappa_phi_axis_position()
             # acq_parameters.overlap = overlap
@@ -639,8 +637,16 @@ class GphlWorkflow(HardwareObject, object):
             # Naughty, but we want a clone, right?
             # NBNB this ONLY works because all the attributes are immutable values
             path_template.__dict__.update(master_path_template.__dict__)
+            if relative_image_dir:
+                path_template.directory = os.path.join(
+                    path_template.directory, relative_image_dir
+                )
+                path_template.process_directory = os.path.join(
+                    path_template.process_directory, relative_image_dir
+                )
             acq.path_template = path_template
             filename_params = scan.filenameParams
+            print('@~@~ filename_params', sorted(tt for tt in filename_params.items()))
             subdir = filename_params.get('subdir')
             if subdir:
                 path_template.directory = os.path.join(path_template.directory,
@@ -648,7 +654,7 @@ class GphlWorkflow(HardwareObject, object):
                 path_template.process_directory = os.path.join(
                     path_template.process_directory, subdir
                 )
-            ss = filename_params.get('run_number')
+            ss = filename_params.get('run')
             path_template.run_number = int(ss) if ss else 1
             prefix = filename_params.get('prefix', '')
             ib_component = filename_params.get('inverse_beam_component_sign',
@@ -952,6 +958,8 @@ class GphlWorkflow(HardwareObject, object):
                 if val is not None:
                     dd[tag] = val
 
+        print ('@~@~ to centre at', sorted(dd.items()))
+
         centring_model = queue_model_objects.SampleCentring(motor_positions=dd)
         queue_model_hwobj.add_child(self._queue_entry.get_data_model(),
                                     centring_model)
@@ -971,6 +979,8 @@ class GphlWorkflow(HardwareObject, object):
         centring_result = centring_entry.get_data_model().get_centring_result()
         if centring_result:
             positionsDict = centring_result.as_dict()
+            print ('@~@~ centring_result',
+                   sorted(tt for tt in positionsDict.items()))
             dd = dict((x, positionsDict[x])
                       for x in self.translation_axis_roles)
             return self.GphlMessages.GoniostatTranslation(

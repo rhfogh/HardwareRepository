@@ -1396,7 +1396,7 @@ def to_collect_dict(data_collection, session, sample, centred_pos=None):
     acq_params = acquisition.acquisition_parameters
     proc_params = data_collection.processing_parameters
 
-    return [{'comment': '',
+    result = [{'comment': '',
              #'helical': 0,
              #'motors': {},
              'take_snapshots': acq_params.take_snapshots,
@@ -1440,6 +1440,12 @@ def to_collect_dict(data_collection, session, sample, centred_pos=None):
              EXPERIMENT_TYPE_STR[data_collection.experiment_type],
              'skip_images': acq_params.skip_existing_images,
              'motors': centred_pos.as_dict() if centred_pos is not None else {}}]
+    #
+    dd = result[0]
+    print ('@~@~ todict fileinfo', sorted(dd['fileinfo'].items()))
+    print ('@~@~ todict osc', sorted(dd['oscillation_sequence'][0].items()))
+    print ('@~@~ todict motors', sorted(dd['motors'].items()))
+    return result
 
 
 def dc_from_edna_output(edna_result, reference_image_collection,
