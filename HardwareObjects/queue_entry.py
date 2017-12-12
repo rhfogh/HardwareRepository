@@ -396,7 +396,7 @@ class TaskGroupQueueEntry(BaseQueueEntry):
                 
         if do_new_dc_group:
             # Creating a collection group with the current session id
-            # and a dummy exepriment type OSC. The experiment type
+            # and a dummy experiment type OSC. The experiment type
             # will be updated when the collections are stored.
             group_data = {'sessionId': self.session_hwobj.session_id,
                           'experimentType': 'OSC'}

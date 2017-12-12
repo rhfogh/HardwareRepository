@@ -1,7 +1,7 @@
 <object class="GphlWorkflow">
 
     <!-- Characterisation beamline energy in keV -->
-    <!-- For now hardwired in instrumentation.nml file  - this is jsut a reflection-->
+    <!-- For now hardwired in instrumentation.nml file  - this is just a reflection-->
     <characterisation_energy>12.7</characterisation_energy>
 
     <!-- Global phasing installation directory -->

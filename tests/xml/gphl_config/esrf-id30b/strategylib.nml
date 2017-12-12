@@ -97,7 +97,7 @@ goniostat_axis_settings= 0.0 45.0 90.0
 /
 
 &sdcp_goniostat_setting_list
-id= 'dcalgsetk45_p270'
+id= 'dcalgsetk90_p270'
 scan_axis_name= 'phi'
 goniostat_axis_settings= 0.0 90.0 270.0
 /
@@ -262,7 +262,7 @@ length_deg= 60
 
 &stratcal_sweep_list
 group_no= 3
-goniostat_setting_id= 'dcalgsetk45_p270'
+goniostat_setting_id= 'dcalgsetk90_p270'
 detector_setting_id= 'dset01'
 beam_setting_id= 'dcalbset'
 start_deg= 120
@@ -271,7 +271,7 @@ length_deg= 60
 
 &stratcal_sweep_list
 group_no= 3
-goniostat_setting_id= 'dcalgsetk45_p270'
+goniostat_setting_id= 'dcalgsetk90_p270'
 detector_setting_id= 'dset01'
 beam_setting_id= 'dcalbset'
 start_deg= 300
