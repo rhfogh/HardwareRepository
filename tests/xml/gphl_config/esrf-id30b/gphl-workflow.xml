@@ -157,7 +157,7 @@
                 <charpattern>multiorientation</charpattern>
                 <!-- copy calibration result to configuration directory, replacing previous value -->
                 <newconfig/>
-		<appdir>analysis</appdir>
+		        <appdir>analysis</appdir>
             </options>
         </DiffractometerCalibration>
 
