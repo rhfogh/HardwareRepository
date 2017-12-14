@@ -830,7 +830,20 @@ class AbstractMultiCollect(object):
                   data_collect_parameters["status"]='Running'
                   
                   # now really start collect sequence
+                  dd = data_collect_parameters.get("motors", {})
+                  logging.getLogger('HWR').debug(
+                      "About to collect at position:  "
+                      + ', '.join('%s:%s' % tt for tt in sorted(dd.items()))
+                  )
+
                   self.do_collect(owner, data_collect_parameters)
+
+                  dd = self.bl_control.diffractometer.getPositions()
+                  logging.getLogger('HWR').debug(
+                      "Position after collection:  "
+                      + ', '.join('%s:%s' % tt for tt in sorted(dd.items()))
+                  )
+
                 except:
                   failed = True
                   exc_type, exc_value, exc_tb = sys.exc_info()
