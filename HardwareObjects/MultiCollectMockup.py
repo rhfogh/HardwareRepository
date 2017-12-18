@@ -79,6 +79,11 @@ class MultiCollectMockup(AbstractMultiCollect, HardwareObject):
         """Actual collection - here as hook for emulator"""
 
         self.data_collection_hook(data_collect_parameters)
+
+        # Notionally move motors, so that downstream info output reflects position
+        motors_to_move_before_collect = data_collect_parameters.setdefault("motors", {})
+        self.move_motors(motors_to_move_before_collect)
+
         # data collection done
         self.data_collection_end_hook(data_collect_parameters)
 
