@@ -1296,15 +1296,10 @@ class GphlWorkflow(TaskNode):
         self._number = 0
         self.set_requires_centring(False)
         self._beam_energies = OrderedDict()
-        self._characterisation_energy = None
         self._detector_resolution = None
         self._expected_resolution = None
 
         self._snapshot_count = None
-
-        # Activate workflow if not done yet
-        # Must be done here, so as to postpone creation of connection.
-        workflow_hwobj.activate()
 
     # Workflow name (string) - == path_template.base_prefix.
     def get_name(self):
@@ -1347,12 +1342,6 @@ class GphlWorkflow(TaskNode):
         return self._detector_resolution
     def set_detector_resolution(self, value):
         self._detector_resolution = value
-
-    # Characterisation energy.
-    def get_characterisation_energy(self):
-        return self._characterisation_energy
-    def set_characterisation_energy(self, value):
-        self._characterisation_energy = value
 
     # role:value beam_energy dictionary (in keV)
     def get_beam_energies(self):
@@ -1441,10 +1430,6 @@ def to_collect_dict(data_collection, session, sample, centred_pos=None):
              'skip_images': acq_params.skip_existing_images,
              'motors': centred_pos.as_dict() if centred_pos is not None else {}}]
     #
-    dd = result[0]
-    print ('@~@~ todict fileinfo', sorted(dd['fileinfo'].items()))
-    print ('@~@~ todict osc', sorted(dd['oscillation_sequence'][0].items()))
-    print ('@~@~ todict motors', sorted(dd['motors'].items()))
     return result
 
 

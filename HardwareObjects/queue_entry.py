@@ -594,7 +594,6 @@ class SampleCentringQueueEntry(BaseQueueEntry):
 
             # Create a centred positions of the current position
             pos_dict = self.diffractometer_hwobj.getPositions()
-            print('@~@~ pos_dict', sorted(pos_dict.items()))
             cpos = queue_model_objects.CentredPosition(pos_dict)
             #pos = shape_history.Point(None, cpos, None) #, True)
         self._data_model.set_centring_result(cpos)
@@ -759,7 +758,7 @@ class DataCollectionQueueEntry(BaseQueueEntry):
                 param_list = queue_model_objects.to_collect_dict(dc, self.session, sample, cpos if cpos!=empty_cpos else None)
                
                 self.collect_task = self.collect_hwobj.\
-                    collect(COLLECTION_ORIGIN_STR.MXCUBE, param_list)                
+                    collect(COLLECTION_ORIGIN_STR.MXCUBE, param_list)
                 self.collect_task.get()
                 #TODO as a gevent task?
                 #self.collect_task = gevent.spawn(self.collect_hwobj.collect,
@@ -1315,7 +1314,7 @@ class GphlWorkflowQueueEntry(BaseQueueEntry):
         #group_node_id = self._parent_container._data_model._node_id
         #workflow_params.append("group_node_id")
         #workflow_params.append("%d" % group_node_id)
-        self.workflow_hwobj.execute(self)
+        self.workflow_hwobj.execute()
 
     def workflow_state_handler(self, state):
         if isinstance(state, tuple):
@@ -1336,6 +1335,7 @@ class GphlWorkflowQueueEntry(BaseQueueEntry):
         BaseQueueEntry.pre_execute(self)
         qc = self.get_queue_controller()
         self.workflow_hwobj = self.beamline_setup.getObjectByRole('gphl_workflow')
+        self.workflow_hwobj.pre_execute(self)
 
         qc.connect(self.workflow_hwobj, 'stateChanged',
                    self.workflow_state_handler)

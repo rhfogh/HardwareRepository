@@ -17,6 +17,7 @@
   <object href="/lims-client-mockup" role="lims_client"/>
   <object href="/data-analysis" role="data_analysis"/>
   <object href="/gphl-workflow" role="gphl_workflow"/>
+  <object href="/gphl-setup" role="gphl_connection"/>
   <!--<object href="/workflow-mockup" role="workflow"/> -->
  
   <!-- Procedures and routines -->

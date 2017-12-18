@@ -21,6 +21,7 @@ from py4j import clientserver
 
 import General
 import GphlMessages
+from HardwareRepository.BaseHardwareObjects import HardwareObject
 
 States = General.States
 try:
@@ -46,7 +47,7 @@ except ImportError:
         robustapply.robust_apply = robustapply.robustApply
 
 
-class GphlWorkflowConnection(object):
+class GphlWorkflowConnection(HardwareObject, object):
 # class GphlWorkflowConnection(object):
     """
     This HO acts as a gateway to the Global Phasing workflow engine.
@@ -60,7 +61,8 @@ class GphlWorkflowConnection(object):
         States.OPEN,    # Server is waiting for a message from the beamline
     ]
     
-    def __init__(self):
+    def __init__(self, name):
+        HardwareObject.__init__(self, name)
 
         # Py4J gateway to external workflow program
         self._gateway = None
@@ -79,24 +81,18 @@ class GphlWorkflowConnection(object):
         self._state = States.OFF
 
         # py4j connection parameters
-        self.python_address = None
-        self.python_port = None
-        self.java_address = None
-        self.java_port = None
+        self._connection_parameters = {}
 
         
     def _init(self):
         pass
 
-    def init(self, python_address=None, python_port=None,
-             java_address=None, java_port=None):
+    def init(self):
 
-        self.python_address = python_address
-        self.python_port = python_port
-        self.java_address = java_address
-        self.java_port = java_port
-
-        self._open_connection()
+        if self.hasObject('connection_parameters'):
+            self._connection_parameters.update(
+                self['connection_parameters'].getProperties()
+            )
 
     def get_state(self):
         """Returns a member of the General.States enumeration"""
@@ -120,25 +116,26 @@ class GphlWorkflowConnection(object):
 
     def _open_connection(self):
 
+        params = self._connection_parameters
+
         python_parameters = {}
-        val = self.python_address
+        val = params.get('python_address')
         if val is not None:
             python_parameters['address'] = val
-        val = self.python_port
+        val = params.get('python_port')
         if val is not None:
             python_parameters['port'] = val
 
         java_parameters = {'auto_convert':True}
-        val = self.java_address
+        val = params.get('java_address')
         if val is not None:
             java_parameters['address'] = val
-        val = self.java_port
+        val = params.get('java_port')
         if val is not None:
             java_parameters['port'] = val
 
-        logging.getLogger('HWR').debug("GPhL Open connection %s %s %s %s"
-                                       % (self.python_address, self.python_port,
-                                          self.java_address, self.java_port))
+        logging.getLogger('HWR').debug("GPhL Open connection: %s "
+            % (', '.join('%s:%s' % tt for tt in sorted(params.items()))))
 
         # set sockets and threading to standard before running py4j
         # NBNB this can cause ERRORS if socket or thread have been
@@ -173,7 +170,22 @@ class GphlWorkflowConnection(object):
         self._workflow_name = workflow_model_obj.get_type()
         params = workflow_model_obj.get_workflow_parameters()
 
-        commandList = [workflow_hwobj.java_binary]
+        # Add program locations
+        params['invocation_options']['cp'] = self.getProperty(
+            'gphl_java_classpath'
+        )
+        params['properties']['co.gphl.sdcp.xdsbin'] = (
+            self.getProperty('xds_binary')
+        )
+        if self.hasObject('gphl_program_locations'):
+            dd = self['gphl_program_locations'].getProperties()
+            prefix = self.getProperty('gphl_installation_dir')
+            if prefix:
+                dd = dict((key, os.path.join(prefix, val))
+                          for key, val in dd.items())
+            params['properties'].update(dd)
+
+        commandList = [self.getProperty('java_binary')]
 
         for keyword, value in params.get('invocation_properties',{}).items():
             commandList.extend(General.javaProperty(keyword, value))
@@ -185,7 +197,6 @@ class GphlWorkflowConnection(object):
 
         for keyword, value in params.get('properties',{}).items():
             commandList.extend(General.javaProperty(keyword, value))
-
 
         workflow_options = dict(params.get('options',{}))
         calibration_name = workflow_options.get('calibration')
@@ -213,7 +224,6 @@ class GphlWorkflowConnection(object):
                 logging.getLogger('HWR').error(
                     "Could not create GPhL working directory: %s" % wdir
                 )
-
 
         for ss in commandList:
             ss = ss.split('=')[-1]

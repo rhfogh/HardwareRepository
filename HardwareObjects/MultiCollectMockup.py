@@ -39,7 +39,6 @@ class MultiCollectMockup(AbstractMultiCollect, HardwareObject):
 
     @task
     def loop(self, owner, data_collect_parameters_list):
-        print('@~@~ in mock loop')
         failed_msg = "Data collection failed!"
         failed = True
         collections_analyse_params = []

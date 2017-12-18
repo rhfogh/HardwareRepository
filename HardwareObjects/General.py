@@ -66,12 +66,12 @@ def javaProperty(keyword, value):
     else:
         return ['-D%s=%s' % (keyword, value)]
 
-def commandOption(keyword, value):
+def commandOption(keyword, value, prefix='-'):
     """Return argument list for command line option"""
     if value is None:
-        return ['-' + keyword]
+        return [prefix + keyword]
     else:
-        return ['-' + keyword, str(value)]
+        return [prefix + keyword, str(value)]
 
 def to_ascii(text):
     """Rough-and-ready conversion to bytes, intended for ascii contexts"""
@@ -80,3 +80,13 @@ def to_ascii(text):
         return text.encode('utf8', 'replace')
     else:
         return text
+
+def convert_string_value(text):
+    """Convert in put string to int, float, or sstring (in order of priority)"""
+    try:
+        return int(text)
+    except ValueError:
+        try:
+            return float(text)
+        except ValueError:
+            return text

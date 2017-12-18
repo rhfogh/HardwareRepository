@@ -13,6 +13,7 @@ import logging
 import uuid
 import time
 import os
+import f90nml
 
 import gevent
 import gevent.event
@@ -64,6 +65,7 @@ class GphlWorkflow(HardwareObject, object):
         self._workflow_connection = None
 
         # Needed to allow methods to put new actions on the queue
+        # And as a place to get hold of other objects
         self._queue_entry = None
 
         # # cache dictionary to handle parameters transferred through signals
@@ -95,16 +97,17 @@ class GphlWorkflow(HardwareObject, object):
 
     def init(self):
 
-        self.rotation_axis_roles = self.getProperty('rotation_axis_roles').split()
-        self.translation_axis_roles = self.getProperty('translation_axis_roles').split()
-        self.java_binary = self.getProperty('java_binary')
         self.gphl_subdir = self.getProperty('gphl_subdir')
-
 
         relative_file_path = self.getProperty('gphl_config_subdir')
         self.gphl_beamline_config = HardwareRepository().findInRepository(
             relative_file_path
         )
+        dd = f90nml.read(os.path.join(self.gphl_beamline_config,
+                                      'instrumentation.nml'))
+        dd = dd['sdcp_instrument_list']
+        self.rotation_axis_roles = dd['gonio_axis_names']
+        self.translation_axis_roles = dd['gonio_centring_axis_names']
 
         # Set up processing functions map
         self._processor_functions = {
@@ -123,18 +126,17 @@ class GphlWorkflow(HardwareObject, object):
             'WorkflowFailed':self.workflow_failed,
         }
 
-    def activate(self):
-        """If not already active, set up connections and turn ON"""
+    def pre_execute(self, queue_entry):
+
+        self._queue_entry = queue_entry
+
+        #If not already active, set up connections and turn ON
         if self.get_state() == States.OFF:
-            # Used only here, so let us keep the import out of the module top
-            from GphlWorkflowConnection import GphlWorkflowConnection
-
-            workflow_connection = GphlWorkflowConnection()
-            dd = (self['connection_parameters'].getProperties()
-                  if self.hasObject('connection_parameters') else {})
-            workflow_connection.init(**dd)
+            workflow_connection = queue_entry.beamline_setup.getObjectByRole(
+                'gphl_connection'
+            )
             self._workflow_connection = workflow_connection
-
+            workflow_connection._open_connection()
             self.set_state(States.ON)
 
     def shutdown(self):
@@ -155,13 +157,6 @@ class GphlWorkflow(HardwareObject, object):
             properties = self['workflow_properties'].getProperties()
         else:
             properties = {}
-        if self.hasObject('gphl_program_locations'):
-            dd = self['gphl_program_locations'].getProperties()
-            prefix = self.getProperty('gphl_installation_dir')
-            if prefix:
-                dd = dict((key, os.path.join(prefix, val))
-                          for key, val in dd.items())
-            properties.update(dd)
 
         if self.hasObject('workflow_options'):
             options = self['workflow_options'].getProperties()
@@ -234,25 +229,30 @@ class GphlWorkflow(HardwareObject, object):
         #     self._gevent_event.set()
         self.set_state(States.ON)
         self._server_subprocess_names.clear()
-        self._workflow_connection._workflow_ended()
+        workflow_connection = self._workflow_connection
+        if workflow_connection is not None:
+            workflow_connection._workflow_ended()
 
 
     def abort(self, message=None):
         logging.getLogger("HWR").info('MXCuBE aborting current GPhL workflow')
-        self._workflow_connection.abort_workflow(message=message)
+        workflow_connection = self._workflow_connection
+        if workflow_connection is not None:
+            workflow_connection.abort_workflow(message=message)
 
-    def execute(self, queue_entry):
+    def execute(self):
 
-        self._queue_entry = queue_entry
 
         try:
             self.set_state(States.RUNNING)
 
             workflow_queue = gevent._threading.Queue()
             # Fork off workflow server process
-            self._workflow_connection.start_workflow(workflow_queue,
-                                                     queue_entry.get_data_model()
-                                                     )
+            workflow_connection = self._workflow_connection
+            if workflow_connection is not None:
+                workflow_connection.start_workflow(
+                    workflow_queue, self._queue_entry.get_data_model()
+                )
 
             while True:
                 while workflow_queue.empty():
@@ -283,6 +283,12 @@ class GphlWorkflow(HardwareObject, object):
                 exc_info=True
             )
             raise
+
+    def _add_to_queue(self, parent_model_obj, child_model_obj):
+        # There should be a better way, but apparently there isn't
+        qmo = self._queue_entry.get_view().listView().parent().queue_model_hwobj
+        qmo.add_child(parent_model_obj, child_model_obj)
+
 
     # Message handlers:
 
@@ -525,19 +531,19 @@ class GphlWorkflow(HardwareObject, object):
                 goniostatSweepSettings[sweepSetting.id] = sweepSetting
                 # NB there is no provision for NOT making a new translation
                 # object if you are making no changes
-                queue_entry = self.enqueue_sample_centring(
+                qe = self.enqueue_sample_centring(
                     goniostatRotation=sweepSetting)
                 queue_entries.append(
-                    (queue_entry, sweepSetting, requestedRotationId)
+                    (qe, sweepSetting, requestedRotationId)
                 )
 
         # NB, split in two loops to get all centrings on queue (and so visible) before execution
 
         goniostatTranslations = []
-        for queue_entry, goniostatRotation, requestedRotationId in queue_entries:
+        for qe, goniostatRotation, requestedRotationId in queue_entries:
             goniostatTranslations.append(
                 self.execute_sample_centring(
-                    queue_entry, goniostatRotation, requestedRotationId
+                    qe, goniostatRotation, requestedRotationId
                 )
             )
 
@@ -552,12 +558,7 @@ class GphlWorkflow(HardwareObject, object):
         collection_proposal = payload
 
         beamline_setup_hwobj = self._queue_entry.beamline_setup
-        queue_model_hwobj = HardwareRepository().getHardwareObject(
-            'queue-model'
-        )
-        queue_manager = HardwareRepository().getHardwareObject(
-            'queue'
-        )
+        queue_manager = self._queue_entry.get_queue_controller()
 
         # NBNB creation and use of master_path_template is NOT in testing version yet
         gphl_workflow_model = self._queue_entry.get_data_model()
@@ -571,7 +572,7 @@ class GphlWorkflow(HardwareObject, object):
         new_dcg_model.set_number(
             gphl_workflow_model.get_next_number_for_name(new_dcg_name)
         )
-        queue_model_hwobj.add_child(gphl_workflow_model, new_dcg_model)
+        self._add_to_queue(gphl_workflow_model, new_dcg_model)
 
         sample = gphl_workflow_model.get_sample_node()
         # There will be exactly one for the kinds of collection we are doing
@@ -646,7 +647,6 @@ class GphlWorkflow(HardwareObject, object):
                 )
             acq.path_template = path_template
             filename_params = scan.filenameParams
-            print('@~@~ filename_params', sorted(tt for tt in filename_params.items()))
             subdir = filename_params.get('subdir')
             if subdir:
                 path_template.directory = os.path.join(path_template.directory,
@@ -680,7 +680,7 @@ class GphlWorkflow(HardwareObject, object):
             data_collection.set_enabled(True)
             data_collection.set_name(path_template.get_prefix())
             data_collection.set_number(path_template.run_number)
-            queue_model_hwobj.add_child(new_dcg_model, data_collection)
+            self._add_to_queue(new_dcg_model, data_collection)
 
         data_collection_entry = queue_manager.get_entry_with_model(
             new_dcg_model
@@ -878,7 +878,7 @@ class GphlWorkflow(HardwareObject, object):
             # Set or prompt for fine zoom
             self._use_fine_zoom = True
 
-            zoom_motor = self.getObjectByRole('zoom')
+            zoom_motor = self._queue_entry.beamline_setup.getDeviceByRole('zoom')
             if zoom_motor:
                 # Zoom to the last predefined position
                 # - that should be the largest magnification
@@ -929,12 +929,7 @@ class GphlWorkflow(HardwareObject, object):
 
     def enqueue_sample_centring(self, goniostatRotation):
 
-        queue_model_hwobj = HardwareRepository().getHardwareObject(
-            'queue-model'
-        )
-        queue_manager = HardwareRepository().getHardwareObject(
-            'queue'
-        )
+        queue_manager = self._queue_entry.get_queue_controller()
 
         goniostatTranslation = goniostatRotation.translation
 
@@ -961,8 +956,7 @@ class GphlWorkflow(HardwareObject, object):
         print ('@~@~ to centre at', sorted(dd.items()))
 
         centring_model = queue_model_objects.SampleCentring(motor_positions=dd)
-        queue_model_hwobj.add_child(self._queue_entry.get_data_model(),
-                                    centring_model)
+        self._add_to_queue(self._queue_entry.get_data_model(), centring_model)
         centring_entry = queue_manager.get_entry_with_model(centring_model)
 
         return centring_entry
@@ -970,10 +964,7 @@ class GphlWorkflow(HardwareObject, object):
     def execute_sample_centring(self, centring_entry, goniostatRotation,
                                 requestedRotationId=None):
 
-        queue_manager = HardwareRepository().getHardwareObject(
-            'queue'
-        )
-
+        queue_manager = self._queue_entry.get_queue_controller()
         queue_manager.execute_entry(centring_entry)
 
         centring_result = centring_entry.get_data_model().get_centring_result()
@@ -1015,59 +1006,6 @@ class GphlWorkflow(HardwareObject, object):
             cp.space_group
         )
         point_group = None
-
-        # field_list = [
-        #     {'variableName':'expected_resolution',
-        #      'uiLabel':'Predicted experimental resolution (A)',
-        #      'type':'text',
-        #      'defaultValue':'2',
-        #      'unit':'A',
-        #      'lowerBound':0.0,
-        #      },
-        # ]
-        # wavelength_roles = []
-        # wavelengths = []
-        # for role, value in workflow_model.get_beam_energies().items():
-        #     wavelength_roles.append(role)
-        #     field_list.append(
-        #         {'variableName':role,
-        #          'uiLabel':'%s beam energy (keV)' % role,
-        #          'type':'text',
-        #          'defaultValue':str(value),
-        #          'unit':'keV',
-        #          'lowerBound':0.0,
-        #          },
-        #     )
-        #
-        # self._return_parameters = gevent.event.AsyncResult()
-        # responses = dispatcher.send('gphlParametersNeeded', self,
-        #                             field_list, self._return_parameters)
-        # if not responses:
-        #     self._return_parameters.set_exception(
-        #         RuntimeError("Signal 'gphlParametersNeeded' is not connected")
-        #     )
-        #
-        # params = self._return_parameters.get()
-        #
-        # beam_energy_dict = OrderedDict()
-        # for role in wavelength_roles:
-        #     value = params.get(role)
-        #     if value:
-        #         wavelength = General.h_over_e/float(value)
-        #         beam_energy_dict[role] = value
-        #         wavelengths.append(
-        #             self.GphlMessages.PhasingWavelength(wavelength=wavelength,
-        #                                                 role=role)
-        #         )
-        #     else:
-        #         raise ValueError('BeamEnergy %s has invalid value: %s'
-        #                          % (role, value))
-        # workflow_model.set_beam_energies(beam_energy_dict)
-        #
-        # expected_resolution = float(params['expected_resolution'])
-        # workflow_model.set_expected_resolution(expected_resolution)
-        # print ('@~@~ expres', params['expected_resolution'], expected_resolution,
-        #        workflow_model.get_expected_resolution())
 
         wavelengths = []
         beam_energies = workflow_model.get_beam_energies()
