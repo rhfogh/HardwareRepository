@@ -346,8 +346,14 @@ class GphlWorkflow(HardwareObject, object):
 
         # NBNB TODO userModifiable
 
+        # NBNB The geometric strategy is only given for ONE beamsetting
+        # The strategy is (for now) repeated identical for all wavelengths
+        # When this changes, more info will become available
+
+        # NBNB
+
         orientations = OrderedDict()
-        total_width = 0
+        strategy_length = 0
         detectorSetting = None
         beamSetting = None
         for sweep in geometric_strategy.sweeps:
@@ -355,14 +361,28 @@ class GphlWorkflow(HardwareObject, object):
                 detectorSetting = sweep.detectorSetting
             if beamSetting is None:
                 beamSetting = sweep.beamSetting
-            total_width += sweep.width
+            strategy_length += sweep.width
             rotation_id = sweep.goniostatSweepSetting.id
             sweeps = orientations.get(rotation_id, [])
             sweeps.append(sweep)
             orientations[rotation_id] = sweeps
 
-        lines = ["""Geometric strategy:
-    Total rotation %d.1 degrees""" % total_width]
+        lines = ["Geometric strategy:"]
+        if self._queue_entry.get_data_model().lattice_selected:
+            # Data collection TODO: Use workflow info to distinguish
+            total_width = 0
+            beam_energies = self._queue_entry.get_data_model().get_beam_energies()
+            for tag, energy in beam_energies.items():
+                # NB beam_energies is an ordered dictionary
+                lines.append("- %-18s %d.1 degrees at %s keV"
+                             % (tag, strategy_length, energy))
+                total_width += strategy_length
+            lines.append("%-18s:  %d.1 degrees" % ("Total rotation", total_width))
+        else:
+            # Charcterisation TODO: Use workflow info to distinguish
+            lines.append("      Beam Energy:       %s keV"
+                         % (General.h_over_e/beamSetting.wavelength))
+            lines.append("      Total rotation:    %d.1 degrees" % strategy_length)
 
         axis_names = self.rotation_axis_roles
 
@@ -376,11 +396,10 @@ class GphlWorkflow(HardwareObject, object):
                   )
             lines.append(ss)
             for sweep in sweeps:
-                wavelength = sweep.beamSetting.wavelength
                 start = sweep.start
                 width = sweep.width
-                ss = ("sweep: energy= %s keV, %s=% 6.1f, width= %s degrees"
-                      % (General.h_over_e/wavelength, scan_axis, start, width))
+                ss = ("    - sweep %s=% 6.1f, width= %s degrees"
+                      % (scan_axis, start, width))
                 lines.append(ss)
         info_text = '\n'.join(lines)
 
@@ -753,6 +772,7 @@ class GphlWorkflow(HardwareObject, object):
         if ll[0] == '*':
             del ll[0]
         #
+        self._queue_entry.get_data_model().lattice_selected = True
         return  self.GphlMessages.SelectedLattice(format=solution_format,
                                                   solution=ll)
 

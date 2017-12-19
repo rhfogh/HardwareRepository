@@ -1294,12 +1294,16 @@ class GphlWorkflow(TaskNode):
         self._name = str()
         self._type = str()
         self._number = 0
-        self.set_requires_centring(False)
         self._beam_energies = OrderedDict()
         self._detector_resolution = None
         self._expected_resolution = None
-
         self._snapshot_count = None
+
+        # HACK - to differentiate between characterisation and acquisition
+        # TODO remove when workflow gives relevant information
+        self.lattice_selected = False
+
+        self.set_requires_centring(False)
 
     # Workflow name (string) - == path_template.base_prefix.
     def get_name(self):
