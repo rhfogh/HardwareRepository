@@ -598,21 +598,6 @@ class SampleCentringQueueEntry(BaseQueueEntry):
             #pos = shape_history.Point(None, cpos, None) #, True)
         self._data_model.set_centring_result(cpos)
 
-        # # Get tasks associated with this centring
-        # tasks = self.get_data_model().get_tasks()
-        #
-        # for task in tasks:
-        #     cpos = pos.get_centred_positions()[0]
-        #
-        #     if pos.qub_point is not None:
-        #         snapshot = self.shape_history.\
-        #                    get_snapshot([pos.qub_point])
-        #     else:
-        #         snapshot = self.shape_history.get_snapshot([])
-        #
-        #     cpos.snapshot_image = snapshot
-        #     task.set_centred_positions(cpos)
-
         self.get_view().setText(1, 'Input accepted')
 
     def pre_execute(self):

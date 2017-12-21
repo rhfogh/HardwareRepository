@@ -939,7 +939,7 @@ class XRFSpectrumResult(object):
         self.mca_config = None
 
 class SampleCentring(TaskNode):
-    """Task for sampole centring
+    """Task for sample centring
 
     kappa and kappa_phi settings are applied first, and assume that the
     beamline does have axes with exactly these names
