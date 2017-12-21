@@ -367,22 +367,22 @@ class GphlWorkflow(HardwareObject, object):
             sweeps.append(sweep)
             orientations[rotation_id] = sweeps
 
-        lines = ["Geometric strategy:"]
+        lines = ["Geometric strategy   :"]
         if self._queue_entry.get_data_model().lattice_selected:
             # Data collection TODO: Use workflow info to distinguish
             total_width = 0
             beam_energies = self._queue_entry.get_data_model().get_beam_energies()
             for tag, energy in beam_energies.items():
                 # NB beam_energies is an ordered dictionary
-                lines.append("- %-18s %d.1 degrees at %s keV"
+                lines.append("- %-18s %6.1f degrees at %s keV"
                              % (tag, strategy_length, energy))
                 total_width += strategy_length
-            lines.append("%-18s:  %d.1 degrees" % ("Total rotation", total_width))
+            lines.append("%-18s:  %6.1f degrees" % ("Total rotation", total_width))
         else:
             # Charcterisation TODO: Use workflow info to distinguish
-            lines.append("      Beam Energy:       %s keV"
+            lines.append("    - Beam Energy    : %7.1f keV"
                          % (General.h_over_e/beamSetting.wavelength))
-            lines.append("      Total rotation:    %d.1 degrees" % strategy_length)
+            lines.append("    - Total rotation : %7.1f degrees" % strategy_length)
 
         axis_names = self.rotation_axis_roles
 
@@ -391,14 +391,14 @@ class GphlWorkflow(HardwareObject, object):
             axis_settings = goniostatRotation.axisSettings
             scan_axis = goniostatRotation.scanAxis
             ss = ("\nOrientation: "
-                  + ', '.join('%s= %s' % (x, axis_settings.get(x))
+                  + ', '.join('%s= %6.1f' % (x, axis_settings.get(x))
                               for x in axis_names if x != scan_axis)
                   )
             lines.append(ss)
             for sweep in sweeps:
                 start = sweep.start
                 width = sweep.width
-                ss = ("    - sweep %s=% 6.1f, width= %s degrees"
+                ss = ("    - sweep %s=%7.1f, width= %s degrees"
                       % (scan_axis, start, width))
                 lines.append(ss)
         info_text = '\n'.join(lines)
