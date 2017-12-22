@@ -50,6 +50,7 @@ import queue_model_objects_v1 as queue_model_objects
 SELECTED_COLOR = QtCore.Qt.green
 NORMAL_COLOR = QtCore.Qt.yellow
 SOLID_LINE_STYLE = QtCore.Qt.SolidLine
+SOLID_PATTERN_STYLE = QtCore.Qt.SolidPattern
 
 
 class GraphicsItem(QtGui.QGraphicsItem):
@@ -86,7 +87,7 @@ class GraphicsItem(QtGui.QGraphicsItem):
         self.custom_pen.setWidth(1)
         self.custom_pen.setColor(QtCore.Qt.white)
 
-        self.custom_brush = QtGui.QBrush(SOLID_LINE_STYLE)
+        self.custom_brush = QtGui.QBrush(SOLID_PATTERN_STYLE)
         brush_color = QtGui.QColor(70, 70, 165)
         brush_color.setAlpha(70)
         self.custom_brush.setColor(brush_color)
@@ -1335,7 +1336,7 @@ class GraphicsItemMeasureArea(GraphicsItem):
         self.current_point = None
         self.last_point_set = None
         self.setFlags(QtGui.QGraphicsItem.ItemIsSelectable)
-        self.measure_polygon = QtGui.QPolygon(self) 
+        self.measure_polygon = QtGui.QPolygon()
         self.current_point = QtCore.QPoint(0, 0)
         self.min_max_coord = None
 
