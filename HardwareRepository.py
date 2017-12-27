@@ -169,7 +169,7 @@ class __HardwareRepositoryClient:
                    xmldata = open(file_path, "r").read()
                  except:
                    pass
-                 break 
+                 break
 
         if True:
                 if len(xmldata) > 0:
@@ -368,6 +368,10 @@ class __HardwareRepositoryClient:
         Return :
           the required Hardware Object
         """
+
+        if not objectName:
+            return None
+
         if not objectName.startswith("/"):
             objectName="/"+objectName
 
