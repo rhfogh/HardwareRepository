@@ -16,9 +16,12 @@
      <recurse>True</recurse>
    </api>
   </apis>
-
-  <object href="/beamline-setup" role="beamline_setup"/>
-  <object href="/queue" role="queue"/>
-  <object href="/queue-model" role="queue_model"/>
+  <!-- Changed to Qt4 versions -->
+  <!--<object href="/beamline-setup" role="beamline_setup"/>-->
+  <!--<object href="/queue" role="queue"/>-->
+  <!--<object href="/queue-model" role="queue_model"/>-->
+  <object href="/Qt4_beamline-setup" role="beamline_setup"/>
+  <object href="/Qt4_queue" role="queue"/>
+  <object href="/Qt4_queue-model" role="queue_model"/>
   <object href="/annealing" role="cryoshutter"/>
 </object>
