@@ -398,7 +398,7 @@ class GphlWorkflow(HardwareObject, object):
             for sweep in sweeps:
                 start = sweep.start
                 width = sweep.width
-                ss = ("    - sweep %s=%7.1f, width= %s degrees"
+                ss = ("    - sweep %s=%8.1f, width= %s degrees"
                       % (scan_axis, start, width))
                 lines.append(ss)
         info_text = '\n'.join(lines)
