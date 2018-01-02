@@ -30,7 +30,9 @@ except ImportError:
  
 import HardwareObjectFileParser
 import BaseHardwareObjects
-from dispatcher import *
+# Changed deprecated and unnecessary 'import *'
+# from dispatcher import *
+from dispatcher import dispatcher
 
 _instance = None
 _hwrserver = None
@@ -109,7 +111,30 @@ class __HardwareRepositoryClient:
                 self.server = None
         finally:
             self.__connected = True
- 
+
+    def findInRepository(self, relative_path):
+        """Finds absolute path of a file or directory matching relativePath
+        in one of the hardwareRepository directories
+
+        Will work for any file or directory, but intended for configuration
+        files that do NOT match the standard XML file system"""
+
+        if self.server:
+            logging.getLogger('HWR').error(
+                "Cannot find file in repository - server is in use"
+            )
+            return
+        else:
+            if relative_path.startswith(os.path.sep):
+                relative_path = relative_path[1:]
+
+            for xml_files_path in self.serverAddress:
+                file_path = os.path.join(xml_files_path, relative_path)
+                if os.path.exists(file_path):
+                    return os.path.abspath(file_path)
+            #
+            return
+
 
     def require(self, mnemonicsList):
         """Download a list of Hardware Objects in one go"""
