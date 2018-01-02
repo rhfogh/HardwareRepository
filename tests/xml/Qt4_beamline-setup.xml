@@ -12,6 +12,7 @@
   <object href="/Qt4_mini-diff-mockup" role="diffractometer"/>
   <object href="/Qt4_graphics-manager" role="shape_history"/>
   <object href="/Qt4_mxcollect" role="collect"/>
+  <!--<object href="/collect-emulator" role="collect"/>-->
 
   <object href="/sc-mockup" role="sample_changer"/>
   <object href="/plate-manipulator" role="plate_manipulator"/> 
@@ -22,6 +23,8 @@
   <object href="/xrf-spectrum-mockup" role="xrf_spectrum"/>
   <object href="/data-analysis" role="data_analysis"/>
   <object href="/parallel-processing" role="parallel_processing"/>
+  <object href="/gphl-workflow" role="gphl_workflow"/>
+  <object href="/gphl-setup" role="gphl_connection"/>
 
   <!-- advanced methods are defined as a list with method names.
        Each name is then converted to class name.
