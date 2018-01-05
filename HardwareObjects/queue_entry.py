@@ -831,7 +831,9 @@ class DataCollectionQueueEntry(BaseQueueEntry):
             acq_1 = dc.acquisitions[0]
             acq_1.acquisition_parameters.in_queue = self.in_queue
             cpos = acq_1.acquisition_parameters.centred_position
-            sample = self.get_data_model().get_parent().get_parent()
+            # rhfogh: changed because broken when put on queue from GPhL workflow
+            # sample = self.get_data_model().get_parent().get_parent()
+            sample = self.get_data_model().get_sample_node()
 
             try:
                 if dc.experiment_type is EXPERIMENT_TYPE.HELICAL:

@@ -194,6 +194,15 @@ class TaskNode(object):
 
         return s
 
+    def get_sample_node(self):
+        """get Sample task node that this entry is executed on"""
+
+        result = self
+        while result is not None and not isinstance(result, Sample):
+            result = result._parent
+        #
+        return result
+
 
 class RootNode(TaskNode):
     def __init__(self):
