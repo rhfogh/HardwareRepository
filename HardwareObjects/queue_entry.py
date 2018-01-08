@@ -403,7 +403,7 @@ class TaskGroupQueueEntry(BaseQueueEntry):
                 
         if do_new_dc_group:
             # Creating a collection group with the current session id
-            # and a dummy exepriment type OSC. The experiment type
+            # and a dummy experiment type OSC. The experiment type
             # will be updated when the collections are stored.
             group_data = {'sessionId': self.session_hwobj.session_id,
                           'experimentType': 'OSC'}
@@ -545,7 +545,7 @@ class SampleQueueEntry(BaseQueueEntry):
         BaseQueueEntry.execute(self)
         log = logging.getLogger('queue_exec')
         sc_used = not self._data_model.free_pin_mode
- 
+
         # Only execute samples with collections and when sample changer is used
         if len(self.get_data_model().get_children()) != 0 and sc_used:
             if self.diffractometer_hwobj.in_plate_mode():
@@ -669,8 +669,22 @@ class SampleCentringQueueEntry(BaseQueueEntry):
         kappa = self._data_model.get_kappa()
         phi = self._data_model.get_kappa_phi()
 
+
+        # kappa and kappa_phi settings are applied first, and assume that the
+        # beamline does have axes with exactly these names
+        #
+        # Other motor_positions are applied afterwards, but in random order.
+        # motor_positions override kappa and kappa_phi if both are set
+        #
+        # Since setting one motor can change the position of another
+        # (on ESRF ID30B setting kappa and kappa_phi changes the translation motors)
+        # the order is important.
         if hasattr(self.diffractometer_hwobj, "in_kappa_mode") and self.diffractometer_hwobj.in_kappa_mode():
             self.diffractometer_hwobj.moveMotors({"kappa": kappa, "kappa_phi":phi})
+
+        motor_positions = self.get_data_model().get_other_motor_positions()
+        if motor_positions:
+            self.diffractometer_hwobj.moveMotors(motor_positions)
 
         #TODO agree on correct message
         log.warning("Please center a new point, and press continue.")
@@ -679,31 +693,19 @@ class SampleCentringQueueEntry(BaseQueueEntry):
         self.get_queue_controller().pause(True)
         pos = None
 
-        if len(self.shape_history.get_selected_shapes()):
-            pos = self.shape_history.get_selected_shapes()[0]
+        shapes = list(self.shape_history.get_selected_shapes())
+        if shapes:
+            pos = shapes[0]
+            cpos = pos.get_centred_positions()[0]
         else:
             msg = "No centred position selected, using current position."
             log.info(msg)
 
-            # Create a centred postions of the current postion
+            # Create a centred positions of the current position
             pos_dict = self.diffractometer_hwobj.getPositions()
             cpos = queue_model_objects.CentredPosition(pos_dict)
             #pos = shape_history.Point(None, cpos, None) #, True)
-
-        # Get tasks associated with this centring
-        tasks = self.get_data_model().get_tasks()
-
-        """for task in tasks:
-            cpos = pos.get_centred_positions()[0]
-
-            if pos.qub_point is not None:
-                snapshot = self.shape_history.\
-                           get_snapshot([pos.qub_point])
-            else:
-                snapshot = self.shape_history.get_snapshot([])
-
-            cpos.snapshot_image = snapshot 
-            task.set_centred_positions(cpos)"""
+        self._data_model.set_centring_result(cpos)
 
         self.get_view().setText(1, 'Input accepted')
 
@@ -1552,7 +1554,7 @@ class GenericWorkflowQueueEntry(BaseQueueEntry):
 
     def execute(self):
         BaseQueueEntry.execute(self)
-        
+
         # Start execution of a new workflow
         if str(self.workflow_hwobj.state.value) != 'ON':
             # We are trying to start a new workflow and the Tango server is not idle,
@@ -1762,7 +1764,7 @@ def mount_sample(beamline_setup_hwobj,
     holder_length = data_model.holder_length
 
     # This is a possible solution how to deal with two devices that
-    # can move sample on beam (sample changer, plate holder, in future 
+    # can move sample on beam (sample changer, plate holder, in future
     # also harvester)
     # TODO make sample_Changer_one, sample_changer_two
     if beamline_setup_hwobj.diffractometer_hwobj.in_plate_mode():
@@ -1774,7 +1776,7 @@ def mount_sample(beamline_setup_hwobj,
         if sample_mount_device.__TYPE__ in ['Marvin','CATS']:
             element = '%d:%02d' % loc
             sample_mount_device.load(sample=element, wait=True)
-        elif sample_mount_device.__TYPE__ == "PlateManipulator": 
+        elif sample_mount_device.__TYPE__ == "PlateManipulator":
             sample_mount_device.load_sample(sample_location=loc)
         else:
             if sample_mount_device.load_sample(holder_length, sample_location=loc, wait=True) == False:
@@ -1790,7 +1792,7 @@ def mount_sample(beamline_setup_hwobj,
         raise QueueSkippEntryException("Sample not loaded", "")
     else:
         view.setText(1, "Sample loaded")
-        dm = beamline_setup_hwobj.diffractometer_hwobj 
+        dm = beamline_setup_hwobj.diffractometer_hwobj
         if dm is not None:
             try:
                 dm.connect("centringAccepted", centring_done_cb)
