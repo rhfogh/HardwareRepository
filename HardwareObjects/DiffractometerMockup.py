@@ -170,26 +170,26 @@ class DiffractometerMockup(Equipment):
             self.connect(self.phiMotor, 'stateChanged', self.phiMotorStateChanged)
             self.connect(self.phiMotor, "positionChanged", self.phi_motor_position_changed)
         else:
-            logging.getLogger("HWR").error('MiniDiff: phi motor is not defined in minidiff equipment %s', str(self.name()))
+            logging.getLogger("HWR").error('DiffractometerMockup: phi motor is not defined in minidiff equipment %s', str(self.name()))
 
         if self.sampleXMotor is not None:
             self.connect(self.sampleXMotor, 'stateChanged', self.sampleX_motor_state_changed)
             self.connect(self.sampleXMotor, 'positionChanged', self.sampleX_motor_moved)
             self.connect(self.sampleXMotor, "positionChanged", self.emit_diffractometer_moved)
         else:
-            logging.getLogger("HWR").error('MiniDiff: Sampx motor is not defined')
+            logging.getLogger("HWR").error('DiffractometerMockup: Sampx motor is not defined')
 
         if self.sampleYMotor is not None:
             self.connect(self.sampleYMotor, 'stateChanged', self.sampleY_motor_state_changed)
             self.connect(self.sampleYMotor, 'positionChanged', self.sampleY_motor_moved)
             self.connect(self.sampleYMotor, "positionChanged", self.emit_diffractometer_moved)
         else:
-            logging.getLogger("HWR").error('MiniDiff: Sampx motor is not defined')
+            logging.getLogger("HWR").error('DiffractometerMockup: Sampx motor is not defined')
 
         if self.beam_info_hwobj is not None:
             self.connect(self.beam_info_hwobj, 'beamPosChanged', self.beam_position_changed)
         else:
-            logging.getLogger("HWR").debug('Minidiff: Beaminfo is not defined')
+            logging.getLogger("HWR").debug('DiffractometerMockup: Beaminfo is not defined')
 
         takeSnapshots = self.take_snapshots
         self.getCentringStatus = self.get_centring_status
@@ -224,7 +224,7 @@ class DiffractometerMockup(Equipment):
                 return self.centring_status
 
     def set_drawing(self, drawing):
-	self._drawing = drawing
+        self._drawing = drawing
 
     def use_sample_changer(self):
         return self.use_sc
@@ -483,7 +483,8 @@ class DiffractometerMockup(Equipment):
         """
         self.emit_progress_message("Auto centring")
         self.emit_centring_started(DiffractometerMockup.C3D_MODE)
-        self.emit('centringSuccessful')
+        # self.emit('centringSuccessful')
+        self.emit_centring_successful()
         return
 
     def motor_positions_to_screen(self, centred_positions_dict):
@@ -599,7 +600,7 @@ class DiffractometerMockup(Equipment):
             motors = {'phiy': random_num,  'phiz': random_num * 2,
                       'sampx': random_num * 3, 'sampy': random_num * 4, 
                       'zoom': random_num * 5, 'phi': random_num * 6, 
-		      'focus': -0.42, 'kappa': 0.0009, ' kappa_phi': 311.0}
+		              'focus': -0.42, 'kappa': 0.0009, 'kappa_phi': 311.0}
 
             motors["beam_x"] = 0.1
             motors["beam_y"] = 0.1
@@ -631,11 +632,26 @@ class DiffractometerMockup(Equipment):
         """
         Descript. :
         """
+        # Modified to get values close to pre-set, and within limits
         random_num = random.random()
-        return {"phi": random_num, "focus": random_num * 2, 
-                "phiy" : random_num * 3, "phiz": random_num * 4, 
-                "sampx": random_num * 5, "sampy": random_num * 6,
-		"kappa": 0.0009, "kappa_phi": 311.0, "zoom": 8.53}
+        # return {"phi": random_num, "focus": random_num * 2,
+        #         "phiy" : random_num * 3, "phiz": random_num * 4,
+        #         "sampx": random_num * 5, "sampy": random_num * 6,
+		#         "kappa": 0.0009, "kappa_phi": 311.0, "zoom": 8.53}
+        # Random variation range and limits in mm
+        # TODO get better values, from config
+        transl_var = 0.08
+        transl_limit = 2.0
+        result = self.current_positions_dict.copy()
+        var = (random_num - 0.5) * transl_var
+        for tag in ('phiy', 'phiz', 'sampx', 'sampy'):
+            val = result[tag] + var
+            if abs(val) > transl_limit:
+                val *= (1 - transl_var/transl_limit)
+            result[tag] = val
+        #
+        return result
+
 
     def simulateAutoCentring(self, sample_info = None):
         """
@@ -669,7 +685,7 @@ class DiffractometerMockup(Equipment):
         """
         Descript. :
         """
-        print "refresh"
+        # print "refresh"
         if self.beam_info_hwobj: 
             self.beam_info_hwobj.beam_pos_hor_changed(300) 
             self.beam_info_hwobj.beam_pos_ver_changed(200)
@@ -701,7 +717,12 @@ class DiffractometerMockup(Equipment):
             logging.getLogger("HWR").debug("Move to screen position disabled in BeamLocation phase.")
 
     def move_motors(self, motors_dict):
-        return
+        # Changed to put motor settings in current_positions_dict.
+        # Needed for GPhL workflow
+        dd = self.current_positions_dict
+        for tag in dd:
+            if tag in motors_dict:
+                dd[tag] = motors_dict[tag]
   
     def start_2D_centring(self, coord_x=None, coord_y=None, omega=None):
         """
@@ -729,7 +750,7 @@ class DiffractometerMockup(Equipment):
         """
         centred_images = []
         for index in range(image_count):
-            logging.getLogger("HWR").info("MiniDiff: taking snapshot #%d", index + 1)
+            logging.getLogger("HWR").info("DiffractometerMockup: taking snapshot #%d", index + 1)
             centred_images.append((0, str(myimage(drawing))))
             centred_images.reverse() 
         return centred_images
@@ -755,7 +776,7 @@ class DiffractometerMockup(Equipment):
         try:
             self.centring_status["images"] = snapshots_procedure.get()
         except:
-            logging.getLogger("HWR").exception("MiniDiff: could not take crystal snapshots")
+            logging.getLogger("HWR").exception("DiffractometerMockup: could not take crystal snapshots")
             self.emit('centringSnapshots', (False,))
             self.emit_progress_message("")
         else:
@@ -776,7 +797,7 @@ class DiffractometerMockup(Equipment):
         random_num = random.random()
         pos = {'phiy': random_num * 10,  'phiz': random_num * 20,
                'sampx': 0.0, 'sampy': 9.3, 'zoom': 8.53, 'phi': 311.1,
-               'focus': -0.42, 'kappa': 0.0009, ' kappa_phi': 311.0}
+               'focus': -0.42, 'kappa': 0.0009, 'kappa_phi': 311.0}
         if return_by_names:
             pos = self.convert_from_obj_to_name(pos)
         return pos
