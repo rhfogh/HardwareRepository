@@ -935,7 +935,7 @@ class GraphicsItemGrid(GraphicsItem):
             self.custom_pen.setColor(SELECTED_COLOR)
 
         painter.setPen(self.custom_pen)
-        #brush_color = QColor(70, 70, 165, self.__fill_alpha)
+        brush_color = QColor(70, 70, 165, self.__fill_alpha)
         self.custom_brush.setColor(self.base_color)
         painter.setBrush(self.custom_brush)
 
