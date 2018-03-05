@@ -28,12 +28,14 @@
                 <!-- grid: Grid definition [axis_name:start:end:step], slowest-varying to fastest varying -->
                 <!-- EITHER file OR grid must be set. NBNB REDO! -->
                 <file>gphl_config/esrf-id30b/transcal_2stage.json</file>
-                <!--&lt;!&ndash; copy calibration result to configuration directory, replacing previous value &ndash;&gt;-->
-                <!--<newconfig/>-->
-                <!-- updateconfig option, automaticallly updates entire configuration -->
+                <!-- copy calibration result to configuration directory, replacing previous value -->
+                <newconfig/>
+                <!-- Grid of positions to use for calibration, instead of file
+                Not used-->
                 <!--<grid>grid_axes_spec</grid>-->
-                <!-- Path of file to dump persisted instrumentation configuration. OPTIONAL-->
-                <instcfgout>/MXCuBE/mxcube/gphl_transcal_out.nml</instcfgout>
+                <!--&lt;!&ndash; Path of file to dump new instrumentation.nml configuration. -->
+                <!--For debugging/diagnostics only. OPTIONAL&ndash;&gt;-->
+                <!--<instcfgout>/MXCuBE/mxcube/gphl_transcal_out.nml</instcfgout>-->
             </options>
         </TranslationalCalibration>
 
@@ -48,10 +50,14 @@
                 <!-- Name of initial strategy from library to use -->
                 <!-- <strategy>DiffractCal</strategy> -->
                 <strategy>DiffractCal_ex</strategy>
+                <!-- Working subdirectory for workflow-side application data-->
+                <appdir>calculations</appdir>
                 <!-- Name for diffractometer calibration output -->
                 <calibration>diffractcal</calibration>
                 <!-- Path of file to dump persisted instrumentation configuration. OPTIONAL-->
-                <instcfgout>/MXCuBE/mxcube/gphl_diffractcal_out.nml</instcfgout>
+                <!--&lt;!&ndash; Path of file to dump new instrumentation.nml configuration. -->
+                <!--For debugging/diagnostics only. OPTIONAL&ndash;&gt;-->
+                <!--<instcfgout>/MXCuBE/mxcube/gphl_diffractcal_out.nml</instcfgout>-->
                 <!-- Pattern name for characterisation collections - used for all data here-->
                 <charpattern>multiorientation</charpattern>
                 <!--&lt;!&ndash; copy calibration result to configuration directory, replacing previous value &ndash;&gt;-->
