@@ -57,8 +57,10 @@ from QtImport import *
 from copy import deepcopy
 from scipy import ndimage, interpolate, signal
 
-import matplotlib.pyplot as plt
+from matplotlib import cm
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 import Qt4_GraphicsLib as GraphicsLib
 import queue_model_objects_v1 as queue_model_objects
@@ -289,7 +291,7 @@ class Qt4_GraphicsManager(HardwareObject):
         except:
            self.auto_grid_size_mm = (0.2, 0.2)
 
-        self.init_auto_grid(self.auto_grid_size_mm)
+        #self.init_auto_grid(self.auto_grid_size_mm)
         
         self.graphics_move_up_item.setVisible(\
              self.getProperty("enable_move_buttons") == True)
@@ -531,6 +533,8 @@ class Qt4_GraphicsManager(HardwareObject):
         :emits: centringStarted
         """
         self.current_centring_method = centring_method
+        self.set_centring_state(True)
+        self.diffractometer_state_changed()
         self.emit("centringStarted")  
 
     def create_centring_point(self, centring_state, centring_status, emit=True):
@@ -576,6 +580,7 @@ class Qt4_GraphicsManager(HardwareObject):
         """
         QApplication.setOverrideCursor(QCursor(Qt.ArrowCursor))
         self.set_centring_state(False)
+        self.diffractometer_state_changed()
         self.emit("centringSuccessful", method, centring_status)
         self.emit("infoMsg", "Click Save to store the centred point "+\
                   "or start a new centring")
@@ -1228,8 +1233,8 @@ class Qt4_GraphicsManager(HardwareObject):
                  "Unable to save raw image: %s" % filename)
 
     def save_beam_profile(self, profile_filename):
+        image_array = self.get_raw_snapshot(bw=True, return_as_array=True)
         try:
-            image_array = self.get_raw_snapshot(bw=True, return_as_array=True) 
             hor_sum = image_array.sum(axis=0)
             ver_sum = image_array.sum(axis=1)
 
@@ -1242,7 +1247,23 @@ class Qt4_GraphicsManager(HardwareObject):
         except:
             logging.getLogger("HWR").exception(\
                  "Unable to save beam profile image: %s" % profile_filename)
-        
+
+    def open_beam_profile_view(self):
+        """Opens new dialog with 3D beam profile"""
+        image_array = self.get_raw_snapshot(bw=True, return_as_array=True)
+        fig = plt.figure()
+        ax = fig.gca(projection='3d')
+        ax.set_axis_bgcolor('gray')
+
+        X = np.arange(0, image_array.shape[0])
+        Y = np.arange(0, image_array.shape[1])
+        X, Y = np.meshgrid(X, Y)
+
+        surf = ax.plot_surface(X, Y, np.transpose(image_array), cmap=cm.gnuplot,
+                         linewidth=0, antialiased=False)
+
+        #fig.colorbar(surf, shrink=0.5, aspect=5) 
+        plt.show()        
 
     def start_measure_distance(self, wait_click=False):
         """Distance measuring method
@@ -1418,12 +1439,11 @@ class Qt4_GraphicsManager(HardwareObject):
         :type tree_click: bool
         :emits: - centringInProgress as bool
                 - infoMsg: as str
-        """ 
+        """
         self.emit("centringInProgress", True)
         if tree_click:
             self.hide_all_items()
             QApplication.setOverrideCursor(QCursor(Qt.BusyCursor))
-            self.set_centring_state(True) 
             self.diffractometer_hwobj.start_centring_method(\
                  self.diffractometer_hwobj.CENTRING_METHOD_MANUAL)
             self.emit("infoMsg", "3 click centring")
@@ -1437,6 +1457,7 @@ class Qt4_GraphicsManager(HardwareObject):
         """
         QApplication.setOverrideCursor(QCursor(Qt.ArrowCursor))
         self.diffractometer_hwobj.accept_centring()
+        self.diffractometer_state_changed()
         self.show_all_items()
 
     def reject_centring(self):
@@ -1457,7 +1478,6 @@ class Qt4_GraphicsManager(HardwareObject):
         self.show_all_items()
 
     def start_one_click_centring(self):
-        print 111
         QApplication.setOverrideCursor(QCursor(Qt.BusyCursor))
         self.emit("infoMsg", "Click on the screen to create centring points")
         self.in_one_click_centering = True

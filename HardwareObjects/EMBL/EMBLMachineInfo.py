@@ -139,12 +139,6 @@ class EMBLMachineInfo(HardwareObject):
         temp_dict['title'] = "Sample changer"
         self.values_list.append(temp_dict)
 
-        temp_dict = {}
-        temp_dict['value'] = ""
-        temp_dict['in_range'] = False
-        temp_dict['title'] = ""
-        self.values_list.append(temp_dict)
-
         self.temp_hum_values = [None, None]
         self.temp_hum_in_range = [None, None]
         self.temp_hum_polling = None
@@ -200,8 +194,10 @@ class EMBLMachineInfo(HardwareObject):
         self.ppu_control_hwobj = self.getObjectByRole("ppu_control")
         if self.ppu_control_hwobj is not None:
             temp_dict = {}
-            self.values_list[-1]["value"] = "- - -"
-            self.values_list[-1]["title"] = "Files copied - pending - failed"
+            temp_dict['value'] = "- - -"
+            temp_dict['in_range'] = False
+            temp_dict['title'] = "Files copied - pending - failed"
+            self.values_list.append(temp_dict)
 
             self.connect(self.ppu_control_hwobj, 
                          'fileTranferStatusChanged',
@@ -214,13 +210,6 @@ class EMBLMachineInfo(HardwareObject):
  
         self.temp_hum_polling = spawn(self.get_temp_hum_values,
              self.getProperty("updateIntervalS"))
-
-        if os.path.exists("/ramdisk/dataInt"):
-            temp_dict = {}
-            self.values_list[-1]['bold'] = True
-            self.values_list[-1]['align'] = "left"
-            self.values_list[-1]['title'] = "Ramdisk size"
-            self.update_task = spawn(self.update_ramdisk_size, 5)
 
         self.update_values()
 
@@ -449,11 +438,15 @@ class EMBLMachineInfo(HardwareObject):
     def update_ramdisk_size(self, sleep_time):
         while True:
             total, free, perc = self.get_ramdisk_size()
-            txt = ' Total: %s\n Free:  %s (%s)' % (self.sizeof_fmt(total),
-                                                 self.sizeof_fmt(free),
-                                                 '{0:.0%}'.format(perc))
+            if None in (total, free, perc):
+                txt = ' Unable to read ramdisk size!'
+                self.values_list[-1]['in_range'] = False
+            else: 
+                txt = ' Total: %s\n Free:  %s (%s)' % (self.sizeof_fmt(total),
+                                                       self.sizeof_fmt(free),
+                                                       '{0:.0%}'.format(perc))
+                self.values_list[-1]['in_range'] = free / 2 ** 30 > 10
             self.values_list[-1]['value'] = txt
-            self.values_list[-1]['in_range'] = free / 2 ** 30 > 10
             self.update_values()
             time.sleep(sleep_time)
 
@@ -474,8 +467,11 @@ class EMBLMachineInfo(HardwareObject):
     def sizeof_fmt(self, num):
         """Returns disk space formated in string"""
 
-        for x in ['bytes', 'KB', 'MB', 'GB']:
-            if num < 1024.0:
-                return "%3.1f%s" % (num, x)
-            num /= 1024.0
-        return "%3.1f%s" % (num, 'TB')
+        try:
+            for x in ['bytes', 'KB', 'MB', 'GB']:
+                if num < 1024.0:
+                    return "%3.1f%s" % (num, x)
+                num /= 1024.0
+            return "%3.1f%s" % (num, 'TB')
+        except: 
+            return "???"

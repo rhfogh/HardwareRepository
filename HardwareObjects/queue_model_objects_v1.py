@@ -8,6 +8,11 @@ import os
 import logging
 import queue_model_enumerables_v1 as queue_model_enumerables
 
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
+
 class TaskNode(object):
     """
     Objects that inherit TaskNode can be added to and handled by
@@ -196,6 +201,15 @@ class TaskNode(object):
              hex(id(self)))
 
         return s
+
+    def get_sample_node(self):
+        """get Sample task node that this entry is executed on"""
+
+        result = self
+        while result is not None and not isinstance(result, Sample):
+            result = result._parent
+        #
+        return result
 
     def set_snapshot(self, snapshot):
         pass
@@ -1056,15 +1070,36 @@ class XrayCentering(TaskNode):
         pass
 
 class SampleCentring(TaskNode):
-    """Manual 3 click centering"""
+    """Manual 3 click centering
 
-    def __init__(self, name = None, kappa = None, kappa_phi = None):
+    kappa and kappa_phi settings are applied first, and assume that the
+    beamline does have axes with exactly these names
+
+    Other motor_positions are applied afterwards, but in random order.
+    motor_positions override kappa and kappa_phi if both are set
+
+    Since setting one motor can change the position of another
+    (on ESRF ID30B setting kappa and kappa_phi changes the translation motors)
+     the order is important.
+
+    """
+    def __init__(self, name=None, kappa=None, kappa_phi=None,
+                 motor_positions=None):
         TaskNode.__init__(self)
         self._tasks = []
+        self._other_motor_positions = (motor_positions.copy()
+                                       if motor_positions else {})
+        self._centring_result = None
 
         if name:
             self.set_name(name)
- 
+
+        if 'kappa' in self._other_motor_positions:
+            kappa = self._other_motor_positions.pop('kappa')
+
+        if 'kappa_phi' in self._other_motor_positions:
+            kappa_phi = self._other_motor_positions.pop('kappa_phi')
+
         self.kappa = kappa
         self.kappa_phi = kappa_phi
 
@@ -1082,6 +1117,21 @@ class SampleCentring(TaskNode):
 
     def get_kappa_phi(self):
         return self.kappa_phi
+
+    def get_other_motor_positions(self):
+        return self._other_motor_positions.copy()
+
+    def get_centring_result(self):
+        return self._centring_result
+
+    def set_centring_result(self, value):
+        if isinstance(value, (CentredPosition, None)):
+            self._centring_result = value
+        else:
+            raise TypeError(
+                "SampleCentring.centringResult must be a CentredPosition"
+                " or None, was a %s" % value.__class__.__name__
+            )
 
 class OpticalCentring(TaskNode):
     """Optical automatic centering with lucid"""
@@ -1519,6 +1569,108 @@ class Workflow(TaskNode):
     def get_path_template(self):
         return self.path_template
 
+class GphlWorkflow(TaskNode):
+    def __init__(self, workflow_hwobj):
+        TaskNode.__init__(self)
+        self.workflow_hwobj = workflow_hwobj
+        self.path_template = PathTemplate()
+        self.processing_parameters = ProcessingParameters()
+        self._name = str()
+        self._type = str()
+        self._interleave_order = str()
+        self._number = 0
+        self._beam_energies = OrderedDict()
+        self._detector_resolution = None
+        self._expected_resolution = None
+        self._snapshot_count = None
+
+        # HACK - to differentiate between characterisation and acquisition
+        # TODO remove when workflow gives relevant information
+        self.lattice_selected = False
+
+        self.set_requires_centring(False)
+
+    # Workflow name (string) - == path_template.base_prefix.
+    def get_name(self):
+        return self._name
+    def set_name(self, value):
+        self._name = value
+
+    # Workflow type (string).
+    def get_type(self):
+        return self._type
+    def set_type(self, value):
+        self._type = value
+
+    # Workflow interleave order (string).
+    # Slowest changing first, characters 'g' (Goniostat position);
+    # 's' (Scan number), 'b' (Beam wavelength), 'd' (Detector position)
+    def get_interleave_order(self):
+        return self._interleave_order
+    def set_interleave_order(self, value):
+        self._interleave_order = value
+
+    # Number of snapshots to take at start of data collection.
+    def get_snapshot_count(self):
+        return self._snapshot_count
+    def set_snapshot_count(self, value):
+        self._snapshot_count = value
+
+    # Starting run number. Unnecessary.
+    # Left in as it is modified by signal when edited.
+    def get_number(self):
+        logging.getLogger().warning(
+            "Attempt to get unused attribute GphlWorkflow.number"
+        )
+        return None
+    def set_number(self, value):
+        logging.getLogger().warning(
+            "Attempt to set unused attribute GphlWorkflow.number"
+        )
+
+    # Expected resolution (optional float).
+    def get_expected_resolution(self):
+        return self._expected_resolution
+    def set_expected_resolution(self, value):
+        self._expected_resolution = value
+
+    # Detector resolution (determines detector distance).
+    def get_detector_resolution(self):
+        return self._detector_resolution
+    def set_detector_resolution(self, value):
+        self._detector_resolution = value
+
+    # role:value beam_energy dictionary (in keV)
+    def get_beam_energies(self):
+        return self._beam_energies.copy()
+    def set_beam_energies(self, value):
+        self._beam_energies = OrderedDict(value)
+
+    def get_path_template(self):
+        return self.path_template
+
+    def get_workflow_parameters(self):
+        result = self.workflow_hwobj.get_available_workflows().get(self.get_type())
+        if result is None:
+            raise RuntimeError("No parameters for unknown workflow %s"
+                               % repr(self.get_type()))
+        return result
+
+
+    # Keyword-value dictionary of workflow_options (for execution command)
+    def get_workflow_options(self):
+        result = dict(self._workflow_options)
+        if 'prefix' in result:
+            result['prefix'] = self.get_path_template().base_prefix
+        return result
+    def set_workflow_options(self, valueDict):
+        dd = self._workflow_options
+        dd.clear()
+        if valueDict:
+            dd.update(valueDict)
+            if 'prefix' in dd:
+                self.get_path_template().base_prefix = dd.pop('prefix')
+
 
 #
 # Collect hardware object utility function.
@@ -1672,7 +1824,7 @@ def dc_from_edna_output(edna_result, reference_image_collection,
 
             acq.path_template = beamline_setup_hwobj.get_default_path_template()
 
-            # Use the same path tempalte as the reference_collection
+            # Use the same path template as the reference_collection
             # and update the members the needs to be changed. Keeping
             # the directories of the reference collection.
             ref_pt= reference_image_collection.acquisitions[0].path_template

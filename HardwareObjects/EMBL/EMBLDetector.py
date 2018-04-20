@@ -56,6 +56,7 @@ class EMBLDetector(AbstractDetector, HardwareObject):
     def init(self):
 
         self.cover_state = 'unknown'
+        self.binding_mode = 1
         self.distance_motor_hwobj = self.getObjectByRole("distance_motor")
 
         self.chan_cover_state = self.getChannelObject('chanCoverState')
@@ -71,8 +72,9 @@ class EMBLDetector(AbstractDetector, HardwareObject):
         self.chan_roi_mode.connectSignal('update', self.roi_mode_changed)
         self.chan_frame_rate = self.getChannelObject('chanFrameRate')
         self.chan_frame_rate.connectSignal('update', self.frame_rate_changed)
+        self.frame_rate_changed(self.chan_frame_rate.getValue())
 
-        self.chan_actual_frame_rate = self.getChannelObject('chanActualFrameRate')
+        self.chan_actual_frame_rate = self.getChannelObject('chanActualFrameRate', optional=True)
         if self.chan_actual_frame_rate is not None:
             self.chan_actual_frame_rate.connectSignal('update', self.actual_frame_rate_changed)
 
@@ -90,12 +92,11 @@ class EMBLDetector(AbstractDetector, HardwareObject):
         self.pixel_max = self.getProperty("px_max")
         self.roi_modes_list = eval(self.getProperty("roiModes"))
 
-
     def get_distance(self):
         """Returns detector distance in mm"""
         return self.distance_motor_hwobj.getPosition()
 
-    def set_distance(self, position, timeout):
+    def set_distance(self, position, timeout=None):
         return self.distance_motor_hwobj.move(position, timeout)
         
 
@@ -139,36 +140,45 @@ class EMBLDetector(AbstractDetector, HardwareObject):
         status = "uninitialized"
         if self.chan_status is not None:
             status = self.chan_status.getValue()
-        status_message = ""
+        status_message = "Detector: "
         if self.temperature > self.temp_treshold:
-            logging.getLogger().warning(\
+            logging.getLogger('GUI').warning(\
                 "Detector: Temperature %0.2f is greater than allowed %0.2f" %\
                 (self.temperature, self.temp_treshold))
-            status_message = "Detector temperature has exceeded threshold.\n"
+            status_message = "Temperature has exceeded threshold.\n"
         if self.humidity > self.hum_treshold:
-            logging.getLogger().warning(\
+            logging.getLogger('GUI').warning(\
                 "Detector: Humidity %0.2f is greater than allowed %0.2f" %\
                 (self.humidity, self.hum_treshold))
             status_message = status_message + \
-                "Detector humidity has exceeded threshold.\n"
+                "Humidity has exceeded threshold.\n"
         if status == "calibrating":
             status_message = status_message + "Energy change in progress.\n"
             status_message = status_message + "Please wait...\n"
+            logging.getLogger('GUI').info(status_message) 
+        """
+        elif status == "configuring":
+            status_message = status_message + "Configuring"
         elif status != "ready":
             status_message = status_message + "Detector is not ready.\n"
             status_message = status_message + \
                 "Cannot start a collection at the moment."
+            logging.getLogger('GUI').warning(status_message)
+        """
         self.emit('statusChanged', (status, status_message, ))
 
     def roi_mode_changed(self, mode):
         """ROI mode change event"""
         self.roi_mode = self.roi_modes_list.index(mode)
-        self.emit('detectorModeChanged', (self.roi_mode, ))
+        print 'detectorRoiModeChanged', self.roi_mode
+        self.emit('detectorRoiModeChanged', (self.roi_mode, ))
 
     def frame_rate_changed(self, frame_rate):
         """Updates frame rate"""
         if frame_rate is not None:
-            self.exposure_time_limits = (1 / float(frame_rate), 6000)
+            self.exposure_time_limits[0] = 1 / float(frame_rate)
+            self.exposure_time_limits[1] = 6000
+            
         self.emit('expTimeLimitsChanged', (self.exposure_time_limits, ))
 
     def actual_frame_rate_changed(self, value):
@@ -199,18 +209,25 @@ class EMBLDetector(AbstractDetector, HardwareObject):
         :param state: guillotine state (close, opened, ..)
         :type state: str
         """
-        if state[1] == 0:
+        if type(state) in (list, tuple):
+            state = state[1]
+
+        if state == 0:
             self.cover_state = "closed"
-        elif state[1] == 1:
+        elif state == 1:
             self.cover_state = "opened"
-        elif state[1] == 2:
+        elif state == 2:
             self.cover_state = "closing"
-        elif state[1] == 3:
+        elif state == 3:
             self.cover_state = "opening"
         return self.cover_state
 
     def get_cover_state(self):
         return self.cover_state_changed(self.chan_cover_state.getValue())
+
+    def is_cover_closed(self):
+        self.get_cover_state()
+        return self.cover_state == "closed"
 
     def close_cover(self, wait=True):
         if self.get_cover_state() != "closed":
@@ -225,7 +242,7 @@ class EMBLDetector(AbstractDetector, HardwareObject):
 
     def update_values(self):
         """Reemits signals"""
-        self.emit('detectorModeChanged', (self.roi_mode, ))
+        self.emit('detectorRoiModeChanged', (self.roi_mode, ))
         temp = self.chan_temperature.getValue()
         self.emit('temperatureChanged', (temp, temp < self.temp_treshold))
         hum = self.chan_humidity.getValue()

@@ -32,7 +32,6 @@ import edna_test_data
 from XSDataMXCuBEv1_3 import XSDataInputMXCuBE, XSDataResultMXCuBE
 
 from copy import copy
-from collections import namedtuple
 from queue_model_enumerables_v1 import *
 from HardwareRepository.HardwareRepository import dispatcher
 
@@ -430,7 +429,8 @@ class TaskGroupQueueEntry(BaseQueueEntry):
                 group_data = {'sessionId': self.session_hwobj.session_id,
                               'experimentType': 'OSC'}
 
-            sample_model = task_model.get_parent()
+            sample_model = task_model.get_sample_node()
+            # task_model.get_parent()
             if sample_model.lims_container_location > -1:
                 group_data['actualContainerSlotInSC'] = \
                    sample_model.lims_container_location
@@ -512,7 +512,8 @@ class TaskGroupQueueEntry(BaseQueueEntry):
                 interleave_item["data_model"].get_parent().lims_group_id
             cpos = interleave_item["data_model"].acquisitions[0].\
                 acquisition_parameters.centred_position
-            sample = interleave_item["data_model"].get_parent().get_parent()
+            # sample = interleave_item["data_model"].get_parent().get_parent()
+            sample = interleave_item["data_model"].get_sample_node()
             empty_cpos = queue_model_objects.CentredPosition()
             param_list = queue_model_objects.to_collect_dict(
                  interleave_item["data_model"], self.session_hwobj,
@@ -737,44 +738,60 @@ class SampleCentringQueueEntry(BaseQueueEntry):
         self.get_view().setText(1, 'Waiting for input')
         log = logging.getLogger("user_level_log")
 
-        kappa = self._data_model.get_kappa()
-        phi = self._data_model.get_kappa_phi()
+        data_model = self.get_data_model()
 
-        if hasattr(self.diffractometer_hwobj, "in_kappa_mode") and self.diffractometer_hwobj.in_kappa_mode():
-            self.diffractometer_hwobj.moveMotors({"kappa": kappa, "kappa_phi":phi})
+        kappa = data_model.get_kappa()
+        phi = data_model.get_kappa_phi()
+
+
+        # kappa and kappa_phi settings are applied first, and assume that the
+        # beamline does have axes with exactly these names
+        #
+        # Other motor_positions are applied afterwards, but in random order.
+        # motor_positions override kappa and kappa_phi if both are set
+        #
+        # Since setting one motor can change the position of another
+        # (on ESRF ID30B setting kappa and kappa_phi changes the translation motors)
+        # the order is important.
+        dd = {}
+        if kappa is not None:
+            dd["kappa"] = kappa
+        if phi is not None:
+            dd["kappa_phi"] = phi
+        if dd:
+            if (not hasattr(self.diffractometer_hwobj, "in_kappa_mode")
+                or self.diffractometer_hwobj.in_kappa_mode()):
+                self.diffractometer_hwobj.move_motors(dd)
+
+        motor_positions = data_model.get_other_motor_positions()
+        dd = dict(tt for tt in data_model.get_other_motor_positions().items()
+                  if tt[1] is not None)
+        if motor_positions:
+            self.diffractometer_hwobj.move_motors(dd)
 
         #TODO agree on correct message
-        log.warning("Please center a new point, and press continue.")
+        log.warning("Please center a new or select an existing point and press continue.")
         #log.warning("Please select a centred position, and press continue.")
 
         self.get_queue_controller().pause(True)
         pos = None
 
-        if len(self.shape_history.get_selected_shapes()):
-            pos = self.shape_history.get_selected_shapes()[0]
+        shapes = list(self.shape_history.get_selected_shapes())
+        if shapes:
+            pos = shapes[0]
+            if hasattr(pos, 'get_centred_position'):
+                cpos = pos.get_centred_position()
+            else:
+                cpos = pos.get_centred_positions()[0]
         else:
             msg = "No centred position selected, using current position."
             log.info(msg)
 
-            # Create a centred postions of the current postion
+            # Create a centred positions of the current position
             pos_dict = self.diffractometer_hwobj.getPositions()
             cpos = queue_model_objects.CentredPosition(pos_dict)
             #pos = shape_history.Point(None, cpos, None) #, True)
-
-        # Get tasks associated with this centring
-        tasks = self.get_data_model().get_tasks()
-
-        """for task in tasks:
-            cpos = pos.get_centred_positions()[0]
-
-            if pos.qub_point is not None:
-                snapshot = self.shape_history.\
-                           get_snapshot([pos.qub_point])
-            else:
-                snapshot = self.shape_history.get_snapshot([])
-
-            cpos.snapshot_image = snapshot 
-            task.set_centred_positions(cpos)"""
+        self._data_model.set_centring_result(cpos)
 
         self.get_view().setText(1, 'Input accepted')
 
@@ -920,7 +937,8 @@ class DataCollectionQueueEntry(BaseQueueEntry):
             acq_1 = dc.acquisitions[0]
             acq_1.acquisition_parameters.in_queue = self.in_queue
             cpos = acq_1.acquisition_parameters.centred_position
-            sample = self.get_data_model().get_parent().get_parent()
+            # sample = self.get_data_model().get_parent().get_parent()
+            sample = self.get_data_model().get_sample_node()
             self.collect_hwobj.run_processing_after = dc.run_processing_after
             self.collect_hwobj.aborted_by_user = None
             self.processing_task = None
@@ -1289,8 +1307,9 @@ class EnergyScanQueueEntry(BaseQueueEntry):
             energy_scan = self.get_data_model()
             self.get_view().setText(1, "Starting energy scan")
 
-            sample_model = self.get_data_model().\
-                           get_parent().get_parent()
+            # sample_model = self.get_data_model().\
+            #                get_parent().get_parent()
+            sample_model = self.get_data_model().get_sample_node()
 
             sample_lims_id = sample_model.lims_id
 
@@ -1469,8 +1488,9 @@ class XRFSpectrumQueueEntry(BaseQueueEntry):
             xrf_spectrum = self.get_data_model()
             self.get_view().setText(1, "Starting xrf spectrum")
 
-            sample_model = self.get_data_model().\
-                           get_parent().get_parent()
+            # sample_model = self.get_data_model().\
+            #                get_parent().get_parent()
+            sample_model = self.get_data_model().get_sample_node()
 
             sample_lims_id = sample_model.lims_id
             # No sample id, pass None to startEnergySpectrum
@@ -1557,6 +1577,85 @@ class XRFSpectrumQueueEntry(BaseQueueEntry):
 
     def get_type_str(self):
         return "XRF spectrum"
+
+class GphlWorkflowQueueEntry(BaseQueueEntry):
+    def __init__(self, view=None, data_model=None):
+        BaseQueueEntry.__init__(self, view, data_model)
+        self.workflow_hwobj = None
+        self.workflow_running = False
+
+    def execute(self):
+        BaseQueueEntry.execute(self)
+
+        logging.getLogger('queue_exec').debug(
+            "GphlWorkflowQueueEntry.execute WF state is %s"
+            % self.workflow_hwobj.get_state()
+        )
+
+        # Start execution of a new workflow
+        if self.workflow_hwobj.get_state() != States.ON:
+            # TODO Add handling of potential conflicts.
+            # NBNB GPhL workflow cannot have multiple users
+            # unless they use separate persistence layers
+            raise RuntimeError(
+                "Cannot execute workflow - GphlWorkflow HardwareObject is not idle"
+            )
+
+        msg = "Starting workflow (%s), please wait." % (self.get_data_model()._type)
+        logging.getLogger("user_level_log").info(msg)
+        # TODO add parameter and data transfer.
+        # workflow_params = self.get_data_model().params_list
+        # Add the current node id to workflow parameters
+        #group_node_id = self._parent_container._data_model._node_id
+        #workflow_params.append("group_node_id")
+        #workflow_params.append("%d" % group_node_id)
+        self.workflow_hwobj.execute()
+
+    def workflow_state_handler(self, state):
+        if isinstance(state, tuple):
+            state = str(state[0])
+        else:
+            state = str(state)
+
+        if state == 'ON':
+            self.workflow_running = False
+        elif state == 'RUNNING':
+            self.workflow_running = True
+        elif state == 'OPEN':
+            msg = "Workflow waiting for input, verify parameters and press continue."
+            logging.getLogger("user_level_log").warning(msg)
+            self.get_queue_controller().show_workflow_tab()
+
+    def pre_execute(self):
+        BaseQueueEntry.pre_execute(self)
+        qc = self.get_queue_controller()
+        self.workflow_hwobj = self.beamline_setup.getObjectByRole('gphl_workflow')
+        self.workflow_hwobj.pre_execute(self)
+
+        qc.connect(self.workflow_hwobj, 'stateChanged',
+                   self.workflow_state_handler)
+
+        logging.getLogger('HWR').debug(
+            "Done GphlWorkflowQueueEntry.pre_execute"
+        )
+
+    def post_execute(self):
+        BaseQueueEntry.post_execute(self)
+        qc = self.get_queue_controller()
+        msg = "Finishing workflow %s" % (self.get_data_model()._type)
+        logging.getLogger("user_level_log").info(msg)
+        self.workflow_hwobj.workflow_end()
+        qc.disconnect(self.workflow_hwobj, 'stateChanged',
+                      self.workflow_state_handler)
+
+    def stop(self):
+        BaseQueueEntry.stop(self)
+        logging.getLogger('queue_exec').debug(
+            "In GphlWorkflowQueueEntry.stop"
+        )
+        self.workflow_hwobj.abort()
+        self.get_view().setText(1, 'Stopped')
+        raise QueueAbortedException('Queue stopped', self)
 
 class GenericWorkflowQueueEntry(BaseQueueEntry):
     def __init__(self, view=None, data_model=None):
@@ -1866,7 +1965,7 @@ def mount_sample(beamline_setup_hwobj,
         dm = beamline_setup_hwobj.diffractometer_hwobj
         if dm is not None:
             if hasattr(sample_mount_device, '__TYPE__'):
-                if sample_mount_device.__TYPE__  in ('Marvin', 'PlateManipulator'):
+                if sample_mount_device.__TYPE__  in ('Marvin', 'PlateManipulator', 'Mockup'):
                     return
             try:
                 dm.connect("centringAccepted", centring_done_cb)
@@ -1913,4 +2012,6 @@ MODEL_QUEUE_ENTRY_MAPPINGS = \
      queue_model_objects.Basket: BasketQueueEntry,
      queue_model_objects.TaskGroup: TaskGroupQueueEntry,
      queue_model_objects.Workflow: GenericWorkflowQueueEntry,
-     queue_model_objects.XrayCentering: XrayCenteringQueueEntry}
+     queue_model_objects.XrayCentering: XrayCenteringQueueEntry,
+     queue_model_objects.GphlWorkflow: GphlWorkflowQueueEntry,
+}
