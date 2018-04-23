@@ -899,7 +899,9 @@ class GphlWorkflow(HardwareObject, object):
             self._use_fine_zoom = True
             # TODO Check correct way to get hold of zoom motor
             zoom_motor = self._queue_entry.beamline_setup.getObjectByRole('zoom')
-            if zoom_motor:
+            # if zoom_motor:
+            if False:
+                # For now disable automatic zoom
                 # Zoom to the last predefined position
                 # - that should be the largest magnification
                 ll = zoom_motor.getPredefinedPositionsList()
