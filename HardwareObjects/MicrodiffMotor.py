@@ -21,7 +21,7 @@ Example xml file:
 """
 
 class MicrodiffMotor(AbstractMotor):
-    (NOTINITIALIZED, UNUSABLE, READY, MOVESTARTED, MOVING, ONLIMIT) = (0,1,3,4,5,6)
+    (NOTINITIALIZED, UNUSABLE, READY, MOVESTARTED, MOVING, ONLIMIT) = (0,1,2,3,4,5)
     EXPORTER_TO_MOTOR_STATE = { "Invalid": NOTINITIALIZED,
                                 "Fault": UNUSABLE,
                                 "Ready": READY,
@@ -58,17 +58,58 @@ class MicrodiffMotor(AbstractMotor):
         self.motorState = MicrodiffMotor.NOTINITIALIZED
         
         self.position_attr = self.getChannelObject("%s%s" % (self.motor_name, self.motor_pos_attr_suffix))
-        self.state_attr = self.getChannelObject("%s%s" % (self.motor_name, self.motor_state_attr_suffix))
+        if not self.position_attr:
+            self.position_attr = self.addChannel({"type": "exporter",
+                                                  "name": "%sPosition" %self.motor_name},
+                                                  self.motor_name + self.motor_pos_attr_suffix)
         
         if self.position_attr is not None:
+            self.state_attr = self.getChannelObject("%s%s" % (self.motor_name, self.motor_state_attr_suffix))
+            if not self.state_attr:
+                self.state_attr = self.addChannel({"type": "exporter",
+                                                   "name": "%sState" %self.motor_name},
+                                                   self.motor_name + self.motor_state_attr_suffix)
+                
             self.position_attr.connectSignal("update", self.motorPositionChanged)
             self.state_attr.connectSignal("update", self.motorStateChanged)
             
+            self.motors_state_attr = self.getChannelObject("motor_states")
+            if not self.motors_state_attr:
+                self.motors_state_attr = self.addChannel({"type": "exporter",
+                                                          "name": "motor_states"},
+                                                          "MotorStates")
+            self.motors_state_attr.connectSignal("update", self.updateMotorState)
+            
             self._motor_abort = self.getCommandObject("abort")
+            if not self._motro_abort:
+                self._motor_abort = self.addCommand({"type": "exporter",
+                                                     "name": "abort" },
+                                                     "abort")
+            
             self.get_dynamic_limits_cmd = self.getCommandObject("get%sDynamicLimits" % self.motor_name)
+            if not self.get_dynamic_limits_cmd:
+                self.get_dynamic_limits_cmd = self.addCommand({"type": "exporter",
+                                                               "name": "get%sDynamicLimits" % self.motor_name},
+                                                               "getMotorDynamicLimits")
+            
             self.get_limits_cmd = self.getCommandObject("getMotorLimits")
+            if not self.get_limits_cmd:
+                self.get_limits_cmd = self.addCommand({"type": "exporter",
+                                                       "name": "get_limits"},
+                                                       "getMotorLimits")
+                
             self.get_max_speed_cmd = self.getCommandObject("getMotorMaxSpeed")
+            if not self.get_max_spped_cmd:
+                self.get_max_speed_cmd = self.addCommand({"type": "exporter",
+                                                          "name": "get_max_speed"},
+                                                          "getMotorMaxSpeed")
+            
             self.home_cmd = self.getCommandObject("homing")
+            if not self.home_cmd:
+                self.home_cmd = self.addCommand({"type": "exporter",
+                                                 "name": "homing" },
+                                                 "startHomingMotor")
+>>>>>>> f56392a... MicrodiffMotor: load configuration from configuration file first, fall back to in-place definition if not present. Revert change in state mapping.
             
         self.motorPositionChanged(self.position_attr.getValue())
 
