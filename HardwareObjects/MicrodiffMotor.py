@@ -21,7 +21,7 @@ Example xml file:
 """
 
 class MicrodiffMotor(AbstractMotor):
-    (NOTINITIALIZED, UNUSABLE, READY, MOVESTARTED, MOVING, ONLIMIT) = (0,1,3,4,5,6)
+    (NOTINITIALIZED, UNUSABLE, READY, MOVESTARTED, MOVING, ONLIMIT) = (0,1,2,3,4,5)
     EXPORTER_TO_MOTOR_STATE = { "Invalid": NOTINITIALIZED,
                                 "Fault": UNUSABLE,
                                 "Ready": READY,
