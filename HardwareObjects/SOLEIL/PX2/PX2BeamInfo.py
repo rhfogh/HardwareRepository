@@ -40,7 +40,7 @@ class PX2BeamInfo(Equipment):
 
         self.beam_position = [328, 220] #[None, None]
         self.beam_size     = [0.010, 0.005] #[None, None]
-        self.shape         = 'rectangular'
+        self.shape         = 'ellipse'
 
         self.beam_info_dict  = {'size_x': None, 'size_y': None, 'shape': self.shape}
         
@@ -118,13 +118,13 @@ class PX2BeamInfo(Equipment):
         logging.getLogger().info('zoom position changed. It is %s / offset=%s ' % (name,offset))
         self.beam_position[0], self.beam_position[1] = self.chanBeamPosX.value, self.chanBeamPosY.value
 
-    def sizeUpdated(self):
-        #TODO check values give by md2 it appears that  beamSizeXChanged beamSizeYChanged it is not the reality !!!!!!
-        self.beam_info_dict['size_x'] = 0.010 # in micro channel in MD2 doesn't work
-        self.beam_info_dict['size_y'] = 0.005#
-        self.emit("beamInfoChanged", (self.beam_info_dict, ))
+    #def sizeUpdated(self):
+        ##TODO check values give by md2 it appears that  beamSizeXChanged beamSizeYChanged it is not the reality !!!!!!
+        #self.beam_info_dict['size_x'] = 0.010 # in micro channel in MD2 doesn't work
+        #self.beam_info_dict['size_y'] = 0.005#
+        #self.emit("beamInfoChanged", (self.beam_info_dict, ))
 
-    def sizeUpdated2(self):
+    def sizeUpdated(self):
         # not used
         if None in self.beam_size:
              return
