@@ -47,7 +47,7 @@ class PX2Resolution(Resolution):
         self.resolution_motor.set_resolution(resolution)
     
     def getState(self):
-        return self.detector_position_state_channel.value
+        return self.detector_position_state_channel.getValue()
     
     def get_beam_centre(self, dtox=None):
         return self.beam_center.get_beam_center()
@@ -56,7 +56,7 @@ class PX2Resolution(Resolution):
         return self.resolution_motor.get_resolution_limits()
         
     def dtoxStateChanged(self, state=None):
-        self.update_detector_position_state()
+        self.update_detector_position_state(state)
         
     def update_detector_position_state(self, state=None):
         self.emit("stateChanged", state)
@@ -65,9 +65,6 @@ class PX2Resolution(Resolution):
         self.emit("stateChanged", state)
         
     def update_resolution(self, values=None):
-        #logging.getLogger("HWR").info('update_resolution values: %s' % str(values))
-        #logging.getLogger('HWR').info('energy %s' % str(self.energy_channel.value))
-        #logging.getLogger('HWR').info('detector_distance %s' % str(self.detector_distance_channel.value))
         self.currentResolution = self.resolution_motor.get_resolution()
         self.emit("positionChanged", self.currentResolution)
         self.emit("valueChanged", self.currentResolution)
@@ -75,3 +72,9 @@ class PX2Resolution(Resolution):
     
     def stop(self):
         self.resolution_motor.stop()
+        
+    def get_detector_distance(self):
+        return self.dtox.get_position()
+    
+    def get_resolution(self):
+        return self.resolution_motor.get_resolution()
