@@ -295,7 +295,7 @@ class SOLEILMachineInfo(HardwareObject):
         date = state_text1[:date_boundary]
         state_text1 = state_text1[date_boundary + len(date_boundary_string):]
         state_text = "%s, %s\n" % (date, state_text0)
-        state_text += "electron energy: %.2f GeV\n" % (self.ring_energy,)
+        #state_text += "electron energy: %.2f GeV\n" % (self.ring_energy,)
         state_text += "filling: %s\n" % (filling_mode,)
         if state_text1 != ' ':
             state_text += "%s\n" % (state_text1, )
