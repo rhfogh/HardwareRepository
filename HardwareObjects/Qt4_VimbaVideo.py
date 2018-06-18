@@ -25,6 +25,7 @@ class Qt4_VimbaVideo(GenericVideoDevice):
         self.image_dimensions = [1360, 1024]
         self.log = logging.getLogger('HWR')
         atexit.register(self.close_camera)
+        self.qimage = QImage(np.zeros((self.image_dimensions[1], self.image_dimensions[0], 3)).data, self.image_dimensions[0], 3, QImage.Format_RGB888)
         
         GenericVideoDevice.init(self)
  
@@ -34,7 +35,7 @@ class Qt4_VimbaVideo(GenericVideoDevice):
             vimba.startup() 
             if system.GeVTLIsPresent:
                 system.runFeatureCommand("GeVDiscoveryAllOnce")
-                gevent.sleep(2)
+                gevent.sleep(sleep_time)
             cameraIds = vimba.getCameraIds()
  
             self.camera = vimba.getCamera(self.camera_id)
@@ -42,7 +43,7 @@ class Qt4_VimbaVideo(GenericVideoDevice):
             self.camera.PixelFormat = self.pixel_format
             self.frame0 = self.camera.getFrame()    # creates a frame
             self.frame0.announceFrame()
-            log.info('camera.startCapture()')
+            self.log.info('Qt4_VimbaVideo: camera.startCapture()')
             self.camera.startCapture()
  
             self.image_dimensions = (self.frame0.width,
@@ -54,7 +55,7 @@ class Qt4_VimbaVideo(GenericVideoDevice):
                 try:
                     self.frame0.queueFrameCapture()
                 except:
-                    log.info('frame dropped')
+                    self.log.info('Qt4_VimbaVideo: frame dropped')
                     continue
                 data = self.frame0.getBufferByteData()
                 img = np.ndarray(buffer=data, dtype=np.int8, shape=(self.frame0.height, self.frame0.width, self.frame0.pixel_bytes))
