@@ -46,3 +46,9 @@ class MicrodiffLight(AbstractMotor):
 
     def move_out(self):
         self.chan_light_is_on.setValue(True)
+
+    def get_position(self):
+        return self.chan_value.getValue()
+
+    
+    
