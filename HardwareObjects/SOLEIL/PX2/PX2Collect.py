@@ -128,7 +128,13 @@ class PX2Collect(AbstractCollect, HardwareObject):
         
         self.emit("collectConnected", (True,))
         self.emit("collectReady", (True, ))  
-        
+    
+    def get_detector_distance(self):
+        return self.resolution_hwobj.get_detector_distance()
+    
+    def get_resolution(self):
+        return self.resolution_hwobj.get_resolution()
+    
     def data_collection_hook(self):
         """Main collection hook"""
         
@@ -151,8 +157,10 @@ class PX2Collect(AbstractCollect, HardwareObject):
         sample_reference = parameters['sample_reference']
         experiment_type = parameters['experiment_type'] 
         energy = parameters['energy']
+        if energy < 1.e3:
+            energy *= 1.e3
         transmission = parameters['transmission']
-        resolution = parameters['resolution']
+        resolution = parameters['resolution']['upper']
         
         exposure_time = osc_seq['exposure_time']
         in_queue = parameters['in_queue'] != False
@@ -196,7 +204,6 @@ class PX2Collect(AbstractCollect, HardwareObject):
                                     transmission=transmission,
                                     resolution=resolution,
                                     simulation=False)
-            experiment.execute()
             
         elif experiment_type == 'Characterization':
             
@@ -222,8 +229,6 @@ class PX2Collect(AbstractCollect, HardwareObject):
                                           resolution=resolution,
                                           simulation=False)
         
-            experiment.execute()
-       
         elif experiment_type == 'Helical' and osc_seq['mesh_range'] == ():
             scan_range = angle_per_frame * number_of_images
             scan_exposure_time = exposure_time * number_of_images
@@ -241,15 +246,12 @@ class PX2Collect(AbstractCollect, HardwareObject):
                                       transmission=transmission,
                                       resolution=resolution,
                                       simulation=False)
-            experiment.execute()
             
         elif experiment_type == 'Helical' and osc_seq['mesh_range'] != ():
             horizontal_range, vertical_range = osc_seq['mesh_range']
             
             experiment = xray_centring(name_pattern,
                                        directory)
-            
-            experiment.execute(simulation=False)
             
         elif experiment_type == 'Mesh':
             number_of_columns = osc_seq['number_of_lines']
@@ -269,7 +271,8 @@ class PX2Collect(AbstractCollect, HardwareObject):
                                      photon_energy=energy,
                                      transmission=transmission,
                                      simulation=False)
-            experiment.execute()
+        self.experiment = experiment
+        self.experiment.execute()
             
             
         #for image in range(number_of_images):
@@ -391,7 +394,7 @@ class PX2Collect(AbstractCollect, HardwareObject):
         Descript. :
         """
         self.aborted_by_user = True 
-        self.cmd_collect_abort()
+        self.experiment.stop()
         self.emit_collection_failed("Aborted by user")
 
     def set_helical_pos(self, helical_pos):
