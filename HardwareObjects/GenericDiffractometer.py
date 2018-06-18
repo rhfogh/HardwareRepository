@@ -161,8 +161,8 @@ class GenericDiffractometer(HardwareObject):
         self.command_dict = {}
         self.used_commands_list = []
 
-	# flag for using sample_centring hwobj or not
-	self.use_sample_centring = None 
+        # flag for using sample_centring hwobj or not
+        self.use_sample_centring = None
 
         # Internal values -----------------------------------------------------
         self.ready_event = None
@@ -731,10 +731,10 @@ class GenericDiffractometer(HardwareObject):
 
             if self.current_centring_method == GenericDiffractometer.CENTRING_METHOD_AUTO:
                 self.emit("newAutomaticCentringPoint", motor_pos)
+            self.ready_event.set()
             self.centring_time = time.time()
             self.emit_centring_successful()
             self.emit_progress_message("")
-            self.ready_event.set()
 
     def manual_centring(self):
         """
@@ -1130,3 +1130,6 @@ class GenericDiffractometer(HardwareObject):
 
     def zoom_out(self):
         return
+
+    def save_centring_positions(self):
+        pass
