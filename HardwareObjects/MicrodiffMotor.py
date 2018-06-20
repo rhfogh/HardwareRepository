@@ -50,6 +50,7 @@ class MicrodiffMotor(AbstractMotor):
         
     def init(self):
         self.position = None
+        self.motorState = None
         #assign value to motor_name
         self.motor_name = self.getProperty("motor_name")
  
@@ -119,7 +120,7 @@ class MicrodiffMotor(AbstractMotor):
                                                  "startHomingMotor")
             
         self.motorPositionChanged(self.position_attr.getValue())
-
+        
     def connectNotify(self, signal):
         if signal == 'positionChanged':
             self.emit('positionChanged', (self.get_position(), ))
@@ -154,8 +155,11 @@ class MicrodiffMotor(AbstractMotor):
     
     def motorStateChanged(self, state):
         self.updateState()
+        old_state = self.motorState
         if type(state) is not int:
             state = self.get_state()
+        if old_state == self.motorState:
+            return
         self.emit('stateChanged', (state, ))
 
     def _get_state(self):
