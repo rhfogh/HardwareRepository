@@ -416,7 +416,9 @@ class SOLEILMachineInfo(HardwareObject):
 
     def	get_message(self):
         """Returns synchrotron state text"""
-        return self.state_text
+        state_text = u'%s' % self.state_text
+        state_text = state_text.encode('ascii', 'xmlcharrefreplace')
+        return state_text
 
     def update_ramdisk_size(self, sleep_time):
         while True:
