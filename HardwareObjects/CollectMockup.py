@@ -80,9 +80,9 @@ class CollectMockup(AbstractCollect):
             time.sleep(self.current_dc_parameters["oscillation_sequence"][0]["exposure_time"])
             self.emit("collectImageTaken", image)
             self.emit("progressStep", (int(float(image) / number_of_images * 100)))
-        self.emit_collection_finished()
+        self.collection_finished()
 
-    def emit_collection_finished(self):  
+    def collection_finished(self):  
         """Collection finished beahviour
         """
         if self.current_dc_parameters['experiment_type'] != "Collect - Multiwedge":
@@ -154,7 +154,7 @@ class CollectMockup(AbstractCollect):
         """
         self.aborted_by_user = True 
         self.cmd_collect_abort()
-        self.emit_collection_failed("Aborted by user")
+        self.collection_failed("Aborted by user")
 
     @task
     def _take_crystal_snapshot(self, filename):
