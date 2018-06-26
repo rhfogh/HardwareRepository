@@ -9,6 +9,7 @@ import time
 
 from HardwareRepository.BaseHardwareObjects import HardwareObject
 import queue_model_objects_v1 as queue_model_objects
+import logging
 
 class Session(HardwareObject):
     def __init__(self, name):
@@ -27,7 +28,7 @@ class Session(HardwareObject):
         self.user_group = ''
         self.template = None
 
-        self.default_precision = '05'
+        self.default_precision = "'05'"
         self.suffix = None
         self.base_directory = None
         self.base_process_directory = None
