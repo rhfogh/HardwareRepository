@@ -147,8 +147,7 @@ class SOLEILISPyBClient(ISPyBClient2):
         url_opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
 
         trans = HttpAuthenticated(username = self.ws_username, password = self.ws_password)
-        logging.info('_wsdl_client service_name %s - trans %s' % (service_name, trans))
-        print '_wsdl_client service_name %s - trans %s' % (service_name, trans)
+        logging.debug('_wsdl_client service_name %s - trans %s' % (service_name, trans))
         
         trans.urlopener = url_opener
         urlbase = service_name + "?wsdl"
