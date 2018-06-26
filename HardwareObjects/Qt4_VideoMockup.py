@@ -45,7 +45,7 @@ class Qt4_VideoMockup(GenericVideoDevice):
         """ 
         current_path = os.path.dirname(os.path.abspath(__file__)).split(os.sep)
         current_path = os.path.join(*current_path[1:-1])
-        image_path = "/" + current_path + "/tests/fakeimg.jpg"
+        image_path = self.getProperty('image_path', "/" + current_path + "/tests/fakeimg.jpg")
         self.image = QPixmap(image_path)
         self.image_dimensions = (self.image.width(), self.image.height())
         self.setIsReady(True)
@@ -108,3 +108,16 @@ class Qt4_VideoMockup(GenericVideoDevice):
 
     def get_video_live(self):
         return True
+
+    def get_width(self):
+        return self.image.width()
+    
+    def getWidth(self):
+        self.get_width()
+    
+    def get_height(self):
+        return self.image.height()
+    
+    def getHeigth(self):
+        self.get_height()
+        
