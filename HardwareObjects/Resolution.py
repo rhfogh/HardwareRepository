@@ -90,8 +90,10 @@ class Resolution(AbstractMotor):
         print "dist=",dist
 
         try:
-            ttheta = math.atan(radius / dist)
-            
+            if dist != 0 and dist != None: 
+                ttheta = math.atan(radius / dist)
+            else:
+                ttheta = 0
             if ttheta != 0:
                 return current_wavelength / (2*math.sin(ttheta/2))
             else:
