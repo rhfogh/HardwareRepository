@@ -62,7 +62,7 @@ class PX2Video(GenericVideoDevice, camera):
         """
         GenericVideoDevice.__init__(self, name)
         camera.__init__(self)
-        self.log = logging.getLogger('user_level_log')
+        self.log = logging.getLogger('HWR')
         self.device = name
         self.camera = camera()
         self.width = 1360
@@ -73,8 +73,6 @@ class PX2Video(GenericVideoDevice, camera):
         Descript. : 
         """
         #tangoname = self.getProperty("tangoname")
-        
-        self.log.info('PX2Video init')
         
         self.device = self.prosilica
         
@@ -130,8 +128,37 @@ class PX2Video(GenericVideoDevice, camera):
             gevent.sleep(1)
             
     """ END Overloading of GenericVideoDevice methods """
+   
+    def get_contrast(self):
+        return self.camera.get_contrast()
 
+    def set_contrast(self, contrast_value):
+        self.camera.set_contrast(contrast_value)
 
+    def get_brightness(self):
+        return self.camera.get_brightness()
+
+    def set_brightness(self, brightness_value):
+        self.camera.set_brightness(brightness_value)
+  
+    def get_gain(self):
+        return self.camera.get_gain()
+  
+    def set_gain(self, gain_value):
+        self.camera.set_gain(gain_value)
+
+    def get_gamma(self):
+        return self.camera.get_gamma()
+
+    def set_gamma(self, gamma_value):
+        self.camera.set_gamma(gamma_value)
+
+    def get_exposure_time(self):
+        return self.camera.get_exposure_time()
+
+    def set_exposure_time(self, exposure_time_value):
+        self.camera.set_exposure_time(exposure_time_value)
+        
 def test_hwo(hwo):
     print "Image dimensions: ", hwo.get_image_dimensions()
     print "Live Mode: ", hwo.get_video_live()
