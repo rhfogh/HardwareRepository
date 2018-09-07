@@ -32,8 +32,9 @@
                 <!--<newconfig/>-->
                 <!-- updateconfig option, automaticallly updates entire configuration -->
                 <!--<grid>grid_axes_spec</grid>-->
-                <!-- Path of file to dump persisted instrumentation configuration. OPTIONAL-->
-                <instcfgout>/MXCuBE/mxcube/gphl_transcal_out.nml</instcfgout>
+                <!-- Path of file to dump persisted new version of instrumentation configuration. 
+		     For debugging/diagnostic purposes only. OPTIONAL-->
+                <!-- <instcfgout>/MXCuBE/mxcube/gphl_transcal_out.nml</instcfgout> -->
             </options>
         </TranslationalCalibration>
 
@@ -46,18 +47,80 @@
             <!-- Default wavelengths (in A) and their roles -->
             <options>
                 <!-- Name of initial strategy from library to use -->
-                <strategy>DiffractCal</strategy>
-                <!--<strategy>DiffractCal_ex</strategy>-->
+                <strategy>DiffractCal_ex</strategy>
+                <!-- Working subdirectory for workflow-side application data-->
+                <appdir>calculations</appdir>
                 <!-- Name for diffractometer calibration output -->
                 <calibration>diffractcal</calibration>
-                <!-- Path of file to dump persisted instrumentation configuration. OPTIONAL-->
-                <instcfgout>/MXCuBE/mxcube/gphl_diffractcal_out.nml</instcfgout>
+                <!-- Path of file to dump persisted new version of instrumentation configuration. 
+		     For debugging/diagnostic purposes only. OPTIONAL-->
+                <!-- <instcfgout>/MXCuBE/mxcube/gphl_diffractcal_out.nml</instcfgout> -->
                 <!-- Pattern name for characterisation collections - used for all data here-->
                 <charpattern>multiorientation</charpattern>
                 <!--&lt;!&ndash; copy calibration result to configuration directory, replacing previous value &ndash;&gt;-->
+		<!-- Doesn't work at the ESRF because the workflow beamline configuration directory
+		     is not accessible from mxproc -->
                 <!--<newconfig/>-->
             </options>
         </DiffractometerCalibration>
+
+        <DiffractometerCalibration_short>
+            <application>co.gphl.wf.workflows.WFDiffractCal</application>
+            <strategy_type>diffractcal</strategy_type>
+            <documentation>Diffractometer calibration.
+                Designed for use by beamline personnel.
+            </documentation>
+            <!-- Default wavelengths (in A) and their roles -->
+            <options>
+                <!-- Name of initial strategy from library to use -->
+                <strategy>DiffractCal</strategy>
+                <!-- Working subdirectory for workflow-side application data-->
+                <appdir>calculations</appdir>
+                <!-- Name for diffractometer calibration output -->
+                <calibration>diffractcal</calibration>
+                <!-- Path of file to dump persisted new version of instrumentation configuration. 
+		     For debugging/diagnostic purposes only. OPTIONAL-->
+                <!-- <instcfgout>/MXCuBE/mxcube/gphl_diffractcal_out.nml</instcfgout> -->
+                <!-- Pattern name for characterisation collections - used for all data here-->
+                <charpattern>multiorientation</charpattern>
+                <!--&lt;!&ndash; copy calibration result to configuration directory, replacing previous value &ndash;&gt;-->
+		<!-- Doesn't work at the ESRF because the workflow beamline configuration directory
+		     is not accessible from mxproc -->
+                <!--<newconfig/>-->
+            </options>
+        </DiffractometerCalibration_short>
+
+        <SingleWavelengthNative>
+            <application>co.gphl.wf.workflows.WFSimpleCharToProcessing</application>
+            <strategy_type>acquisition</strategy_type>
+            <documentation>
+                Single wavelength data acquisition, strategy for native data collectino
+                Includes initial characterisation and complete collection
+            </documentation>
+            <!-- Default wavelengths (in A) and their roles -->
+            <beam_energies>
+                <beam_energy>
+                    <role>Acquisition</role>
+                    <!-- beamline energies in keV -->
+                    <value>12.7</value>
+                </beam_energy>
+            </beam_energies>
+            <options>
+                <!-- Name of initial strategy from library to use -->
+                <strategy>InitialCharacterisation</strategy>
+                <!-- Working subdirectory for workflow-side application data-->
+                <appdir>calculations</appdir>
+                <!-- Pattern name for inverse-beam collections -->
+                <ibpattern>ib_interleaved</ibpattern>
+                <!-- Pattern name for non-inverse-beam collections -->
+                <pattern>interleaved</pattern>
+                <!-- NBNB replace later -->
+                <!-- Pattern name for characterisation collections -->
+                <charpattern>generic</charpattern>
+                <!-- Default prefix - will be overwritten from user input -->
+                <prefix>gphl_data</prefix>
+            </options>
+        </SingleWavelengthNative>
 
         <SingleWavelengthAcquisition>
             <application>co.gphl.wf.workflows.WFSimpleCharToProcessing</application>

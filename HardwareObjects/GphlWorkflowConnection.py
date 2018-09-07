@@ -234,9 +234,20 @@ class GphlWorkflowConnection(HardwareObject, object):
 
         logging.getLogger('HWR').info("GPhL execute :\n%s" % ' '.join(commandList))
 
+        # Get environmental variables
+        envs = {}
+        # These env variables are needed in some cases for wrapper scripts
+        # Specifically for the stratcal wrapper.
+        # They may be unset depending on the config files
+        val = self.getProperty('gphl_installation_dir')
+        if val:
+            envs['GPHL_INSTALLATION'] = val
+        license_dir = self.getProperty('co.gphl.wf.bdg_licence_dir') or val
+        if license_dir:
+            envs['BDG_home'] = license_dir
         try:
-            self._running_process = subprocess.Popen(commandList, stdout=None,
-                                                     stderr=None)
+            self._running_process = subprocess.Popen(commandList, env=envs,
+                                                     stdout=None, stderr=None)
         except:
             logging.getLogger().error('Error in spawning workflow application')
             raise
@@ -344,8 +355,9 @@ class GphlWorkflowConnection(HardwareObject, object):
                     "Workflow enactment I(D %s != info message enactment ID %s."
                     % (self._enactment_id, enactment_id)
                     )
-
-            self.workflow_queue.put_nowait((message_type, payload,
+            if self.workflow_queue is not None:
+                # Could happen if we have ended the workflow
+                self.workflow_queue.put_nowait((message_type, payload,
                                             correlation_id, None))
 
         logging.getLogger('HWR').debug("Text info message - return None")
@@ -393,8 +405,10 @@ class GphlWorkflowConnection(HardwareObject, object):
 
         if  message_type in ('SubprocessStarted', 'SubprocessStopped'):
 
-            self.workflow_queue.put_nowait((message_type, payload,
-                                            correlation_id, None))
+            if self.workflow_queue is not None:
+            # Could happen if we have ended the workflow
+                self.workflow_queue.put_nowait((message_type, payload,
+                                                correlation_id, None))
             logging.getLogger('HWR').debug("Subprocess start/stop - return None")
             return None
 
@@ -408,8 +422,10 @@ class GphlWorkflowConnection(HardwareObject, object):
             # Requests:
             self._await_result = []
             self.set_state(States.OPEN)
-            self.workflow_queue.put_nowait((message_type, payload,
-                                            correlation_id, self._await_result))
+            if self.workflow_queue is not None:
+            # Could happen if we have ended the workflow
+                self.workflow_queue.put_nowait((message_type, payload,
+                                                correlation_id, self._await_result))
             while not self._await_result:
                 time.sleep(0.1)
             result, correlation_id = self._await_result.pop(0)
@@ -425,9 +441,11 @@ class GphlWorkflowConnection(HardwareObject, object):
         elif message_type in ('WorkflowAborted',
                               'WorkflowCompleted',
                               'WorkflowFailed'):
-            self.workflow_queue.put_nowait((message_type, payload,
-                                            correlation_id, None))
-            self.workflow_queue.put_nowait(StopIteration)
+            if self.workflow_queue is not None:
+            # Could happen if we have ended the workflow
+                self.workflow_queue.put_nowait((message_type, payload,
+                                                correlation_id, None))
+                self.workflow_queue.put_nowait(StopIteration)
             logging.getLogger('HWR').debug("Aborting - return None")
             return None
 
@@ -809,8 +827,10 @@ class GphlWorkflowConnection(HardwareObject, object):
     43        mI        999.0      79.6  219.6   56.3 104.8 135.0  68.8
 
  For protein crystals the possible space group numbers corresponding  to""")
-        self.workflow_queue.put_nowait(('ChooseLattice', test_payload,
-                                        '9999999', None))
+        if self.workflow_queue is not None:
+        # Could happen if we have ended the workflow
+            self.workflow_queue.put_nowait(('ChooseLattice', test_payload,
+                                            '9999999', None))
         print('@~@~ end lattice selection test')
 
     def _response_to_server(self, payload, correlation_id):
@@ -955,9 +975,14 @@ class GphlWorkflowConnection(HardwareObject, object):
                     userProvidedInfo.lattice
                 )
             )
+        # NB The Java point groups are anenumeration: 'PG1', 'PG422' etc.
         xx = userProvidedInfo.pointGroup
         if xx:
-            builder = builder.pointGroup(xx)
+            builder = builder.pointGroup(
+                self._gateway.jvm.co.gphl.beamline.v2_unstable.domain_types.PointGroup.valueOf(
+                    'PG%s' % xx
+                )
+            )
         xx = userProvidedInfo.spaceGroup
         if xx:
             builder = builder.spaceGroup(xx)
@@ -1144,59 +1169,59 @@ class DummyGphlWorkflowModel(object):
         if valueDict:
             dd.update(valueDict)
 
-def testGphlConnection():
-    """Test communication to GPhL workflow application"""
+# def testGphlConnection():
+#     """Test communication to GPhL workflow application"""
+#
+#     connection = GphlWorkflowConnection('dummy')
+#     wf = getDummyWorkflowModel(
+#         baseDirectory='/home/rhfogh/pycharm/MXCuBE-Qt_26r',
+#         gphlInstallation='/public/xtal'
+#     )
+#     connection.start_workflow(None, wf)
 
-    connection = GphlWorkflowConnection()
-    wf = getDummyWorkflowModel(
-        baseDirectory='/home/rhfogh/pycharm/MXCuBE-Qt_26r',
-        gphlInstallation='/public/xtal'
-    )
-    connection.start_workflow(wf)
 
-
-def getDummyWorkflowModel(baseDirectory, gphlInstallation):
-    self = DummyGphlWorkflowModel()
-    self._type = 'TranslationalCalibrationTest'
-    self.java_binary = '%s/java/bin/java' % baseDirectory
-
-    self.invocation_classname = 'co.gphl.wf.workflows.WFTransCal'
-
-    dd = {
-        'file.encoding':'UTF-8',
-    }
-    self.set_invocation_properties(dd)
-
-    dd = {
-        'cp':'%s/gphl_java_classes/*' % baseDirectory,
-    }
-    self.set_invocation_options(dd)
-
-    dd = {
-        'co.gphl.sdcp.xdsbin':'%s/Xds/XDS-INTEL64_Linux_x86_64/xds_par' % gphlInstallation,
-        'co.gphl.wf.bdg_licence_dir':'%s/Server-nightly-alpha-bdg-linux64' % gphlInstallation,
-        'co.gphl.wf.stratcal.bin':'%s/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/stratcal' % gphlInstallation,
-        'co.gphl.wf.simcal_predict.bin':'%s/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/simcal_predict' % gphlInstallation,
-        'co.gphl.wf.transcal.bin':'%s/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/transcal' % gphlInstallation,
-        'co.gphl.wf.recen.bin':'%s/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/recen' % gphlInstallation,
-        'co.gphl.wf.diffractcal.bin':'path/to/diffractcal',
-        'co.gphl.wf.simcal_predict.b_wilson':1.5e-3,
-        'co.gphl.wf.simcal_predict.cell_dim_sd_scale':26.0,
-        'co.gphl.wf.simcal_predict.mosaicity':0.2,
-    }
-    self.set_workflow_properties(dd)
-
-    dd = {'wdir':os.path.join('/tmp/mxcube_testdata/visitor/idtest000/id-test-eh1/20130611/PROCESSED_DATA',
-                              'GPHL'),
-          'calibration':'transcal',
-          'file':'%s/HardwareRepository/tests/xml/gphl_config/TransCalTest.inp' % baseDirectory,
-          'beamline':'py4j::',
-          'persistname':'persistence',
-          'wfprefix':'gphl_wf_',
-          }
-    self.set_workflow_options(dd)
-    #
-    return self
-
-if __name__ == '__main__':
-    testGphlConnection()
+# def getDummyWorkflowModel(baseDirectory, gphlInstallation):
+#     self = DummyGphlWorkflowModel()
+#     self._type = 'TranslationalCalibrationTest'
+#     self.java_binary = '%s/java/bin/java' % baseDirectory
+#
+#     self.invocation_classname = 'co.gphl.wf.workflows.WFTransCal'
+#
+#     dd = {
+#         'file.encoding':'UTF-8',
+#     }
+#     self.set_invocation_properties(dd)
+#
+#     dd = {
+#         'cp':'%s/gphl_java_classes/*' % baseDirectory,
+#     }
+#     self.set_invocation_options(dd)
+#
+#     dd = {
+#         'co.gphl.sdcp.xdsbin':'%s/Xds/XDS-INTEL64_Linux_x86_64/xds_par' % gphlInstallation,
+#         'co.gphl.wf.bdg_licence_dir':'%s/Server-nightly-alpha-bdg-linux64' % gphlInstallation,
+#         'co.gphl.wf.stratcal.bin':'%s/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/stratcal' % gphlInstallation,
+#         'co.gphl.wf.simcal_predict.bin':'%s/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/simcal_predict' % gphlInstallation,
+#         'co.gphl.wf.transcal.bin':'%s/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/transcal' % gphlInstallation,
+#         'co.gphl.wf.recen.bin':'%s/Server-nightly-alpha-bdg-linux64/autoPROC/bin/linux64/recen' % gphlInstallation,
+#         'co.gphl.wf.diffractcal.bin':'path/to/diffractcal',
+#         'co.gphl.wf.simcal_predict.b_wilson':1.5e-3,
+#         'co.gphl.wf.simcal_predict.cell_dim_sd_scale':26.0,
+#         'co.gphl.wf.simcal_predict.mosaicity':0.2,
+#     }
+#     self.set_workflow_properties(dd)
+#
+#     dd = {'wdir':os.path.join('/tmp/mxcube_testdata/visitor/idtest000/id-test-eh1/20130611/PROCESSED_DATA',
+#                               'GPHL'),
+#           'calibration':'transcal',
+#           'file':'%s/HardwareRepository/tests/xml/gphl_config/TransCalTest.inp' % baseDirectory,
+#           'beamline':'py4j::',
+#           'persistname':'persistence',
+#           'wfprefix':'gphl_wf_',
+#           }
+#     self.set_workflow_options(dd)
+#     #
+#     return self
+#
+# if __name__ == '__main__':
+#     testGphlConnection()

@@ -12,7 +12,7 @@
 
     <!-- Global phasing installation directory -->
     <!-- os.path.joined with individual gphl_program_locations (below)-->
-    <gphl_installation_dir>/users/blissadm/local/gphl/GPhL-ESRF-20171110/exe/</gphl_installation_dir>
+    <gphl_installation_dir>/users/blissadm/local/gphl/gphl_latest/exe/</gphl_installation_dir>
     <!--<gphl_installation_dir>/MXCuBE/softwares/GPhL-ESRF-20171005/20171005/bin/linux64/</gphl_installation_dir>-->
 
     <!-- Location of global phasing programs relative to installation directory -->
@@ -22,7 +22,9 @@
         <!-- <co.gphl.wf.bdg_licence_dir>/MXCuBE/gphl_java_classes</co.gphl.wf.bdg_licence_dir> -->
         <!--<co.gphl.wf.bdg_licence_dir>/MXCuBE/softwares/GPhL-ESRF-20171005/20171005</co.gphl.wf.bdg_licence_dir>-->
         <!-- Location of stratcal binary -->
-        <co.gphl.wf.stratcal.bin>stratcal</co.gphl.wf.stratcal.bin>
+        <!-- NB changed, assuming that we want teh stratcal wrapper,
+        AND that it lives in the same directory as the binaries -->
+        <co.gphl.wf.stratcal.bin>stratcal_wrap.py</co.gphl.wf.stratcal.bin>
         <!-- Location of stratcal-specific license directory - OPTIONAL ->
         <co.gphl.wf.stratcal.bdg_licence_dir>/MXCuBE/softwares/Server-nightly-alpha-bdg-linux64</co.gphl.wf.stratcal.bdg_licence_dir>
         -->
