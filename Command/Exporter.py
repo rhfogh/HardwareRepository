@@ -178,7 +178,7 @@ class ExporterChannel(ChannelObject):
 
         self.__exporter.register(attribute_name, self.update)
 
-        logging.getLogger("HWR").debug('Attaching Exporter channel: %s %s ' %(address, name))
+#        logging.getLogger("HWR").debug('Attaching Exporter channel: %s %s ' %(address, name))
 
         self.update()
 

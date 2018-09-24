@@ -174,12 +174,15 @@ class GphlWorkflowConnection(HardwareObject, object):
         params['invocation_options']['cp'] = self.getProperty(
             'gphl_java_classpath'
         )
-        params['properties']['co.gphl.sdcp.xdsbin'] = (
-            self.getProperty('xds_binary')
+        params['properties']['co.gphl.wf.bin'] = self.getProperty(
+            'co.gphl.wf.bin'
+        )
+        params['properties']['co.gphl.wf.xds.bin'] = (
+            self.getProperty('co.gphl.wf.xds.bin')
         )
         if self.hasObject('gphl_program_locations'):
             dd = self['gphl_program_locations'].getProperties()
-            prefix = self.getProperty('gphl_installation_dir')
+            prefix = self.getProperty('co.gphl.wf.bin')
             if prefix:
                 dd = dict((key, os.path.join(prefix, val))
                           for key, val in dd.items())
@@ -235,24 +238,49 @@ class GphlWorkflowConnection(HardwareObject, object):
         logging.getLogger('HWR').info("GPhL execute :\n%s" % ' '.join(commandList))
 
         # Get environmental variables
-        envs = {}
+        envs = os.environ.copy()
+	
+	# Trick to allow unauthorised account (e.g. opid30) on EDRF to run GPhL programs
+	# Any value is OK, just setting it is enough.
+	envs['AutoPROCWorkFlowUser'] = '1'
+	
+	# Hack to pass alternative installation dir for processing
+        val = self.getProperty('gphl_wf_processing_installation')
+        logging.getLogger('HWR').info("@~@~ setting envs GPHL_PROC_INSTALLATION %s" % val)
+	if val:
+            envs['GPHL_PROC_INSTALLATION'] = val
+        
         # These env variables are needed in some cases for wrapper scripts
         # Specifically for the stratcal wrapper.
         # They may be unset depending on the config files
-        val = self.getProperty('gphl_installation_dir')
+        val = self.getProperty('co.gphl.wf.bin')
+        logging.getLogger('HWR').info("@~@~ setting envs 1 %s" % val)
         if val:
             envs['GPHL_INSTALLATION'] = val
         license_dir = self.getProperty('co.gphl.wf.bdg_licence_dir') or val
+        logging.getLogger('HWR').info("@~@~ setting envs 2 %s" % license_dir)
         if license_dir:
             envs['BDG_home'] = license_dir
-        try:
+        logging.getLogger('HWR').info('Executing GPhL workflow, in environment %s' % envs)
+        ff = self.getProperty('gphl_wf_redirected_out')
+	if ff:
+	    fp1 = open(ff, 'w')
+	    fp2 = subprocess.STDOUT
+	else:
+	    fp1 = fp2 = None
+	try:
             self._running_process = subprocess.Popen(commandList, env=envs,
-                                                     stdout=None, stderr=None)
+                                                     stdout=fp1, stderr=fp2)
+                                                     #stdout=None, stderr=None)
         except:
-            logging.getLogger().error('Error in spawning workflow application')
+            logging.getLogger('HWR').error('Error in spawning workflow application')
+	    import traceback
+            logging.getLogger('HWR').info('@~@~\n%s\n@~@~' % traceback.format_exc())
+	    
             raise
 
-        self.set_state(States.RUNNING)
+        logging.getLogger('HWR').debug('GPhL workflow spawned')    
+	self.set_state(States.RUNNING)
 
         logging.getLogger('HWR').debug("GPhL workflow pid, returncode : %s, %s"
                                        % (self._running_process.pid,
@@ -324,10 +352,12 @@ class GphlWorkflowConnection(HardwareObject, object):
         # Shut down hardware object
         qu = self.workflow_queue
         if qu is None:
+            logging.getLogger('HWR').debug("@~@~ Queue gone. Ending:")
             self._workflow_ended()
         else:
             # If the queue is running,
             # workflow_ended will be called from post_execute
+            logging.getLogger('HWR').debug("@~@~ Stopping queue:")
             qu.put_nowait(StopIteration)
 
 

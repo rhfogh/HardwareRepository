@@ -171,6 +171,13 @@ class GphlWorkflow(HardwareObject, object):
         else:
             invocation_properties = {}
 
+        # Add options for target directories:
+        # There should be a better way, but apparently there isn't
+        session_hwobj = HardwareRepository().getHardwareObject('session')
+        process_root = session_hwobj.get_base_process_directory()
+        options['appdir'] = process_root
+	
+	
         for wf_node in self['workflows']:
             name = wf_node.name()
             wf_dict = {'name':name,
@@ -257,6 +264,10 @@ class GphlWorkflow(HardwareObject, object):
             while True:
                 while workflow_queue.empty():
                     time.sleep(0.1)
+                    xx = workflow_connection._running_process
+                    logging.getLogger('HWR').debug('@~@~ WF running %s' %
+                                                   (xx.returncode if xx else '-DONE-'
+                                                   ))
 
                 tt = workflow_queue.get_nowait()
                 if tt is StopIteration:
@@ -1067,6 +1078,8 @@ class GphlWorkflow(HardwareObject, object):
 
         # TODO re-check if this is correct
         rootDirectory = workflow_model.path_template.directory
+	if not os.path.exists(rootDirectory):
+	    os.makedirs(rootDirectory)
 
         priorInformation = self.GphlMessages.PriorInformation(
             sampleId=sampleId,

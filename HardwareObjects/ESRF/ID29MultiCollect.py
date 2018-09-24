@@ -64,11 +64,12 @@ class ID29MultiCollect(ESRFMultiCollect):
     def move_motors(self, motors_to_move_dict):
         diffr = self.bl_control.diffractometer
         cover_task = self.getObjectByRole("controller").detcover.set_out()
-        try:
-            motors_to_move_dict.pop('kappa')
-            motors_to_move_dict.pop('kappa_phi')
-        except:
-            pass
+        # Put kappa and kappa_phi rotatino back in - bug fix
+        # try:
+        #     motors_to_move_dict.pop('kappa')
+        #     motors_to_move_dict.pop('kappa_phi')
+        # except:
+        #     pass
         diffr.moveSyncMotors(motors_to_move_dict, wait=True, timeout=200)
 
     @task

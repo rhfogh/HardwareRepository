@@ -29,7 +29,7 @@
                 <!-- EITHER file OR grid must be set. NBNB REDO! -->
                 <file>gphl_config/esrf-id30b/transcal_2stage.json</file>
                 <!--&lt;!&ndash; copy calibration result to configuration directory, replacing previous value &ndash;&gt;-->
-                <!--<newconfig/>-->
+                <updateblconfig/>
                 <!-- updateconfig option, automaticallly updates entire configuration -->
                 <!--<grid>grid_axes_spec</grid>-->
                 <!-- Path of file to dump persisted new version of instrumentation configuration. 
@@ -49,7 +49,7 @@
                 <!-- Name of initial strategy from library to use -->
                 <strategy>DiffractCal_ex</strategy>
                 <!-- Working subdirectory for workflow-side application data-->
-                <appdir>calculations</appdir>
+                <!-- <appdir>calculations</appdir> -->
                 <!-- Name for diffractometer calibration output -->
                 <calibration>diffractcal</calibration>
                 <!-- Path of file to dump persisted new version of instrumentation configuration. 
@@ -75,7 +75,7 @@
                 <!-- Name of initial strategy from library to use -->
                 <strategy>DiffractCal</strategy>
                 <!-- Working subdirectory for workflow-side application data-->
-                <appdir>calculations</appdir>
+                <!-- <appdir>calculations</appdir> -->
                 <!-- Name for diffractometer calibration output -->
                 <calibration>diffractcal</calibration>
                 <!-- Path of file to dump persisted new version of instrumentation configuration. 
@@ -109,7 +109,7 @@
                 <!-- Name of initial strategy from library to use -->
                 <strategy>InitialCharacterisation</strategy>
                 <!-- Working subdirectory for workflow-side application data-->
-                <appdir>calculations</appdir>
+                <!-- <appdir>calculations</appdir> -->
                 <!-- Pattern name for inverse-beam collections -->
                 <ibpattern>ib_interleaved</ibpattern>
                 <!-- Pattern name for non-inverse-beam collections -->
@@ -141,7 +141,7 @@
                 <!-- Name of initial strategy from library to use -->
                 <strategy>InitialCharacterisation</strategy>
                 <!-- Working subdirectory for workflow-side application data-->
-                <appdir>calculations</appdir>
+                <!-- <appdir>calculations</appdir>-->
                 <!-- Pattern name for inverse-beam collections -->
                 <ibpattern>ib_interleaved</ibpattern>
                 <!-- Pattern name for non-inverse-beam collections -->
@@ -178,7 +178,7 @@
                 <!-- Name of initial strategy from library to use -->
                 <strategy>InitialCharacterisation</strategy>
                 <!-- Working subdirectory for workflow-side application data-->
-                <appdir>calculations</appdir>
+                <!-- <appdir>calculations</appdir>-->
                 <!-- Pattern name for inverse-beam collections -->
                 <ibpattern>ib_interleaved</ibpattern>
                 <!-- Pattern name for non-inverse-beam collections -->
@@ -220,7 +220,7 @@
                 <!-- Name of initial strategy from library to use -->
                 <strategy>InitialCharacterisation</strategy>
                 <!-- Working subdirectory for workflow-side application data-->
-                <appdir>calculations</appdir>
+                <!-- <appdir>calculations</appdir>-->
                 <!-- Pattern name for inverse-beam collections -->
                 <ibpattern>ib_interleaved</ibpattern>
                 <!-- Pattern name for non-inverse-beam collections -->

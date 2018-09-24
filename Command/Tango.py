@@ -4,6 +4,7 @@ import weakref
 import new
 import time
 import types
+import numpy
 import gevent
 import gevent.event
 
@@ -14,6 +15,7 @@ from .. import saferef
 try:
     import PyTango
     from PyTango.gevent import DeviceProxy
+    from PyTango import DeviceProxy as RawDeviceProxy
 except ImportError:
     logging.getLogger('HWR').warning("Tango support is not available.")
 
@@ -25,7 +27,7 @@ class TangoCommand(CommandObject):
         self.deviceName = tangoname
         self.device = None    
    
-    def init_device(self): 
+    def init_device(self):
         try:
             self.device = DeviceProxy(self.deviceName)
         except PyTango.DevFailed, traceback:
@@ -63,7 +65,11 @@ class TangoCommand(CommandObject):
 
     def abort(self):
         pass
-        
+
+    def setDeviceTimeout(self, timeout):
+        if self.device is None:
+            self.init_device()
+            self.device.set_timeout_millis(timeout)
 
     def isConnected(self):
         return self.device is not None
@@ -114,23 +120,26 @@ class TangoChannel(ChannelObject):
         self.timeout = int(timeout)
         self.read_as_str = kwargs.get("read_as_str", False)
         self._device_initialized = gevent.event.Event()
-         
         logging.getLogger("HWR").debug("creating Tango attribute %s/%s, polling=%s, timeout=%d", self.deviceName, self.attributeName, polling, self.timeout)
+        self.init_device()
+        self.continue_init(None)
+        """
         self.init_poller = Poller.poll(self.init_device,
                                        polling_period = 3000,
                                        value_changed_callback = self.continue_init,
                                        error_callback = self.init_poll_failed,
                                        start_delay=100)
-
+        """
     def init_poll_failed(self, e, poller_id):
         self._device_initialized.clear()
         logging.warning("%s/%s (%s): could not complete init. (hint: device server is not running, or has to be restarted)", self.deviceName, self.attributeName, self.name())
         self.init_poller = self.init_poller.restart(3000)
 
     def continue_init(self, _):
-        self.init_poller.stop()
+        #self.init_poller.stop()
 
         if type(self.polling) == types.IntType:
+             self.raw_device = RawDeviceProxy(self.deviceName)
              Poller.poll(self.poll,
                          polling_period = self.polling,
                          value_changed_callback = self.update,
@@ -188,15 +197,17 @@ class TangoChannel(ChannelObject):
  
     def poll(self):
         if self.read_as_str:
-            value = self.device.read_attribute(self.attributeName, PyTango.DeviceAttribute.ExtractAs.String).value
+            value = self.raw_device.read_attribute(self.attributeName, PyTango.DeviceAttribute.ExtractAs.String).value
             #value = self.device.read_attribute_as_str(self.attributeName).value
         else:
-            value = self.device.read_attribute(self.attributeName).value
+            value = self.raw_device.read_attribute(self.attributeName).value
        
         return value
 
 
     def pollFailed(self, e, poller_id):
+        self.emit('update', None)
+        """
         emit_update = True
         if self.value is None:
           emit_update = False
@@ -220,7 +231,7 @@ class TangoChannel(ChannelObject):
         if emit_update: 
           # emit at the end => can raise exceptions in callbacks
           self.emit('update', None)
-
+        """
 
     def getInfo(self):
         self._device_initialized.wait(timeout=3)
@@ -228,8 +239,9 @@ class TangoChannel(ChannelObject):
 
  
     def update(self, value = Poller.NotInitializedValue):
-        if value == Poller.NotInitializedValue:
+        if not isinstance(value, numpy.ndarray)and value == Poller.NotInitializedValue:
             value = self.getValue()
+
         if type(value) == types.TupleType:
           value = list(value)
 
