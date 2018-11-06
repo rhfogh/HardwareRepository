@@ -22,7 +22,7 @@
             </documentation>
             <options>
                 <!-- Name for translation calibration output -->
-                <calibration>transcal</calibration>
+                <calibration>Transcal</calibration>
                 <!-- file: File containing settings of rotation axes for calibration -->
                 <!-- The name is the relative path from the Repository directory -->
                 <!-- grid: Grid definition [axis_name:start:end:step], slowest-varying to fastest varying -->
@@ -51,7 +51,7 @@
                 <!-- Working subdirectory for workflow-side application data-->
                 <!-- <appdir>calculations</appdir> -->
                 <!-- Name for diffractometer calibration output -->
-                <calibration>diffractcal</calibration>
+                <calibration>Diffractcal</calibration>
                 <!-- Path of file to dump persisted new version of instrumentation configuration. 
 		     For debugging/diagnostic purposes only. OPTIONAL-->
                 <!-- <instcfgout>/MXCuBE/mxcube/gphl_diffractcal_out.nml</instcfgout> -->
@@ -60,7 +60,7 @@
                 <!--&lt;!&ndash; copy calibration result to configuration directory, replacing previous value &ndash;&gt;-->
 		<!-- Doesn't work at the ESRF because the workflow beamline configuration directory
 		     is not accessible from mxproc -->
-                <!--<newconfig/>-->
+                <!--<updateblconfig/>-->
             </options>
         </DiffractometerCalibration>
 
@@ -77,7 +77,7 @@
                 <!-- Working subdirectory for workflow-side application data-->
                 <!-- <appdir>calculations</appdir> -->
                 <!-- Name for diffractometer calibration output -->
-                <calibration>diffractcal</calibration>
+                <calibration>Diffractcal</calibration>
                 <!-- Path of file to dump persisted new version of instrumentation configuration. 
 		     For debugging/diagnostic purposes only. OPTIONAL-->
                 <!-- <instcfgout>/MXCuBE/mxcube/gphl_diffractcal_out.nml</instcfgout> -->
@@ -86,7 +86,7 @@
                 <!--&lt;!&ndash; copy calibration result to configuration directory, replacing previous value &ndash;&gt;-->
 		<!-- Doesn't work at the ESRF because the workflow beamline configuration directory
 		     is not accessible from mxproc -->
-                <!--<newconfig/>-->
+                <!--<updateblconfig/>-->
             </options>
         </DiffractometerCalibration_short>
 
@@ -237,7 +237,7 @@
 
 
     <!-- Parameters for the command-line invocation of the workflow application-->
-    <!-- These are unlile;y to need changing - except for maybe wfprefix -->
+    <!-- These are unlikely to need changing - except for maybe wfprefix -->
 
     <!-- Java invocation properties - syntax is e.g. '-Dfile.encoding=UTF-8' -->
     <invocation_properties>

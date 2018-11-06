@@ -25,9 +25,13 @@ det_ny= 2527
 ! Input values from ESRF image header 20180918
 det_org_x= 1231.85
 det_org_y= 1297.37
-det_org_dist= 392.36 ! 2.0A
+! det_org_dist= 392.36 ! 2.0A
 ! det_org_dist= 345.00 ! 1.8A
 ! det_org_dist= 296.50 ! 1.6A
+! det_org_dist= 270.14 ! 1.497A
+det_org_dist= 170.0 ! ??A
+! Specific for ID30B. Conf http://www.globalphasing.com/autoproc/wiki/index.cgi?BeamlineSettings#esrf
+d_sensor= 1.00
 
 det_gonio_axis_dirs=  0.0  0.0  1.0
  ! Actual value is irrelevant, since axis is (nominally) parallel to beam
@@ -82,8 +86,6 @@ gonio_centring_axis_names= 'phiy', 'sampy', 'sampx'
 
 ! Taken from http://xds.mpimf-heidelberg.mpg.de/html_doc/INPUT_templates/XDS-PILATUS.INP
 xds_DETECTOR= PILATUS
-xds_MINIMUM_VALID_PIXEL_VALUE= 0
-xds_TRUSTED_REGION= 0.0 1.41
 xds_OVERLOAD= 1048500
 
 /
