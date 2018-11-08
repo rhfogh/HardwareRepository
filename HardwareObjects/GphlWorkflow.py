@@ -264,10 +264,6 @@ class GphlWorkflow(HardwareObject, object):
             while True:
                 while workflow_queue.empty():
                     time.sleep(0.1)
-                    xx = workflow_connection._running_process
-                    logging.getLogger('HWR').debug('@~@~ WF running %s' %
-                                                   (xx.returncode if xx else '-DONE-'
-                                                   ))
 
                 tt = workflow_queue.get_nowait()
                 if tt is StopIteration:
