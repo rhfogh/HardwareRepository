@@ -1286,7 +1286,7 @@ class GraphicsItemScale(GraphicsItem):
     def set_pixels_per_mm(self, pixels_per_mm):
         self.pixels_per_mm = pixels_per_mm
         for line_len in GraphicsItemScale.HOR_LINE_LEN:
-            if self.pixels_per_mm[0] * line_len / 1000 <= 200:
+            if self.pixels_per_mm[0] * line_len / 1000 <= 400:
                 self.__scale_len = line_len
                 break
 
@@ -1295,6 +1295,9 @@ class GraphicsItemScale(GraphicsItem):
             position_y is not None):
             self.start_coord[0] = int(position_x)
             self.start_coord[1] = int(position_y)
+        else:
+            self.start_coord[0] = 0
+            self.start_coord[1] = int(self.scene().height())
 
     def set_display_grid(self, display_grid):
         self.__display_grid = display_grid
