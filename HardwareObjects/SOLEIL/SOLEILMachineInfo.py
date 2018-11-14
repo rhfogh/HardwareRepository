@@ -88,7 +88,7 @@ class SOLEILMachineInfo(HardwareObject):
         self.hutch_hum_addr = None
         self.hutch_temp = 0
         self.hutch_hum = 0
-        self.overflow_alarm = None
+        self.high_level_alarm = None
         self.low_level_alarm = 0
         self.auto_refill = None
         self.state_text = "Not updated yet"
@@ -160,7 +160,7 @@ class SOLEILMachineInfo(HardwareObject):
         self.chan_cryojet_in = None
         self.chan_sample_temperature = None
         self.chan_sc_dewar_low_level_alarm = None
-        self.chan_sc_dewar_overflow_alarm = None
+        self.chan_sc_dewar_high_level_alarm = None
 
         self.ring_energy = 2.75
 
@@ -217,10 +217,10 @@ class SOLEILMachineInfo(HardwareObject):
                self.low_level_alarm_changed)
             self.low_level_alarm_changed(self.chan_sc_dewar_low_level_alarm.getValue())
 
-        self.chan_sc_dewar_overflow_alarm = self.getChannelObject('scOverflowAlarm')
-        if self.chan_sc_dewar_overflow_alarm is not None:
-            self.chan_sc_dewar_overflow_alarm.connectSignal('update',
-               self.overflow_alarm_changed)
+        self.chan_sc_dewar_high_level_alarm = self.getChannelObject('scOverflowAlarm')
+        if self.chan_sc_dewar_high_level_alarm is not None:
+            self.chan_sc_dewar_high_level_alarm.connectSignal('update',
+               self.high_level_alarm_changed)
 
         #self.chan_flux = self.getChannelObject('flux')
         #if self.chan_flux is not None:
@@ -254,7 +254,7 @@ class SOLEILMachineInfo(HardwareObject):
             self.values_list[4]['value'] = "Unknown"
         
         if self.chan_sample_temperature is not None:
-            self.values_list[4]['value'] += '\n sample temperature: %.1f K' % self.chan_sample_temperature.getValue()
+            self.values_list[4]['value'] += '\ntemperature: %.1f K' % self.chan_sample_temperature.getValue()
         else:
             logging.getLogger("HWR").debug('chan_sample_temperature: %s' % self.chan_sample_temperature)
         self.update_values()
@@ -294,13 +294,27 @@ class SOLEILMachineInfo(HardwareObject):
         date_boundary = state_text1.find(date_boundary_string)
         date = state_text1[:date_boundary]
         state_text1 = state_text1[date_boundary + len(date_boundary_string):]
-        state_text = "%s, %s\n" % (date, state_text0)
-        #state_text += "electron energy: %.2f GeV\n" % (self.ring_energy,)
+        
+        state_text = "%s\n%s\n" % (date, state_text0)
+        
         state_text += "filling: %s\n" % (filling_mode,)
-        if state_text1 != ' ':
+        if state_text1 != ' ' and state_text1 != '' and state_text1.count(' ') != len(state_text1):
             state_text += "%s\n" % (state_text1, )
-        if state_text2 != ' ':
-            state_text += "%s\n" % (state_text2, )
+        line_length = 26
+        st2 = state_text2.split()
+        line = ''
+        while st2:
+            word = st2.pop(0)
+            if len(line + word) < line_length:
+                if line == '':
+                    line = word
+                else:
+                    line = '%s %s' % (line, word)
+            else:
+                state_text += "%s\n" % (line, )
+                line = word
+        if line != '':
+            state_text += "%s\n" % (line, )
         
         if is_beam_usable:
             self.values_list[1]['in_range'] = True
@@ -317,9 +331,9 @@ class SOLEILMachineInfo(HardwareObject):
         self.low_level_alarm = value
         self.update_sc_alarm()
 
-    def overflow_alarm_changed(self, value):
+    def high_level_alarm_changed(self, value):
         """Overflow alarm"""
-        self.overflow_alarm = value
+        self.high_level_alarm = value
         self.update_sc_alarm()
 
     def sc_autorefill_changed(self, value):
@@ -336,28 +350,40 @@ class SOLEILMachineInfo(HardwareObject):
  
     def update_sc_alarm(self):
         """Sample changer alarm"""
-        if self.low_level_alarm == 1:
+        if self.chan_sc_dewar_high_level_alarm != None:
+                ov = self.chan_sc_dewar_high_level_alarm.getValue()
+        else: 
+            ov = -1
+        if self.chan_sc_dewar_low_level_alarm != None:
+            uf = self.chan_sc_dewar_low_level_alarm.getValue()
+        else:
+            uf = -1
+        logging.getLogger("HWR").error("low_level_alarm %s %s, high_level_alarm %s %s "  % (ov, self.high_level_alarm, uf, self.low_level_alarm))
+        
+        if self.low_level_alarm == False:
             self.values_list[5]['value'] = "Low level alarm!"
             self.values_list[5]['in_range'] = False
             self.values_list[5]['bold'] = True
-            #logging.getLogger("GUI").error("Liquid nitrogen " + \
-                    #" level in sample changer dewar is too low!")
+            logging.getLogger("HWR").error("Liquid nitrogen " + \
+                    " level in sample changer dewar is too low!")
 
-        elif self.overflow_alarm:
+        elif self.high_level_alarm == False:
             self.values_list[5]['value'] = "Overflow alarm!"
             self.values_list[5]['in_range'] = False
             self.values_list[5]['bold'] = True
-            logging.getLogger("GUI").error("Liquid nitrogen " + \
+            logging.getLogger("HWR").error("Liquid nitrogen " + \
                     "overflow in sample changer dewar!")
         else:
             self.values_list[5]['value'] = "Dewar level in range"
             self.values_list[5]['in_range'] = True
             
-        logging.getLogger("HWR").error("chan_sc_auto_refill %s" % self.chan_sc_auto_refill.getValue())
-        if self.chan_sc_auto_refill.getValue() == 0:
-            self.values_list[5]['value'] += ', refill OFF'
-        else:
-            self.values_list[5]['value'] += ', refill ON'
+        logging.getLogger("HWR").info("chan_sc_auto_refill %s" % self.chan_sc_auto_refill.getValue())
+        
+        refill_message = self.values_list[5]['value']
+        if 'refill Off' not in refill_message and self.chan_sc_auto_refill.getValue() == 0:
+            self.values_list[5]['value'] += '\nrefill Off'
+        elif 'refill On' not in refill_message:
+            self.values_list[5]['value'] += '\nrefill On'
         self.update_values()
 
     def flux_changed(self, value, beam_info=None, transmission=None):
@@ -387,8 +413,12 @@ class SOLEILMachineInfo(HardwareObject):
 
     def temperature_changed(self, value):
         """"Update hutch temperature"""
-        self.values_list[2]['value'] = '%.1f C' % value
-        self.values_list[2]['in_range'] = value < 25 #self.limits_dict['temp']
+        try:
+            self.values_list[2]['value'] = '%.1f C' % value
+            self.values_list[2]['in_range'] = value < 25 #self.limits_dict['temp']
+        except:
+            self.values_list[2]['value'] = 'unknown' 
+            self.values_list[2]['in_range'] = False #self.limits_dict['temp']
         self.update_values()
         
     def get_temp_hum_values(self, sleep_time):
@@ -416,8 +446,8 @@ class SOLEILMachineInfo(HardwareObject):
 
     def	get_message(self):
         """Returns synchrotron state text"""
-        state_text = u'%s' % self.state_text
-        state_text = state_text.encode('ascii', 'xmlcharrefreplace')
+        state_text = '%s' % str(self.state_text)
+        #state_text = state_text.encode('ascii', 'xmlcharrefreplace')
         return state_text
 
     def update_ramdisk_size(self, sleep_time):
