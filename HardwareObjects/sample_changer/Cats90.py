@@ -12,10 +12,16 @@ Derived from Michael Hellmig's implementation for the BESSY CATS sample changer
  - fix the bug of MD2 jam during exchange or unload
 """
 from .GenericSampleChanger import *
+from .Sample import *
+from .Component import *
+from HardwareRepository.TaskUtils import *
 
 import gevent
 import PyTango
 import logging
+import traceback
+
+from cats import cats
 
 __author__ = "Michael Hellmig, Jie Nan, Bixente Rey"
 __credits__ = ["The MXCuBE collaboration"]
@@ -82,16 +88,21 @@ class Cats90(SampleChanger):
     """    
     __TYPE__ = "CATS"    
 
-    default_no_lids = 3
-    baskets_per_lid = 3
-    default_samples_per_basket = 10
+    DEFAULT_NO_OF_LIDS = 3
+    DEFAULT_NO_OF_BASKETS_IN_LID = 3
+    DEFAULT_NO_OF_BASKETS = 9
+    DEFAULT_NO_OF_SAMPLES_IN_BASKET = 10
+    DEFAULT_SOAK_LID = 2
     
-    default_tool = "ESRF"
-    default_pucktype = "ACTOR"
+    DEFAULT_TOOL = "ESRF"
+    DEFAULT_PUCKTYPE = "ACTOR"
+    DETECT_PUCKS = True
     
     def __init__(self, *args, **kwargs):
         super(Cats90, self).__init__(self.__TYPE__,False, *args, **kwargs)
-            
+        self.cats_api = cats()
+        self.logger = logging.getLogger('HWR')
+        
     def init(self):      
         self._selected_sample = None
         self._selected_basket = None
@@ -115,102 +126,124 @@ class Cats90(SampleChanger):
         
         self._minidiff_type = self.getProperty("minidiff_type")
 
-        no_of_lids = self.getProperty('no_of_lids')
-        no_of_baskets = self.getProperty('no_of_baskets')
-        samples_per_basket = self.getProperty('samples_per_basket')
+        self.no_of_lids = self.getProperty('no_of_lids', Cats90.DEFAULT_NO_OF_LIDS)
+        self.no_of_baskets = self.getProperty('no_of_baskets', Cats90.DEFAULT_NO_OF_BASKETS)
+        self.no_of_samples_in_basket = self.getProperty('no_of_samples_in_basket',
+                                                        Cats90.DEFAULT_NO_OF_SAMPLES_IN_BASKET)
+        
+        self.do_detect_pucks = self.getProperty('detect_pucks', Cats90.DETECT_PUCKS)
 
-        _tool = self.getProperty("tool")
-
+        _tool = self.getProperty("tool", Cats90.DEFAULT_TOOL)
         if _tool in TOOLS:
             self.tool = TOOLS[_tool]
         else:
-            self.tool = TOOLS[self.default_tool]
+            self.tool = TOOLS[Cats90.DEFAULT_TOOL]
 
-        _pucktype = self.getProperty("pucktype")
+        _pucktype = self.getProperty("pucktype", Cats90.DEFAULT_PUCKTYPE)
         if _pucktype in PUCK_TYPES:
             self.pucktype = PUCK_TYPES[_pucktype]
         else:
-            self.pucktype = PUCK_TYPES[self.default_pucktype]
+            self.pucktype = PUCK_TYPES[Cats90.DEFAULT_PUCKTYPE]
 
-        if no_of_lids is None:
-            self.number_of_lids = self.default_no_lids
-        else:
-            self.number_of_lids = int(no_of_lids)
-
-        if no_of_baskets is None:
-            self.number_of_baskets = self.baskets_per_lid * self.number_of_lids
-        else:
-            self.number_of_baskets = int(no_of_baskets)
-
-        self.basket_presence = [None,] * self.number_of_baskets
-        self.basket_channels = [None,] * self.number_of_baskets
+        self.soak_lid = self.getProperty("no_soak_lid", Cats90.DEFAULT_SOAK_LID)
         
-        if samples_per_basket is None:
-            self.samples_per_basket = self.default_samples_per_basket
-        else:
-            self.samples_per_basket = samples_per_basket
+        self.basket_presence = [None, ] * self.no_of_baskets
+        self.basket_channels = [None, ] * self.no_of_baskets
 
-        for i in range(self.number_of_baskets):
-            basket = Basket(self,i+1, samples_num=self.samples_per_basket)
+        for i in range(self.no_of_baskets):
+            basket = Basket(self, i+1, samples_num=self.no_of_samples_in_basket)
             self._addComponent(basket)
 
         # Create channels from XML
-        self._chnState = self.getChannelObject("_chnState")
-        self._chnStatus = self.getChannelObject("_chnStatus")
-        self._chnPowered = self.getChannelObject("_chnPowered")
-        self._chnPathRunning = self.getChannelObject("_chnPathRunning")
-        self._chnNumLoadedSample = self.getChannelObject("_chnNumLoadedSample")
-        self._chnLidLoadedSample = self.getChannelObject("_chnLidLoadedSample")
-        self._chnSampleBarcode = self.getChannelObject("_chnSampleBarcode")
-        self._chnSampleIsDetected = self.getChannelObject("_chnSampleIsDetected")
-
-        for command_name in ("_cmdAbort", "_cmdLoad", "_cmdUnload", "_cmdChainedLoad"):
-            setattr(self, command_name, self.getCommandObject(command_name))
-
-        for basket_index in range(self.number_of_baskets):            
+        for channel_name in ("State", 
+                             "Powered", 
+                             "PathRunning", 
+                             "NumLoadedSample", 
+                             "LidLoadedSample", 
+                             "SampleBarcode", 
+                             "SampleIsDetected",  
+                             "TotalLidState", 
+                             "Message", 
+                             "LN2RegulationDewar1"):
+            try:
+                chn = "_chn%s" % channel_name
+                self.logger.info('initializing %s ' % chn)
+                setattr(self, chn, self.getChannelObject(chn))
+                if getattr(self, chn) is not None:
+                    getattr(self, chn).connectSignal("update", getattr(self, '_update%s' % channel_name))
+            except:
+                self.logger.warning("Cannot create channel for %s. Check xml" % channel_name)
+                self.logger.exception(traceback.format_exc())
+                        
+        for lid_index in range(self.no_of_lids):
+            try:
+                channel_name = "_chnLid%dState" % (lid_index + 1)
+                setattr(self, channel_name, self.getChannelObject(channel_name))
+                if getattr(self, channel_name) is not None:
+                    getattr(self, channel_name).connectSignal("update", getattr(self, "_updateLid%dState" % (lid_index + 1)))
+            except:
+                self.logger.warning("Cannot create channel for %s. Check xml" % channel_name)
+                self.logger.exception(traceback.format_exc())
+                
+        for basket_index in range(self.no_of_baskets):            
             channel_name = "_chnBasket%dState" % (basket_index + 1)
             self.basket_channels[basket_index] = self.getChannelObject(channel_name) 
-
-        self._chnAllLidsClosed = self.getChannelObject("_chnTotalLidState")
-
+        
+        # Main Commands
+        for command_name in ("_cmdAbort", 
+                             "_cmdLoad", 
+                             "_cmdUnload", 
+                             "_cmdChainedLoad"):
+            try:
+                setattr(self, command_name, self.getCommandObject(command_name))
+            except:
+                self.logger.warning("Cannot create command for %s. Check xml" % command_name)
+        # CatsMaint commands
+        for command_name in ("Reset", 
+                             "Back", 
+                             "Safe", 
+                             "Home", 
+                             "Dry", 
+                             "DrySoak", 
+                             "Soak", 
+                             "ClearMemory", 
+                             "AckSampleMemory", 
+                             "OpenTool", 
+                             "ToolCal", 
+                             "PowerOn", 
+                             "PowerOff", 
+                             "RegulOn",
+                             "RegulOff", 
+                             "OpenLid1", 
+                             "CloseLid1", 
+                             "OpenLid2", 
+                             "CloseLid2", 
+                             "OpenLid3", 
+                             "CloseLid3"):
+            try:
+                setattr(self, command_name, self.getCommandObject('_cmd%s' % command_name))
+            except:
+                self.logger.warning("Cannot create command for %s. Check xml" % command_name)
+        
         if self._minidiff_type == "MD2":
             self._chnCurrentPhase = self.getChannelObject("_chnCurrentPhase")
             self._chnTransferMode = self.getChannelObject("_chnTransferMode")
 
         self._initSCContents()
 
-        # SampleChanger.init must be called _after_ initialization of the Cats because it starts the update methods which access
-        # the device server's status attributes
-        #  in fact.. no.  If SampleChanger.init() is called reception of signals at connection time is not done.  
-        #
-        #  In the case of Cats90 we do not use an update_timer... update is done by signals from Tango channels 
-        #  Simply call updateInfo() to get information of which baskets are loaded
-
-        # SampleChanger.init(self)   
-
-        # useUpdateTimer 
-        #
-        # if True:
-        #   update of state is done by calling _doUpdateInfo()
-        # 
-        # if False: 
-        #   we should connect to signals from channels and send info out
-
         self.use_update_timer = False  # do not use update_timer for Cats 
 
         if self.use_update_timer is False:
-            logging.getLogger("HWR").info("Cats: connecting signals")
+            self.logger.info("Cats: connecting signals")
             self._chnState.connectSignal("update", self.cats_state_changed)
-            self._chnStatus.connectSignal("update", self.cats_status_changed)
+            #self._chnStatus.connectSignal("update", self.cats_status_changed)
             self._chnPathRunning.connectSignal("update", self.cats_pathrunning_changed) 
             self._chnPowered.connectSignal("update", self.cats_powered_changed) 
-            self._chnAllLidsClosed.connectSignal("update", self.cats_lids_closed_changed)
+            self._chnTotalLidState.connectSignal("update", self.cats_lids_closed_changed)
             self._chnLidLoadedSample.connectSignal("update", self.cats_loaded_lid_changed)
             self._chnNumLoadedSample.connectSignal("update", self.cats_loaded_num_changed)
              
-            #for basket_index in range(self.number_of_baskets):
-                #self.basket_channels[basket_index].connectSignal("update", self.cats_baskets_changed)
-            for basket_index in range(self.number_of_baskets):
+            for basket_index in range(self.no_of_baskets):
                 channel = self.basket_channels[basket_index]                 
                 channel.connectSignal("update", lambda value, \
                      this=self,idx=basket_index:Cats90.cats_basket_presence_changed(this,idx,value))
@@ -265,7 +298,7 @@ class Cats90(SampleChanger):
         basket = None
         sample = None
         try:
-          if basket_no is not None and basket_no>0 and basket_no <=self.number_of_baskets:
+          if basket_no is not None and basket_no>0 and basket_no <=self.no_of_baskets:
             basket = self.getComponentByAddress(Basket.getBasketAddress(basket_no))
             if sample_no is not None and sample_no>0 and sample_no <= basket.getNumberOfSamples():
                 sample = self.getComponentByAddress(Pin.getSampleAddress(basket_no, sample_no))            
@@ -311,13 +344,14 @@ class Cats90(SampleChanger):
             if not self._chnTransferMode.getValue()=="SAMPLE_CHANGER":
                 return
        
-        return self._executeTask(SampleChangerState.Loading,wait,self._doLoad,sample)
+        return self._executeServerTask(SampleChangerState.Loading,wait,self._doLoad,sample)
 
 # JN 20150324, add load for queue mount, sample centring can start after MD2 in Centring phase instead of waiting for CATS finishes completely
     def load(self, sample=None, wait=True):
         """
         Load a sample. 
         """
+        logging.getLogger().info('Cats90 in load')
         if not self._chnPowered.getValue():
             raise Exception("CATS power is not enabled. Please switch on arm power before transferring samples.")
             return 
@@ -328,10 +362,24 @@ class Cats90(SampleChanger):
                 raise Exception("TransferMode is %s. Please set the value to SAMPLE_CHANGER in MD2 software." % str(self._chnTransferMode.getValue()))
                 return 
 
+        location = sample
+        self.logger.info('Cats90 load, location %s' % str(location))
         sample = self._resolveComponent(sample)
+        self.logger.info('Cats90 load, sample %s, type %s' % (sample, type(sample)))
         self.assertNotCharging()
-
-        self._executeTask(SampleChangerState.Loading,False,self._doLoad,sample)
+        
+        if type(location) == str:
+            puck, sample = map(int, location.split(':'))
+        else:
+            puck, sample = location
+            
+        lid = (puck - 1) / self.no_of_lids + 1
+        sample = ((puck - 1) % self.no_of_lids) * self.no_of_samples_in_basket + sample
+        
+        self.logger.info('Cats90 load, lid %s sample %s' % (lid, sample))
+        
+        self.cats_api.getput(lid, sample, wait=True)
+        self._triggerInfoChangedEvent()
 
         if self._minidiff_type == "MD2":
             timeout=0
@@ -352,15 +400,15 @@ class Cats90(SampleChanger):
         :rtype: None
         """
         selected_basket = self.getSelectedComponent()
-
+        logging.getLogger().info('_doScan selected_basket %s' % str(selected_basket))
         if isinstance(component, Sample):            
             # scan a single sample
             if (selected_basket is None) or (selected_basket != component.getContainer()):
                 self._doSelect(component)            
-            selected=self.getSelectedSample()            
-            # self._executeServerTask(self._scan_samples, [component.getIndex()+1,])
-            lid = ((selected.getBasketNo() - 1) / self.number_of_lids) + 1
-            sample = (((selected.getBasketNo() - 1) % self.number_of_lids) * self.samples_per_basket) + selected.getVialNo()
+            selected=self.getSelectedSample()
+            logging.getLogger().info('_doScan selected %s' % str(selected))
+            lid = ((selected.getBasketNo() - 1) / self.no_of_lids) + 1
+            sample = (((selected.getBasketNo() - 1) % self.no_of_lids) * self.no_of_samples_in_basket) + selected.getVialNo()
             argin = [str(self.tool), str(lid), str(sample), str(self.pucktype), "0"]
             self._executeServerTask(self._cmdScanSample, argin)
             self._updateSampleBarcode(component)
@@ -376,8 +424,8 @@ class Cats90(SampleChanger):
                 selected=self.getSelectedSample()            
 
                 for sample_index in range(basket.getNumberOfSamples()):
-                    lid = ((selected.getBasketNo() - 1) / self.number_of_lids) + 1
-                    sample = (((selected.getBasketNo() - 1) % self.number_of_lids) * self.samples_per_basket) + (sample_index+1)
+                    lid = ((selected.getBasketNo() - 1) / self.no_of_lids) + 1
+                    sample = (((selected.getBasketNo() - 1) % self.no_of_lids) * self.no_of_samples_in_basket) + (sample_index+1)
                     argin = [str(self.tool), str(lid), str(sample), str(self.pucktype), "0"]
                     self._executeServerTask(self._cmdScanSample, argin)
     
@@ -389,10 +437,13 @@ class Cats90(SampleChanger):
         :returns: None
         :rtype: None
         """
+        logging.getLogger().info('Cats90 _doLoad sample %s' % str(sample))
+        
         if not self._chnPowered.getValue():
             raise Exception("CATS power is not enabled. Please switch on arm power before transferring samples.")
             
         selected=self.getSelectedSample()            
+        logging.getLogger().info('_doLoad selected sample %s' % str(selected))
         if sample is not None:
             if sample != selected:
                 self._doSelect(sample)
@@ -404,9 +455,10 @@ class Cats90(SampleChanger):
                raise Exception("No sample selected")
 
         # calculate CATS specific lid/sample number
-        lid = ((selected.getBasketNo() - 1) / self.number_of_lids) + 1
-        sample = (((selected.getBasketNo() - 1) % self.number_of_lids) * self.samples_per_basket) + selected.getVialNo()
-
+        lid = ((selected.getBasketNo() - 1) / self.no_of_lids) + 1
+        sample = (((selected.getBasketNo() - 1) % self.no_of_lids) * self.no_of_samples_in_basket) + selected.getVialNo()
+        logging.getLogger().info('Cats90 _doLoad lid %s sample %s' % (lid, sample))
+        
         if shifts is None:
             xshift, yshift, zshift = ["0", "0", "0" ]
         else:
@@ -424,14 +476,14 @@ class Cats90(SampleChanger):
                     gevent.sleep(5) # wait for the MD2 restart
                     self._startLoad = False
 
-                logging.getLogger("HWR").warning("  ==========CATS=== chained load sample, sending to cats:  %s" % argin)
+                self.logger.warning("  ==========CATS=== chained load sample, sending to cats:  %s" % argin)
                 self._executeServerTask(self._cmdChainedLoad, argin)
         else:
             if self.cats_sample_on_diffr():
-                logging.getLogger("HWR").warning("  ==========CATS=== trying to load sample, but sample detected on diffr. aborting") 
+                self.logger.warning("  ==========CATS=== trying to load sample, but sample detected on diffr. aborting") 
                 self._updateState() # remove software flags like Loading.
             else:
-                logging.getLogger("HWR").warning("  ==========CATS=== load sample, sending to cats:  %s" % argin)
+                self.logger.warning("  ==========CATS=== load sample, sending to cats:  %s" % argin)
                 self._executeServerTask(self._cmdLoad, argin)
 
     def _doUnload(self,sample_slot=None, shifts=None):
@@ -441,6 +493,8 @@ class Cats90(SampleChanger):
         :returns: None
         :rtype: None
         """
+        logging.getLogger().info('Cats90 _doUnload sample_slot %s' % str(sample_slot))
+        
         if not self._chnPowered.getValue():
             raise Exception("CATS power is not enabled. Please switch on arm power before transferring samples.")
             
@@ -460,8 +514,8 @@ class Cats90(SampleChanger):
             gevent.sleep(5) # wait for the MD2 restart
             self._startLoad = False
 
-        logging.getLogger("HWR").warning("  ==========CATS=== unload sample, sending to cats:  %s" % argin)
-        self._executeServerTask(self._cmdUnload, argin)
+        self.logger.warning("  ==========CATS=== unload sample, sending to cats:  %s" % argin)
+        self.cats_api.get(xshift, yshift, zshift, wait=True)
 
     def clearBasketInfo(self, basket):
         pass
@@ -479,8 +533,209 @@ class Cats90(SampleChanger):
         self._updateState() # remove software flags like Loading.. reflects current hardware state 
 
     def _doReset(self):
-        pass
+        """
+        Launch the "reset" command on the CATS Tango DS
 
+        :returns: None
+        :rtype: None
+        """
+        self._cmdReset()
+    
+    def backTraj(self):    
+        """
+        Moves a sample from the gripper back into the dewar to its logged position.
+        """    
+        return self._executeServerTask(False,self._doBack)     
+
+    def safeTraj(self):    
+        """
+        Safely Moves the robot arm and the gripper to the home position
+        """    
+        return self._executeServerTask(False,self._doSafe)   
+    
+
+    def _doResetMemory(self):
+        """
+        Launch the "reset memory" command on the CATS Tango DS
+
+        :returns: None
+        :rtype: None
+        """
+        self._cmdClearMemory()
+        time.sleep(1)
+        self._cmdResetParameters()
+        time.sleep(1)
+
+    def _doCalibration(self):
+        """
+        Launch the "toolcalibration" command on the CATS Tango DS
+
+        :returns: None
+        :rtype: None
+        """
+        self._cmdCalibration()
+
+    def _doOpenTool(self):
+        """
+        Launch the "opentool" command on the CATS Tango DS
+
+        :returns: None
+        :rtype: None
+        """
+        self._cmdOpenTool()
+ 
+    def _doCloseTool(self):
+        """
+        Launch the "closetool" command on the CATS Tango DS
+
+        :returns: None
+        :rtype: None
+        """
+        self._cmdCloseTool()
+
+    def _doDryGripper(self):
+        """
+        Launch the "dry" command on the CATS Tango DS
+
+        :returns: None
+        :rtype: None
+        """
+        self._doDrySoak()
+      
+
+    def _doSetOnDiff(self, sample):
+        """
+        Launch the "setondiff" command on the CATS Tango DS, an example of sample value is 2:05
+
+        :returns: None
+        :rtype: None
+        """
+
+        if sample is None:
+            raise Exception ("No sample selected")
+        else:
+            str_tmp=str(sample)
+            sample_tmp=str_tmp.split(":")
+            # calculate CATS specific lid/sample number
+            lid = (int(sample_tmp[0]) - 1) / 3 + 1
+            puc_pos = ((int(sample_tmp[0]) - 1) % 3) * 10 + int(sample_tmp[1])
+            argin = [ str(lid), str(puc_pos), "0"]
+            logging.getLogger().info("to SetOnDiff %s", argin)
+            self._executeServerTask(self._cmdSetOnDiff,argin)
+
+    def _doBack(self):
+        """
+        Launch the "back" trajectory on the CATS Tango DS
+
+        :returns: None
+        :rtype: None
+        """
+        argin = [str(self.tool), "0"] # to send string array with two arg...
+        self._executeServerTask(self._cmdBack, argin)
+
+    def _doSafe(self):
+        """
+        Launch the "safe" trajectory on the CATS Tango DS
+
+        :returns: None
+        :rtype: None
+        """
+        argin = 2
+        self._executeServerTask(self._cmdSafe, argin)
+
+    def _doPowerState(self, state=False):
+        """
+        Switch on CATS power if >state< == True, power off otherwise
+
+        :returns: None
+        :rtype: None
+        """
+        if state:
+            self._cmdPowerOn()
+        else:
+            self._cmdPowerOff()
+
+    def _doEnableRegulation(self):
+        """
+        Switch on CATS regulation
+
+        :returns: None
+        :rtype: None
+        """
+        self._cmdRegulOn()
+
+    def _doDisableRegulation(self):
+        """
+        Switch off CATS regulation
+
+        :returns: None
+        :rtype: None
+        """
+        self._cmdRegulOff()
+
+    def _doLid1State(self, state = True):
+        """
+        Opens lid 1 if >state< == True, closes the lid otherwise
+
+        :returns: None
+        :rtype: None
+        """
+        if state:
+            self._executeServerTask(self._cmdOpenLid1)
+        else:
+            self._executeServerTask(self._cmdCloseLid1)
+           
+    def _doLid2State(self, state = True):
+        """
+        Opens lid 2 if >state< == True, closes the lid otherwise
+
+        :returns: None
+        :rtype: None
+        """
+        if state:
+            self._executeServerTask(self._cmdOpenLid2)
+        else:
+            self._executeServerTask(self._cmdCloseLid2)
+           
+    def _doLid3State(self, state = True):
+        """
+        Opens lid 3 if >state< == True, closes the lid otherwise
+
+        :returns: None
+        :rtype: None
+        """
+        if state:
+            self._executeServerTask(self._cmdOpenLid3)
+        else:
+            self._executeServerTask(self._cmdCloseLid3)
+
+    def _doMagnetOn(self):
+        self._cmdMagnetOn()
+
+    def _doMagnetOff(self):
+        self._cmdMagnetOff()
+
+    def _doHome(self):
+        self._cmdHome(self.tool)
+
+    def _doSoak(self):
+        self._cmdSoak(self.tool, self.soak_lid)
+
+    def _doDrySoak(self):
+        self._cmdDrySoak([str(self.tool), str(self.soak_lid)])
+        
+    def _doRestart(self):
+        self._cmdRestart()
+
+    def _doPanic(self):
+        self._cmdPanic()
+
+    def _doResetMotion(self):
+        self._cmdResetMotion()
+
+    def _doOperationCommand(self, cmdstr):
+        self._cmdSendOperation(cmdstr)
+        
     #########################           CATS EVENTS           #########################        
 
     def cats_state_changed(self, value):
@@ -502,7 +757,7 @@ class Cats90(SampleChanger):
         self.emit('powerStateChanged', (value, ))
 
     def cats_lids_closed_changed(self, value):
-        logging.getLogger("HWR").warning("Operation mode changed. All LIDs closed" + str(value))
+        self.logger.warning("Operation mode changed. All LIDs closed" + str(value))
         self.cats_lids_closed = value
         self._updateState()
     
@@ -514,14 +769,14 @@ class Cats90(SampleChanger):
         self._updateCatsContents()
 
     def cats_loaded_lid_changed(self,value):
-        logging.getLogger("HWR").info("loaded lid changed %s" % value)
+        self.logger.info("loaded lid changed %s" % value)
         self.cats_loaded_lid = value
         self.cats_loaded_num = self._chnNumLoadedSample.getValue()
         self.cats_datamatrix = str(self._chnSampleBarcode.getValue())
         self._updateLoadedSample() 
 
     def cats_loaded_num_changed(self, value):
-        logging.getLogger("HWR").info("loaded num changed %s" % value)
+        self.logger.info("loaded num changed %s" % value)
         self.cats_loaded_lid = self._chnLidLoadedSample.getValue()
         self.cats_loaded_num = value
         self.cats_datamatrix = str(self._chnSampleBarcode.getValue())
@@ -573,8 +828,8 @@ class Cats90(SampleChanger):
 
         self.cats_running = self._chnPathRunning.getValue()
         self.cats_powered = self._chnPowered.getValue()
-        self.cats_lids_closed = self._chnAllLidsClosed.getValue() 
-        self.cats_status = self._chnStatus.getValue()
+        self.cats_lids_closed = self._chnTotalLidState.getValue() 
+        #self.cats_status = self._chnStatus.getValue()
     
     def hasLoadedSample(self):
         if self.cats_loaded_lid != -1 and self.cats_loaded_num != -1:
@@ -582,7 +837,7 @@ class Cats90(SampleChanger):
         else:
             return False
     
-    def _updateState(self):
+    def _updateState(self, value=None):
 
         # PyCats only returns three states (ON, RUNNING or ALARM)
 
@@ -597,14 +852,14 @@ class Cats90(SampleChanger):
         elif self.hasLoadedSample() ^ self._chnSampleIsDetected.getValue():
             # go to Unknown state if a sample is detected on the gonio but not registered in the internal database
             # or registered but not on the gonio anymore
-            logging.getLogger("HWR").warning("SAMPLE CHANGER Unknown 2 (hasLoaded: %s / detected: %s)" % (self.hasLoadedSample(), self._chnSampleIsDetected.getValue()))
+            self.logger.warning("SAMPLE CHANGER Unknown 2 (hasLoaded: %s / detected: %s)" % (self.hasLoadedSample(), self._chnSampleIsDetected.getValue()))
             state = SampleChangerState.Unknown 
         elif not self.cats_lids_closed: 
             state = SampleChangerState.Charging
         else:
             state = SampleChangerState.Ready
 
-        logging.getLogger("HWR").warning("SAMPLE CHANGER state updated poweron=%s / cats_state=%s / cats_status=%s " % (self.cats_powered, self.cats_state, self.cats_status))
+        self.logger.warning("SAMPLE CHANGER state updated poweron=%s / cats_state=%s / cats_status=%s " % (self.cats_powered, self.cats_state, self.cats_status))
         #status = self.cats_status
         status = SampleChangerState.tostring(state)
         self._setState(state, status)
@@ -628,7 +883,7 @@ class Cats90(SampleChanger):
                             "RUNNING": SampleChangerState.Moving }
 
         if stateStr not in state_converter:
-            logging.getLogger("HWR").warning("SAMPLE CHANGER Unknown 3 %s" % stateStr)
+            self.logger.warning("SAMPLE CHANGER Unknown 3 %s" % stateStr)
 
         return state_converter.get(stateStr, SampleChangerState.Unknown)
                         
@@ -685,9 +940,9 @@ class Cats90(SampleChanger):
         loadedSampleNum = self.cats_loaded_num
 
         if loadedSampleLid != -1 or loadedSampleNum != -1:
-            lidBase = (loadedSampleLid - 1) * self.number_of_lids
-            lidOffset = ((loadedSampleNum - 1) / self.samples_per_basket) + 1
-            samplePos = ((loadedSampleNum - 1) % self.samples_per_basket) + 1
+            lidBase = (loadedSampleLid - 1) * self.no_of_lids
+            lidOffset = ((loadedSampleNum - 1) / self.no_of_samples_in_basket) + 1
+            samplePos = ((loadedSampleNum - 1) % self.no_of_samples_in_basket) + 1
             basket = lidBase + lidOffset
         else:
             basket = None
@@ -715,9 +970,9 @@ class Cats90(SampleChanger):
                 new_sample._setLoaded(loaded, has_been_loaded)
         
         self._setLoadedSample(new_sample)
-        
+        self._triggerLoadedSampleChangedEvent(new_sample)
         #if new_sample is not None:
-        logging.getLogger("HWR").info("update loaded sample: %s (%s/%s)" % (new_sample, self.cats_loaded_lid, self.cats_loaded_num))
+        self.logger.info("update loaded sample: %s (%s/%s)" % (new_sample, self.cats_loaded_lid, self.cats_loaded_num))
         self._updateSampleBarcode(new_sample)
 
     def _updateSampleBarcode(self, sample):
@@ -737,7 +992,10 @@ class Cats90(SampleChanger):
            datamatrix = '----------'   
         else:
            datamatrix = self.cats_datamatrix
-        sample._setInfo(sample.isPresent(), datamatrix, scanned)
+        try:
+            sample._setInfo(sample.isPresent(), datamatrix, scanned)
+        except:
+            pass
 
     def _initSCContents(self):
         """
@@ -746,10 +1004,10 @@ class Cats90(SampleChanger):
         :returns: None
         :rtype: None
         """
-        logging.getLogger("HWR").warning("Cats90:  initializing contents")
+        self.logger.warning("Cats90:  initializing contents")
 
         # write the default basket information into permanent Basket objects 
-        for basket_index in range(self.number_of_baskets):            
+        for basket_index in range(self.no_of_baskets):            
             basket=self.getComponents()[basket_index]
             datamatrix = None
             present = scanned = False
@@ -757,7 +1015,7 @@ class Cats90(SampleChanger):
 
         # create temporary list with default sample information and indices
         sample_list=[]
-        for basket_index in range(self.number_of_baskets):            
+        for basket_index in range(self.no_of_baskets):            
             basket = self.getComponents()[basket_index]
             for sample_index in range(basket.getNumberOfSamples()):
                 sample_list.append(("", basket_index+1, sample_index+1, 1, Pin.STD_HOLDERLENGTH)) 
@@ -771,7 +1029,7 @@ class Cats90(SampleChanger):
             sample._setLoaded(loaded, has_been_loaded)
             sample._setHolderLength(spl[4])    
 
-        logging.getLogger("HWR").warning("Cats90:  initializing contents done")
+        self.logger.warning("Cats90:  initializing contents done")
 
     def _doUpdateCatsContents(self):
         """
@@ -784,10 +1042,14 @@ class Cats90(SampleChanger):
         :rtype: None
         """
 
-        for basket_index in range(self.number_of_baskets):            
+        for basket_index in range(self.no_of_baskets):            
             # get presence information from the device server
-            channel = self.basket_channels[basket_index]
-            is_present = channel.getValue()
+            if self.do_detect_pucks:
+                channel = self.basket_channels[basket_index]
+                is_present = channel.getValue()
+            else:
+                is_present = True
+                
             self.basket_presence[basket_index] = is_present
 
         self._updateCatsContents()
@@ -795,7 +1057,7 @@ class Cats90(SampleChanger):
     def _updateCatsContents(self):
         
         info_changed = False
-        for basket_index in range(self.number_of_baskets):            
+        for basket_index in range(self.no_of_baskets):            
             # get saved presence information from object's internal bookkeeping
             basket=self.getComponents()[basket_index]
             is_present = self.basket_presence[basket_index]
@@ -835,6 +1097,54 @@ class Cats90(SampleChanger):
 
         if info_changed:
             self._triggerInfoChangedEvent()
+            
+    def _updateStatus(self, value):
+        self.emit('statusChanged', (value, ))
+        
+    def _updateNumLoadedSample(self, value):
+        self.emit('numLoadedSampleChanged', (value,))
+      
+    def _updateLidLoadedSample(self, value):
+        self.emit('lidLoadedSampleChanged', (value,))
+        
+    def _updateSampleIsDetected(self, value):
+        self.emit('SampleIsDetectedChanged', (value,))
+        
+    def _updatePathRunning(self, value):
+        self.emit('runningStateChanged', (value, ))
+
+    def _updatePowered(self, value):
+        self.emit('powerStateChanged', (value, ))
+    
+    def _updateToolState(self,value):
+        self.emit('toolStateChanged', (value, ))
+
+    def _updateMessage(self, value):
+        self.emit('messageChanged', (value, ))
+
+    def _updateLN2RegulationDewar1(self, value):
+        self.emit('regulationStateChanged', (value, ))
+
+    def _updateBarcode(self, value):
+        self.emit('barcodeChanged', (value, ))
+
+    def _updateLid1State(self, value):
+        self.emit('lid1StateChanged', (value, ))
+
+    def _updateLid2State(self, value):
+        self.emit('lid2StateChanged', (value, ))
+
+    def _updateLid3State(self, value):
+        self.emit('lid3StateChanged', (value, ))
+    
+    def _updateTotalLidState(self, value):
+        self.emit('totalLidStateChanged', (value, ))
+    
+    def _updateOperationMode(self, value):
+        self._scIsCharging = not value
+
+    
+    
 def test_hwo(hwo):
     print("Baskets in CATS:", hwo.getBasketList())
 
