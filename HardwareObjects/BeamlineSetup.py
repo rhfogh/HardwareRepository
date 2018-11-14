@@ -115,6 +115,14 @@ class BeamlineSetup(HardwareObject):
 
         return tw
 
+    def offer_compression_choice(self):
+        occ = False
+        try:
+            occ = bool(self.getProperty('offer_compression_choice'))
+        except TypeError:
+            occ = False
+        return occ
+                       
     def has_aperture(self):
         """
         :returns: True if the beamline has apertures and false otherwise.
@@ -153,13 +161,21 @@ class BeamlineSetup(HardwareObject):
         """
         acq_parameters = queue_model_objects.AcquisitionParameters()
         parent_key = "default_characterisation_values"
-
+        
+        osc_start = self[parent_key].getProperty('start_angle')
         img_start_num = self[parent_key].getProperty('start_image_number')
         num_images = self[parent_key].getProperty('number_of_images')
         osc_range = round(float(self[parent_key].getProperty('range')), 2)
+
+        try:
+            osc_per_frame = round(float(self[parent_key].getProperty('osc_per_frame')), 2)
+        except:
+            osc_per_frame = 0.1
+            
         overlap = round(float(self[parent_key].getProperty('overlap')), 2)
         exp_time = round(float(self[parent_key].getProperty('exposure_time')), 4)
         num_passes = int(self[parent_key].getProperty('number_of_passes'))
+        transmission = int(self[parent_key].getProperty('transmission'))
         shutterless = self.detector_has_shutterless()
         try:
             detector_mode = self.detector_hwobj.default_mode() 
@@ -168,8 +184,9 @@ class BeamlineSetup(HardwareObject):
 
         acq_parameters.first_image = int(img_start_num)
         acq_parameters.num_images = int(num_images)
-        acq_parameters.osc_start = self._get_omega_axis_position()
+        acq_parameters.osc_start = osc_start
         acq_parameters.osc_range = osc_range
+        acq_parameters.osc_per_frame = osc_per_frame
         acq_parameters.kappa = self._get_kappa_axis_position()
         acq_parameters.kappa_phi = self._get_kappa_phi_axis_position()
         acq_parameters.overlap = overlap
@@ -177,7 +194,7 @@ class BeamlineSetup(HardwareObject):
         acq_parameters.num_passes = num_passes
         acq_parameters.resolution = self._get_resolution()
         acq_parameters.energy = self._get_energy()
-        acq_parameters.transmission = self._get_transmission()
+        acq_parameters.transmission = transmission
 
         acq_parameters.shutterless = self._has_shutterless()
         acq_parameters.detector_mode = self._get_roi_modes()
@@ -263,12 +280,15 @@ class BeamlineSetup(HardwareObject):
            logging.warning("No key %s in beamline setup, using %s", parent_key, default_key)
            parent_key = default_key
 
+        osc_start = self[parent_key].getProperty('start_angle')
         img_start_num = self[parent_key].getProperty('start_image_number')
         num_images = self[parent_key].getProperty('number_of_images')
         osc_range = round(float(self[parent_key].getProperty('range')), 2)
+        osc_per_frame = osc_range
         overlap = round(float(self[parent_key].getProperty('overlap')), 2)
         exp_time = round(float(self[parent_key].getProperty('exposure_time')), 4)
         num_passes = int(self[parent_key].getProperty('number_of_passes'))
+        transmission = int(self[parent_key].getProperty('transmission'))
         shutterless = self.detector_has_shutterless()
         try:
             detector_mode = self.detector_hwobj.default_mode() 
@@ -277,8 +297,9 @@ class BeamlineSetup(HardwareObject):
 
         acq_parameters.first_image = img_start_num
         acq_parameters.num_images = num_images
-        acq_parameters.osc_start = self._get_omega_axis_position()
+        acq_parameters.osc_start = osc_start
         acq_parameters.osc_range = osc_range
+        acq_parameters.osc_per_frame = osc_per_frame
         acq_parameters.kappa = self._get_kappa_axis_position()
         acq_parameters.kappa_phi = self._get_kappa_phi_axis_position()
         acq_parameters.overlap = overlap
@@ -286,7 +307,7 @@ class BeamlineSetup(HardwareObject):
         acq_parameters.num_passes = num_passes
         acq_parameters.resolution = self._get_resolution()
         acq_parameters.energy = self._get_energy()
-        acq_parameters.transmission = self._get_transmission()
+        acq_parameters.transmission = transmission
 
         acq_parameters.shutterless = self._has_shutterless()
         acq_parameters.detector_mode = self._get_roi_modes()
