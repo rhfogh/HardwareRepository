@@ -12,7 +12,6 @@ from HardwareRepository.TaskUtils import *
 from HardwareRepository.BaseHardwareObjects import Equipment
 import gevent
 import time
-import Cats90
 
 __author__ = "Jie Nan"
 __credits__ = ["The MxCuBE collaboration"]
