@@ -550,19 +550,25 @@ class Qt4_GraphicsManager(HardwareObject):
         :emits: centringInProgress
         """
         p_dict = {}
-
-        if 'motors' in centring_status and \
-                'extraMotors' in centring_status:
-
+        
+        if 'motors' in centring_status and 'extraMotors' in centring_status:
             p_dict = dict(centring_status['motors'],
                           **centring_status['extraMotors'])
         elif 'motors' in centring_status:
             p_dict = dict(centring_status['motors'])
 
         self.emit("centringInProgress", False)
-
+        
         if p_dict:
             cpos = queue_model_objects.CentredPosition(p_dict)
+            cpos_dict = cpos.as_dict()
+            
+            for key in cpos_dict:
+                if getattr(cpos, key) == None:
+                    attribute = 'get_%s_position' % self.diffractometer_hwobj.mxcube_to_md2[key].lower()
+                    value = getattr(self.diffractometer_hwobj.goniometer, attribute)()
+                    setattr(cpos, key, value)
+                             
             screen_pos = self.diffractometer_hwobj.\
                     motor_positions_to_screen(cpos.as_dict())
             point = GraphicsLib.GraphicsItemPoint(cpos, True, 
@@ -1932,3 +1938,7 @@ class Qt4_GraphicsManager(HardwareObject):
                  Qt.ScrollBarAlwaysOff)
             self.graphics_view.setVerticalScrollBarPolicy(\
                  Qt.ScrollBarAlwaysOff)
+
+    def realign_beam(self):
+        self.diffractometer_hwobj.beam_position_check()
+        
