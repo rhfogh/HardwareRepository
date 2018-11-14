@@ -541,6 +541,7 @@ class DataCollection(TaskNode):
                 'num_images': parameters.num_images,
                 'osc_start': parameters.osc_start,
                 'osc_range': parameters.osc_range,
+                'osc_per_frame': parameters.osc_range,
                 'kappa': parameters.kappa,
                 'kappa_phi': parameters.kappa_phi,
                 'overlap': parameters.overlap,
@@ -968,7 +969,8 @@ class XRFSpectrum(TaskNode):
     """ 
     def __init__(self, sample=None, path_template=None, cpos=None):
         TaskNode.__init__(self)
-        self.count_time = 1
+        self.count_time = 10
+        self.excitation_energy = 15.0
         self.set_requires_centring(True)
         self.centred_position = cpos
         self.adjust_transmission = True
@@ -1009,6 +1011,9 @@ class XRFSpectrum(TaskNode):
 
     def set_count_time(self, count_time):
         self.count_time = count_time
+
+    def set_excitation_energy(self, excitation_energy):
+        self.excitation_energy = excitation_energy
 
     def is_collected(self):
         return self.is_executed()
@@ -1391,6 +1396,8 @@ class AcquisitionParameters(object):
         self.osc_start = float()
         self.osc_range = float()
         self.osc_total_range = float()
+        self.osc_per_frame = float()
+        self.osc_per_wedge = float()
         self.overlap = float()
         self.kappa = float()
         self.kappa_phi = float()
@@ -1429,6 +1436,8 @@ class AcquisitionParameters(object):
                 "osc_start": self.osc_start,
                 "osc_range": self.osc_range,
                 "osc_total_range": self.osc_total_range,
+                "osc_per_frame": self.osc_per_frame,
+                "osc_per_wedge": self.osc_per_wedge,
                 "overlap": self.overlap,
                 "kappa": self.kappa,
                 "kappa_phi": self.kappa_phi,
@@ -1790,6 +1799,7 @@ def to_collect_dict(data_collection, session, sample, centred_pos=None):
                                        'overlap': acq_params.overlap,
                                        'start': acq_params.osc_start,
                                        'range': acq_params.osc_range,
+                                       'range_per_frame': acq_params.osc_per_frame,
                                        'number_of_passes': acq_params.num_passes,
                                        'number_of_lines': acq_params.num_lines,
                                        'mesh_range': acq_params.mesh_range}],
