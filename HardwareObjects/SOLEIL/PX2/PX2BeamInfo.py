@@ -58,71 +58,64 @@ class PX2BeamInfo(Equipment):
         self.zoomMotor = None
         #self.minidiff = None
         self.positionTable = {}
-       
+        self.log = logging.getLogger('HWR')
+        
     def init(self):
 
         try:
             self.chanBeamSizeX = self.getChannelObject('beamsizex')
             self.chanBeamSizeX.connectSignal('update', self.beamSizeXChanged)
         except KeyError:
-            logging.getLogger().warning('%s: cannot connect to beamsize x channel ', self.name())
+            self.log.warning('%s: cannot connect to beamsize x channel ', self.name())
 
         try:
             self.chanBeamSizeY = self.getChannelObject('beamsizey')
             self.chanBeamSizeY.connectSignal('update', self.beamSizeYChanged)
         except KeyError:
-            logging.getLogger().warning('%s: cannot connect to beamsize y channel ', self.name())
+            self.log.warning('%s: cannot connect to beamsize y channel ', self.name())
 
         try:
             self.chanBeamPosX = self.getChannelObject('positionx')
             self.chanBeamPosX.connectSignal('update', self.beamPosXChanged)
         except KeyError:
-            logging.getLogger().warning('%s: cannot connect to beamposition x channel ', self.name())
+            self.log.warning('%s: cannot connect to beamposition x channel ', self.name())
 
         try:
             self.chanBeamPosY = self.getChannelObject('positiony')
             self.chanBeamPosY.connectSignal('update', self.beamPosYChanged)
         except KeyError:
-            logging.getLogger().warning('%s: cannot connect to beamposition z channel ', self.name())
+            self.log.warning('%s: cannot connect to beamposition z channel ', self.name())
 
-        self.zoomMotor = self.getDeviceByRole("zoom")
-        
+        self.zoomMotor = self.getObjectByRole("zoom")
         self.beam_position[0], self.beam_position[1] = self.chanBeamPosX.value, self.chanBeamPosY.value
        
         if self.zoomMotor is not None:
            self.connect(self.zoomMotor, 'predefinedPositionChanged', self.zoomPositionChanged)
         else:
-           logging.getLogger().info("Zoom - motor is not good ")
+           self.log.error("Zoom - motor is not good ")
 
     def beamSizeXChanged(self, value):
-        logging.getLogger().info('beamSizeX changed. It is %s ' % value)
+        self.log.info('beamSizeX changed. It is %s ' % value)
         self.beam_size[0] = value
         self.sizeUpdated() 
 
     def beamSizeYChanged(self, value):
-        logging.getLogger().info('beamSizeY changed. It is %s ' % value)
+        self.log.info('beamSizeY changed. It is %s ' % value)
         self.beam_size[1] = value
         self.sizeUpdated() 
 
     def beamPosXChanged(self, value):
-        logging.getLogger().info('beamPosX changed. It is %s ' % value)
+        self.log.info('beamPosX changed. It is %s ' % value)
         self.beam_position[0] = value
         self.positionUpdated() 
 
     def beamPosYChanged(self, value):
-        logging.getLogger().info('beamPosY changed. It is %s ' % value)
+        self.log.info('beamPosY changed. It is %s ' % value)
         self.beam_position[1] = value
         self.positionUpdated() 
 
     def zoomPositionChanged(self, name, offset):
-        logging.getLogger().info('zoom position changed. It is %s / offset=%s ' % (name,offset))
         self.beam_position[0], self.beam_position[1] = self.chanBeamPosX.value, self.chanBeamPosY.value
-
-    #def sizeUpdated(self):
-        ##TODO check values give by md2 it appears that  beamSizeXChanged beamSizeYChanged it is not the reality !!!!!!
-        #self.beam_info_dict['size_x'] = 0.010 # in micro channel in MD2 doesn't work
-        #self.beam_info_dict['size_y'] = 0.005#
-        #self.emit("beamInfoChanged", (self.beam_info_dict, ))
 
     def sizeUpdated(self):
         # not used
@@ -138,11 +131,9 @@ class PX2BeamInfo(Equipment):
         self.sizeUpdated()
 
     def get_beam_info(self):
-        #logging.getLogger().warning('returning beam info It is %s ' % str(self.beam_info_dict))
         return self.beam_info_dict
         
     def get_beam_position(self):
-        #logging.getLogger().warning('returning beam positions. It is %s ' % str(self.beam_position))
         return self.beam_position	
 
     def get_beam_size(self):
@@ -160,7 +151,6 @@ class PX2BeamInfo(Equipment):
         Arguments :
         Return    :
         """
-        #self.evaluate_beam_info()
         return self.shape
 
     def get_slit_gaps(self):
