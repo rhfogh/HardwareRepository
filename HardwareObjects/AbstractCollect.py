@@ -244,6 +244,7 @@ class AbstractCollect(HardwareObject, object):
 
             log.info("Collection: Updating data collection in LIMS")
             self.update_data_collection_in_lims()
+            self.collection_finished()
 
         except:
             exc_type, exc_value, exc_tb = sys.exc_info()
@@ -294,8 +295,7 @@ class AbstractCollect(HardwareObject, object):
             if (self.current_dc_parameters['experiment_type'] in ('OSC', 'Helical') and
                 self.current_dc_parameters['oscillation_sequence'][0]['overlap'] == 0 and
                 last_frame > 19):
-                self.trigger_auto_processing("after",
-                                             0)
+                self.trigger_auto_processing("after", 0)
 
         self.emit("collectOscillationFinished", (None, True,
               success_msg, self.current_dc_parameters.get('collection_id'),
