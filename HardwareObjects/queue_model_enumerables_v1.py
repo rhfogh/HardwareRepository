@@ -22,7 +22,7 @@ EXPERIMENT_TYPE_STR = ExperimentType('SAD','SAD - Inverse Beam','MAD',
 StrategyOption = namedtuple('StrategyOption', ['AVG'])
 STRATEGY_OPTION = StrategyOption(0)
 
-CollectionOrigin = namedtuple('CollectionOrigin',['MXCUBE', 'EDNA', 'WORKFLOW'])
+CollectionOrigin = namedtuple('CollectionOrigin', ['MXCUBE', 'EDNA', 'WORKFLOW'])
 COLLECTION_ORIGIN = CollectionOrigin(0, 1, 2)
 COLLECTION_ORIGIN_STR = CollectionOrigin('mxcube', 'edna', 'workflow')
 
