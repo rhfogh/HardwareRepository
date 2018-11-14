@@ -1,6 +1,5 @@
 import gevent
 from datetime import datetime
-import time
 import logging
 
 from sample_changer.GenericSampleChanger import *
@@ -20,7 +19,6 @@ class SampleChangerMockup(SampleChanger):
         self._scIsCharging = None
     
         self.no_of_baskets = self.getProperty('no_of_baskets', SampleChangerMockup.NO_OF_BASKETS)
-        
         self.no_of_samples_in_basket = self.getProperty('no_of_samples_in_basket', SampleChangerMockup.NO_OF_SAMPLES_IN_BASKET)
         
         for i in range(self.no_of_baskets):
@@ -58,9 +56,11 @@ class SampleChangerMockup(SampleChanger):
         self.emit("progressInit", (msg, 100))
         for step in range(2 * 100):
             self.emit("progressStep", int(step / 2.))
-            time.sleep(0.01)
+            gevent.sleep(0.01)
 
+        logging.getLogger('HWR').debug('type(basket) %s, type(sample) %s' % (type(basket), type(sample)))
         mounted_sample = self.getComponentByAddress(Pin.getSampleAddress(basket, sample))
+        logging.getLogger('HWR').debug('mounted_sample %s, its type %s' % (mounted_sample, type(mounted_sample)))
         mounted_sample._setLoaded(True, False)
         self._setState(SampleChangerState.Ready)
 
@@ -154,3 +154,9 @@ class SampleChangerMockup(SampleChanger):
         #mounted_sample = self.getComponentByAddress(Pin.getSampleAddress(1,1))
         #mounted_sample._setLoaded(True, False)  
         self._setState(SampleChangerState.Ready)
+
+    def isPowered(self):
+        return True
+
+    def isPathRunning(self):
+        return False
