@@ -52,13 +52,13 @@ class DiffractometerMockup(GenericDiffractometer):
         Descript. :
         """
         GenericDiffractometer.init(self)
-        self.x_calib = 0.000444
-        self.y_calib = 0.000446
-        self.last_centred_position = [318, 238]
-         
+        self.x_calib = self.getProperty("x_calib", 0.000444)
+        self.y_calib = self.getProperty("y_calib", 0.000446)
+        self.last_centred_position = eval(self.getProperty("lastcentredposition", [318, 238]))
+        logging.getLogger('HWR').info('Diffractometer self.last_centred_position %s, type %s' % (self.last_centred_position, type(self.last_centred_position)))
         self.pixels_per_mm_x = 1.0 / self.x_calib
         self.pixels_per_mm_y = 1.0 / self.y_calib
-        self.beam_position = [318, 238]
+        self.beam_position = eval(self.getProperty("beamposition", [318, 238]))
         
         self.cancel_centring_methods = {}
         self.current_motor_positions = {
@@ -70,10 +70,10 @@ class DiffractometerMockup(GenericDiffractometer):
         self.current_state_dict = {}
         self.centring_status = {"valid": False}
         self.centring_time = 0
-
-        self.image_width = 400
-        self.image_height = 400
-
+        #self.zoom_centre = eval(self.getProperty("zoom_centre", {"x": 318, "y": 238}))
+        self.image_width = self.getProperty("image_width", 400)
+        self.image_height = self.getProperty("image_height", 400)
+        self.ref_omega = eval(self.getProperty("ref_omega", [0, 238]))
         self.mount_mode = self.getProperty("sample_mount_mode")
         if self.mount_mode is None:
             self.mount_mode = "manual"
@@ -348,8 +348,8 @@ class DiffractometerMockup(GenericDiffractometer):
 
     def update_values(self):
         self.emit('zoomMotorPredefinedPositionChanged', None, None)
-        omega_ref = [0, 238]
-        self.emit('omegaReferenceChanged', omega_ref)
+        ref_omega = [0, 512]
+        self.emit('omegaReferenceChanged', ref_omega)
 
     def move_kappa_and_phi(self, kappa, kappa_phi):
         return
