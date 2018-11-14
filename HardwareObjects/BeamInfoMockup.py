@@ -34,6 +34,8 @@ class BeamInfoMockup(Equipment):
 
     def init(self):
         self.aperture_hwobj = self.getObjectByRole("aperture")
+        self.beam_position = eval(self.getProperty("beam_position", self.beam_position))
+        logging.getLogger().info('BeamInfoMockup  %s' % self.beam_position)
         if self.aperture_hwobj is not None:
             self.connect(self.aperture_hwobj,
                          "diameterIndexChanged",
