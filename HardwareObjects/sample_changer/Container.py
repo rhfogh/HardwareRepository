@@ -213,5 +213,5 @@ class Pin(Sample):
 
     @staticmethod
     def getSampleAddress(basket_number, sample_number):
-        return str(basket_number) + ":" + "%02d" % (sample_number)
+        return str(basket_number) + ":" + str(sample_number)
         
