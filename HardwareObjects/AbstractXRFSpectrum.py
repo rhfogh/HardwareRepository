@@ -137,7 +137,8 @@ class AbstractXRFSpectrum(object):
         self.spectrum_info['startTime'] = time.strftime("%Y-%m-%d %H:%M:%S")
         self.spectrum_running = True
         self.emit('xrfSpectrumStarted', ())
-
+        self.emit("progressInit", "XRF spectrum", 100, False)
+        
     def spectrum_command_failed(self, *args):
         """
         Descript. :
@@ -146,6 +147,7 @@ class AbstractXRFSpectrum(object):
         self.spectrum_running = False
         self.store_xrf_spectrum()
         self.emit('xrfSpectrumFailed', ())
+        self.emit("progressStop", ())
         self.ready_event.set()
     
     def spectrum_command_aborted(self, *args):
@@ -164,8 +166,8 @@ class AbstractXRFSpectrum(object):
             self.spectrum_info['endTime'] = time.strftime("%Y-%m-%d %H:%M:%S")
             self.spectrum_running = False
 
-            xmin = 0
-            xmax = 0
+            xmin = 0.2
+            xmax = 15.0
             mca_data = []
             calibrated_data = []
 
@@ -178,20 +180,21 @@ class AbstractXRFSpectrum(object):
                  self.spectrum_info["scanFileFullPath"])
 
             for n, value in enumerate(self.spectrum_data):
-                energy = (self.mca_calib[2] + \
+                energy = (self.mca_calib[0] + \
                           self.mca_calib[1] * n + \
-                          self.mca_calib[0] * n * n) / 1000
-                if energy < 20:
-                    if energy > xmax:
-                        xmax = value
-                    if energy < xmin:
-                        xmin = value
-                    calibrated_data.append([energy, value])
-                    mca_data.append((n / 1000.0, value))
-                    if spectrum_file_raw:
-                        spectrum_file_raw.write("%f,%f\r\n" % (energy, value))
-                    if archive_file_raw:
-                        archive_file_raw.write("%f,%f\r\n" % (energy, value))
+                          self.mca_calib[2] * n * n) / 1000
+                #logging.getLogger().info('energy %.3f' % energy)
+                #if energy < 20:
+                    #if energy > xmax:
+                        #xmax = value
+                    #if energy < xmin:
+                        #xmin = value
+                calibrated_data.append([energy, value])
+                mca_data.append((n, value))
+                if spectrum_file_raw:
+                    spectrum_file_raw.write("%f,%f\r\n" % (energy, value))
+                if archive_file_raw:
+                    archive_file_raw.write("%f,%f\r\n" % (energy, value))
             if spectrum_file_raw:
                 spectrum_file_raw.close()
             if archive_file_raw:
@@ -218,7 +221,7 @@ class AbstractXRFSpectrum(object):
 
             fig = Figure(figsize=(15, 11))
             ax = fig.add_subplot(111)
-            ax.set_title(self.spectrum_info["jpegScanFileFullPath"])
+            ax.set_title(r'%s' % os.path.basename(self.spectrum_info["jpegScanFileFullPath"]).replace('_', '\_'))
             ax.grid(True)
 
             ax.plot(*(zip(*calibrated_array)), **{"color" : 'black'})
@@ -226,13 +229,11 @@ class AbstractXRFSpectrum(object):
             ax.set_ylabel("Counts")
             canvas = FigureCanvasAgg(fig)
             logging.getLogger().info("XRFSpectrum: Rendering spectrum to PNG file : %s", \
-                                     self.spectrum_info["jpegScanFileFullPath"])
+                                     os.path.basename(self.spectrum_info["jpegScanFileFullPath"]))
             canvas.print_figure(self.spectrum_info["jpegScanFileFullPath"], dpi = 80)
-            #logging.getLogger().debug("Copying .fit file to: %s", a_dir)
-            #tmpname=filename.split(".")
-            #logging.getLogger().debug("finished %r", self.spectrum_info)
             self.store_xrf_spectrum()
             self.emit('xrfSpectrumFinished', (mca_data, self.mca_calib, mca_config))
+            self.emit("progressStop", ())
             
     def spectrum_status_changed(self, status):
         """
