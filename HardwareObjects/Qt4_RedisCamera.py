@@ -7,6 +7,7 @@ import logging
 import numpy as np
 import traceback
 import redis
+from scipy.misc import imsave
 
 class Qt4_RedisCamera(GenericVideoDevice):
 
@@ -145,3 +146,11 @@ class Qt4_RedisCamera(GenericVideoDevice):
         except:
             self.log.exception(traceback.format_exc())
         
+    
+    def save_snapshot(self, filename, image_type):
+        image = self.get_last_image()
+        if image_type.lower() == filename[-len(image_type):].lower():
+            imsave(filename, image)
+        else:
+            imsave('%s.%s' % (filename, image_type.lower()))
+            
