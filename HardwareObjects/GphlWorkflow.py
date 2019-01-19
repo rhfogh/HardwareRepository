@@ -14,6 +14,7 @@ import uuid
 import time
 import os
 import subprocess
+import socket
 import f90nml
 
 import gevent
@@ -97,32 +98,6 @@ class GphlWorkflow(HardwareObject, object):
 
     def init(self):
 
-        # Set standard configurable file paths
-        file_paths = self.file_paths
-        gphl_beamline_config = HardwareRepository().findInRepository(
-            self.getProperty('gphl_beamline_config')
-        )
-        file_paths['gphl_beamline_config'] = gphl_beamline_config
-        file_paths['instrumentation_file'] = fp = os.path.join(
-            gphl_beamline_config, 'instrumentation.nml'
-        )
-        dd = f90nml.read(fp)['sdcp_instrument_list']
-        self.rotation_axis_roles = dd['gonio_axis_names']
-        self.translation_axis_roles = dd['gonio_centring_axis_names']
-
-        file_paths['transcal_file'] = os.path.join(
-            gphl_beamline_config, 'transcal.nml'
-        )
-        file_paths['diffractcal_file'] = os.path.join(
-            gphl_beamline_config, 'diffractcal.nml'
-        )
-
-        gphl_config = HardwareRepository().findInRepository(
-            self.getProperty('gphl_config')
-        )
-        file_paths['test_samples'] = os.path.join(gphl_config, 'test_samples')
-        file_paths['scripts'] = os.path.join(gphl_config, 'scripts')
-
         # Set up processing functions map
         self._processor_functions = {
             'String':self.echo_info_string,
@@ -140,18 +115,30 @@ class GphlWorkflow(HardwareObject, object):
             'WorkflowFailed':self.workflow_failed,
         }
 
+        workflow_connection = HardwareRepository().getHardwareObject('/gphl-setup')
+        self._workflow_connection = workflow_connection
+
+        # Set standard configurable file paths
+        file_paths = self.file_paths
+        ss = workflow_connection.software_paths['gphl_beamline_config']
+        file_paths['gphl_beamline_config'] = ss
+        file_paths['transcal_file'] = os.path.join(ss, 'transcal.nml')
+        file_paths['diffractcal_file'] = os.path.join(ss, 'diffractcal.nml')
+        file_paths['instrumentation_file'] = fp = os.path.join(
+            ss, 'instrumentation.nml'
+        )
+        dd = f90nml.read(fp)['sdcp_instrument_list']
+        self.rotation_axis_roles = dd['gonio_axis_names']
+        self.translation_axis_roles = dd['gonio_centring_axis_names']
+
     def pre_execute(self, queue_entry):
 
         self._queue_entry = queue_entry
 
-        #If not already active, set up connections and turn ON
         if self.get_state() == States.OFF:
-            workflow_connection = queue_entry.beamline_setup.getObjectByRole(
-                'gphl_connection'
-            )
-            self._workflow_connection = workflow_connection
-            workflow_connection._initialize_connection(self)
-            workflow_connection._open_connection()
+            # If not already active (i.e. first time),turn ON
+            # self._workflow_connection._initialize_connection(self)
+            self._workflow_connection._open_connection()
             self.set_state(States.ON)
 
     def shutdown(self):
@@ -167,32 +154,45 @@ class GphlWorkflow(HardwareObject, object):
 
         # TODO this could be cached for speed
 
-
-        instcfgout_dir = self.getProperty('instcfgout_dir')
-
         result = OrderedDict()
         if self.hasObject('workflow_properties'):
             properties = self['workflow_properties'].getProperties()
         else:
             properties = {}
-
-        if self.hasObject('workflow_options'):
-            options = self['workflow_options'].getProperties()
-        else:
-            options = {}
-        if self.hasObject('invocation_options'):
-            invocation_options = self['invocation_options'].getProperties()
-        else:
-            invocation_options = {}
         if self.hasObject('invocation_properties'):
             invocation_properties = self['invocation_properties'].getProperties()
         else:
             invocation_properties = {}
 
+        if self.hasObject('all_workflow_options'):
+            all_workflow_options = self['all_workflow_options'].getProperties()
+            if 'beamline' in all_workflow_options:
+                pass
+            elif self._workflow_connection.hasObject('ssh_options'):
+                # We are running workflow through ssh - set beamline url
+                all_workflow_options['beamline'] = 'py4j:%s:' % socket.gethostname()
+            else:
+                all_workflow_options['beamline'] = 'py4j::'
+        else:
+            all_workflow_options = {}
+
+        acq_workflow_options = all_workflow_options.copy()
+        acq_workflow_options.update(self['acq_workflow_options'].getProperties())
+        # Add options for target directories:
+        # There should be a better way, but apparently there isn't
+        session_hwobj = HardwareRepository().getHardwareObject('session')
+        process_root = session_hwobj.get_base_process_directory()
+        acq_workflow_options['appdir'] = process_root
+
+        mx_workflow_options = acq_workflow_options.copy()
+        mx_workflow_options.update(self['mx_workflow_options'].getProperties())
+
+
         for wf_node in self['workflows']:
             name = wf_node.name()
+            strategy_type = wf_node.getProperty('strategy_type')
             wf_dict = {'name':name,
-                       'strategy_type':wf_node.getProperty('strategy_type'),
+                       'strategy_type':strategy_type,
                        'application':wf_node.getProperty('application'),
                        'documentation':wf_node.getProperty('documentation',
                                                            default_value=''),
@@ -200,36 +200,46 @@ class GphlWorkflow(HardwareObject, object):
                                                              default_value=''),
             }
             result[name] = wf_dict
-            wf_dict['options'] = dd = options.copy()
-            if wf_node.hasObject('options'):
-                dd.update(wf_node['options'].getProperties())
-                relative_file_path = dd.get('file')
-                if relative_file_path is not None:
-                    # Special case - this option must be modified before use
-                    dd['file'] = os.path.join(
-                        self.file_paths['gphl_beamline_config'],
-                        relative_file_path
-                    )
-                instcfgout = dd.get('instcfgout')
-                if instcfgout is not None and instcfgout_dir is not None:
-                    # Special case - this option must be modified before use
-                    dd['instcfgout'] = os.path.join(instcfgout_dir, instcfgout)
+
+            if strategy_type.startswith('transcal'):
+                wf_dict['options'] = dd = all_workflow_options.copy()
+                if wf_node.hasObject('options'):
+                    dd.update(wf_node['options'].getProperties())
+                    relative_file_path = dd.get('file')
+                    if relative_file_path is not None:
+                        # Special case - this option must be modified before use
+                        dd['file'] = os.path.join(
+                            self.file_paths['gphl_beamline_config'],
+                            relative_file_path
+                        )
+
+            elif strategy_type.startswith('diffractcal'):
+                wf_dict['options'] = dd = acq_workflow_options.copy()
+                if wf_node.hasObject('options'):
+                    dd.update(wf_node['options'].getProperties())
+
+            else:
+                wf_dict['options'] = dd = mx_workflow_options.copy()
+                if wf_node.hasObject('options'):
+                    dd.update(wf_node['options'].getProperties())
+                if wf_node.hasObject('beam_energies'):
+                    wf_dict['beam_energies'] = dd = OrderedDict()
+                    for wavelength in wf_node['beam_energies']:
+                        dd[wavelength.getProperty('role')] = (
+                            wavelength.getProperty('value')
+                        )
             wf_dict['properties'] = dd = properties.copy()
             if wf_node.hasObject('properties'):
                 dd.update(wf_node['properties'].getProperties())
+            # Program-specific properties
+            devmode = dd.get('co.gphl.wf.devMode')
+            if devmode and devmode[0] not in 'fFnN':
+                # We are in developer mode. Add parameters
+                dd['co.gphl.wf.stratcal.opt.--strategy_type'] = strategy_type
+
             wf_dict['invocation_properties'] = dd = invocation_properties.copy()
             if wf_node.hasObject('invocation_properties'):
                 dd.update(wf_node['invocation_properties'].getProperties())
-            wf_dict['invocation_options'] = dd = invocation_options.copy()
-            if wf_node.hasObject('invocation_options'):
-                dd.update(wf_node['invocation_options'].getProperties())
-
-            if wf_node.hasObject('beam_energies'):
-                wf_dict['beam_energies'] = dd = OrderedDict()
-                for wavelength in wf_node['beam_energies']:
-                    dd[wavelength.getProperty('role')] = (
-                        wavelength.getProperty('value')
-                    )
         #
         return result
 
@@ -358,7 +368,8 @@ class GphlWorkflow(HardwareObject, object):
             self.file_paths['gphl_beamline_config']
         )
 
-    def query_collection_strategy(self, geometric_strategy):
+    def query_collection_strategy(self, geometric_strategy, collect_hwobj,
+                                  default_energy):
         """Display collection strategy for user approval,
         and query parameters needed"""
 
@@ -383,19 +394,11 @@ class GphlWorkflow(HardwareObject, object):
         # The strategy is (for now) repeated identical for all wavelengths
         # When this changes, more info will become available
 
-        # NBNB
-
         axis_names = self.rotation_axis_roles
 
         orientations = OrderedDict()
         strategy_length = 0
-        detectorSetting = None
-        beamSetting = None
         for sweep in geometric_strategy.sweeps:
-            if detectorSetting is None:
-                detectorSetting = sweep.detectorSetting
-            if beamSetting is None:
-                beamSetting = sweep.beamSetting
             strategy_length += sweep.width
             rotation_id = sweep.goniostatSweepSetting.id
             sweeps = orientations.get(rotation_id, [])
@@ -407,20 +410,24 @@ class GphlWorkflow(HardwareObject, object):
             # Data collection TODO: Use workflow info to distinguish
             total_width = 0
             beam_energies = data_model.get_beam_energies()
+            # NB We no longer use the actual energies, only the tags
+            # TODO clean up the configs to match
+            energies = [default_energy, default_energy + 0.01, default_energy - 0.01]
+            for ii, tag in enumerate(beam_energies):
+                beam_energies[tag] = energies[ii]
+
             for tag, energy in beam_energies.items():
                 # NB beam_energies is an ordered dictionary
-                lines.append("- %-18s %6.1f degrees at %s keV"
-                             % (tag, strategy_length, energy))
+                lines.append("- %-18s %6.1f degrees"
+                             % (tag, strategy_length))
                 total_width += strategy_length
             lines.append("%-18s:  %6.1f degrees" % ("Total rotation",
                                                     total_width))
         else:
-            # Charcterisation TODO: Use workflow info to distinguish
-            lines.append("    - Beam Energy    : %7.1f keV"
-                         % (ConvertUtils.h_over_e / beamSetting.wavelength))
+            # Charcterisation TODO: Use workflow info to distinguish h_o
+            beam_energies = OrderedDict((('Characterisation', default_energy),))
             lines.append("    - Total rotation : %7.1f degrees"
                          % strategy_length)
-
 
         for rotation_id, sweeps in sorted(orientations.items()):
             goniostatRotation = sweeps[0].goniostatSweepSetting
@@ -458,65 +465,54 @@ class GphlWorkflow(HardwareObject, object):
 
             # NB Transmission is in % in UI, but in 0-1 in workflow
             {'variableName':'transmission',
-             'uiLabel':'Transmission',
+             'uiLabel':'Transmission (%)',
              'type':'text',
              'defaultValue':str(acq_parameters.transmission),
-             'unit':'%',
              'lowerBound':0.0,
              'upperBound':100.0,
              },
             {'variableName':'exposure',
-             'uiLabel':'Exposure Time',
+             'uiLabel':'Exposure Time (s)',
              'type':'text',
              'defaultValue':str(acq_parameters.exp_time),
-             'unit':'s',
              # NBNB TODO fill in from config
              'lowerBound':0.003,
              'upperBound':6000,
              },
         ]
 
+        ll = []
+        for tag, val in beam_energies.items():
+            ll.append(
+                {'variableName':tag,
+                 'uiLabel':'%s beam energy (keV)' % tag,
+                 'type':'text',
+                 'defaultValue':str(val),
+                 'lowerBound':4.0,
+                 'upperBound':20.
+                 }
+            )
+        if  data_model.lattice_selected:
+            # TODO NBNB temporary hack pending fixing of wvelength and det_dist
+            ll[0]['readOnly']  = True
+        field_list.extend(ll)
 
-        # First set beam_energy and give it time to settle,
-        # so detector distance will trigger correct resolution later
-        collect_hwobj = self._queue_entry.beamline_setup.getObjectByRole(
-            'collect'
+        resolution = collect_hwobj.get_resolution()
+        field_list.append(
+            {'variableName':'resolution',
+             'uiLabel':'Detector resolution (A)',
+             'type':'text',
+             'defaultValue':str(resolution),
+             # TODO remove this restriction when detector distances can be changed:
+             'readOnly':True
+             }
         )
-        collect_hwobj.set_wavelength(beamSetting.wavelength)
-
-        detectorDistance = detectorSetting.axisSettings.get('Distance')
-        if detectorDistance:
-            # NBNB If this is ever set to editable, distance and resolution
-            # must be varied in sync
-            collect_hwobj.move_detector(detectorDistance)
-            resolution = collect_hwobj.get_resolution()
-            field_list.append(
-                {'variableName':'detector_distance',
-                 'uiLabel':'Detector distance',
-                 'type':'text',
-                 'defaultValue':str(detectorDistance),
-                 'readOnly':True,
-                 }
-            )
-            field_list.append(
-                {'variableName':'detector_resolution',
-                 'uiLabel':'Equivalent detector resolution (A)',
-                 'type':'text',
-                 'defaultValue':str(resolution),
-                 'readOnly':True,
-                 }
-            )
-        else:
-            logging.getLogger('HWR').warning(
-                "Detector distance not set by workflow runner"
-            )
 
         if isInterleaved:
             field_list.append({'variableName':'wedgeWidth',
                               'uiLabel':'Images per wedge',
                               'type':'text',
                               'defaultValue':'10',
-                              'unit':'',
                               'lowerBound':0,
                               'upperBound':1000,}
                           )
@@ -548,25 +544,52 @@ class GphlWorkflow(HardwareObject, object):
         value = params.get(tag)
         if value:
             result[tag] = int(value)
-        # TODO NBNB must be modified if we make distance/resolution editable
-        tag = 'detector_distance'
+        tag = 'resolution'
         value = params.get(tag)
         if value:
-            collect_hwobj.move_detector(float(value))
-            resolution = collect_hwobj.get_resolution()
-            result['resolution'] = resolution
+            value = float(value)
+            result['resolution'] = value
+
         if isInterleaved:
             result['interleaveOrder'] = data_model.get_interleave_order()
+
+        for tag in beam_energies:
+            beam_energies[tag] = float(params.get(tag, 0))
+        result['beam_energies'] = beam_energies
 
         return result
 
     def setup_data_collection(self, payload, correlation_id):
         geometric_strategy = payload
+
+        collect_hwobj = self._queue_entry.beamline_setup.getObjectByRole(
+            'collect'
+        )
+        beamSetting = geometric_strategy.defaultBeamSetting
+        if beamSetting:
+            # First set beam_energy and give it time to settle,
+            # so detector distance will trigger correct resolution later
+            default_energy = ConvertUtils.h_over_e/beamSetting.wavelength
+            # TODO NBNB put in wait-till ready to make sure value settles
+            collect_hwobj.set_energy(default_energy)
+        else:
+            default_energy = collect_hwobj.get_energy()
+
+        detectorSetting = geometric_strategy.defaultDetectorSetting
+        if detectorSetting:
+            # NBNB If this is ever set to editable, distance and resolution
+            # must be varied in sync
+            collect_hwobj.move_detector(detectorSetting.axisSettings.get('Distance'))
+        # TODO NBNB put in wait-till-ready to make sure value settles
+        collect_hwobj.detector_hwobj.wait_ready()
+        resolution = collect_hwobj.get_resolution()
+
         # NB this call also asks for OK/abort of strategy, hence put first
-        parameters = self.query_collection_strategy(geometric_strategy)
+        parameters = self.query_collection_strategy(geometric_strategy, collect_hwobj,
+                                                    default_energy)
         # Put resolution value in workflow model object
         gphl_workflow_model = self._queue_entry.get_data_model()
-        gphl_workflow_model.set_detector_resolution(parameters.pop('resolution'))
+        gphl_workflow_model.set_detector_resolution(resolution)
 
         user_modifiable = geometric_strategy.isUserModifiable
         if user_modifiable:
@@ -631,9 +654,14 @@ class GphlWorkflow(HardwareObject, object):
                     logging.getLogger('HWR').debug("Recentring. okp=%s, %s"
                                                    % (okp, sorted(dd.items())))
                 else:
+                    if sweepSetting.translation is None:
+                        xx = "No translation settings."
+                    else:
+                        xx = sorted(
+                            sweepSetting.translation.axisSettings.items()
+                        )
                     logging.getLogger('HWR').debug(
-                        "No recentring. okp=%s, %s"
-                        % (okp, sorted(sweepSetting.translation.axisSettings.items()))
+                        "No recentring. okp=%s, %s" % (okp, xx)
                     )
 
                 goniostatSweepSettings[requestedRotationId] = sweepSetting
@@ -654,9 +682,31 @@ class GphlWorkflow(HardwareObject, object):
                 )
             )
 
+        # Get wavelengths
+        h_over_e = ConvertUtils.h_over_e
+        beam_energies = parameters.pop('beam_energies')
+        wavelengths = list(
+            GphlMessages.PhasingWavelength(wavelength=h_over_e/val, role=tag)
+            for tag, val in beam_energies.items()
+        )
+
+        # get BcsDetectorSetting
+        new_resolution = parameters.pop('resolution')
+        if new_resolution == resolution:
+            id_ = detectorSetting.id
+        else:
+            collect_hwobj.set_resolution(new_resolution)
+            collect_hwobj.detector_hwobj.wait_ready()
+            # NBNB Wait till value has settled
+            id_ = None
+        orgxy = collect_hwobj.get_beam_centre()
+        detectorSetting = GphlMessages.BcsDetectorSetting(
+            new_resolution, id=id_, orgxy=orgxy,
+            Distance=collect_hwobj.get_detector_distance())
+
         sampleCentred = self.GphlMessages.SampleCentred(
-            goniostatTranslations=goniostatTranslations,
-            **parameters
+            goniostatTranslations=goniostatTranslations, wavelengths=wavelengths,
+            detectorSetting=detectorSetting, **parameters
         )
         return sampleCentred
 
@@ -733,9 +783,7 @@ class GphlWorkflow(HardwareObject, object):
         f90nml.write(indata, infile, force=True)
 
         # Get program locations
-        recen_executable = self._workflow_connection.software_paths[
-            'co.gphl.wf.recen.bin'
-        ]
+        recen_executable = self._workflow_connection.get_executable('recen')
         # Get environmental variables
         envs = {'BDG_home':
                     self._workflow_connection.software_paths['BDG_home']
@@ -951,7 +999,6 @@ class GphlWorkflow(HardwareObject, object):
 
         dd = self.parse_indexing_solution(solution_format,
                                           choose_lattice.solutions)
-
         field_list = [
             {'variableName':'_cplx',
              'uiLabel':'Select indexing solution:',
@@ -1210,19 +1257,6 @@ class GphlWorkflow(HardwareObject, object):
         workflow_model = self._queue_entry.get_data_model()
         sample_model = workflow_model.get_sample_node()
 
-        wavelengths = []
-        beam_energies = workflow_model.get_beam_energies()
-        if beam_energies:
-            for role, value in beam_energies.items():
-                wavelength = ConvertUtils.h_over_e / value
-                wavelengths.append(
-                    self.GphlMessages.PhasingWavelength(wavelength=wavelength,
-                                                        role=role)
-                )
-        else:
-            wavelengths.append(
-                self.GphlMessages.PhasingWavelength(wavelength=DUMMY_WAVELENGTH)
-            )
 
         cell_params = workflow_model.get_cell_parameters()
         if cell_params:
@@ -1246,8 +1280,7 @@ class GphlWorkflow(HardwareObject, object):
             spaceGroup=space_group,
             cell=unitCell,
             expectedResolution=workflow_model.get_expected_resolution(),
-            isAnisotropic=None,
-            phasingWavelengths=wavelengths
+            isAnisotropic=None
         )
         ll = ['PriorInformation']
         for tag in ('expectedResolution', 'isAnisotropic', 'lattice',
@@ -1255,8 +1288,6 @@ class GphlWorkflow(HardwareObject, object):
             val = getattr(userProvidedInfo, tag)
             if val:
                 ll.append('%s=%s' % (tag, val))
-        if beam_energies:
-            ll.extend('%s=%s' % (x.role, x.wavelength) for x in wavelengths)
         if cell_params:
             ll.append('cell_parameters=%s' % (cell_params,))
         logging.getLogger('HWR').debug(', '.join(ll))
@@ -1276,8 +1307,18 @@ class GphlWorkflow(HardwareObject, object):
         else:
             sampleId = uuid.uuid1()
 
-        # TODO re-check if this is correct
-        rootDirectory = workflow_model.path_template.directory
+        session_hwobj = HardwareRepository().getHardwareObject('session')
+        image_root = session_hwobj.get_base_image_directory()
+
+        if not os.path.isdir(image_root):
+            # This direstory must exist by the time the WF software checks for it
+            try:
+                os.makedirs(image_root)
+            except:
+                # No need to raise error - program will fail downstream
+                logging.getLogger('HWR').error(
+                    "Could not create image root directory: %s" % image_root
+                )
 
         priorInformation = self.GphlMessages.PriorInformation(
             sampleId=sampleId,
@@ -1285,7 +1326,7 @@ class GphlWorkflow(HardwareObject, object):
                         or sample_model.lims_code or
                         workflow_model.path_template.get_prefix()
                         or str(sampleId)),
-            rootDirectory=rootDirectory,
+            rootDirectory=image_root,
             userProvidedInfo=userProvidedInfo
         )
         #

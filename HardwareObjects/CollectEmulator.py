@@ -31,6 +31,13 @@ class CollectEmulator(CollectMockup):
 
         self._counter = 1
 
+    def init(self):
+
+        CollectMockup.init(self)
+        session_hwobj = self.getObjectByRole("session")
+        if session_hwobj and self.hasObject('override_data_directories'):
+            dirs = self['override_data_directories'].getProperties()
+            session_hwobj.set_base_data_directories(**dirs)
 
     def _get_simcal_input(self, data_collect_parameters, crystal_data):
         """Get ordered dict with simcal input from available data"""
@@ -83,12 +90,11 @@ class CollectEmulator(CollectMockup):
         setup_data['trans_y_axis'] = ll[3:6]
         setup_data['trans_z_axis'] = ll[6:]
         tags = ('cone_radius', 'cone_s_height', 'beam_stop_radius',
-                'beam_stop_s_length', 'beam_stop_s_distance', 'gain', 'background',)
+                'beam_stop_s_length', 'beam_stop_s_distance',)
         for tag in tags:
             val = instrument_data.get(remap.get(tag, tag))
             if val is not None:
                 setup_data[tag] = val
-
 
         # Add/overwrite parameters from emulator configuration
         conv = ConvertUtils.convert_string_value
@@ -215,12 +221,12 @@ class CollectEmulator(CollectMockup):
             raise ValueError("Emulator requires GPhL connection installation")
 
         # Get program locations
-        simcal_executive = self.gphl_connection_hwobj.software_paths[
-            'co.gphl.wf.simcal.bin'
-        ]
+        simcal_executive = self.gphl_connection_hwobj.get_executable('simcal')
         # Get environmental variables
         envs = {'BDG_home':
-                    self.gphl_connection_hwobj.software_paths['BDG_home']
+                    self.gphl_connection_hwobj.software_paths['BDG_home'],
+                'GPHL_INSTALLATION':
+                    self.gphl_connection_hwobj.software_paths['GPHL_INSTALLATION']
                 }
         for tag, val in self['environment_variables'].getProperties().items():
             envs[str(tag)] = str(val)
@@ -233,15 +239,28 @@ class CollectEmulator(CollectMockup):
             if ss and ss.startswith(self.TEST_SAMPLE_PREFIX):
                 sample_name  = ss[len(self.TEST_SAMPLE_PREFIX):]
 
-        sample_dir = os.path.join(
-            HardwareRepository().getHardwareRepositoryPath(),
-            self.gphl_workflow_hwobj.file_paths['test_samples'],
-            sample_name
+        sample_dir = self.gphl_connection_hwobj.software_paths.get(
+            'gphl_test_samples'
         )
+        if not sample_dir:
+            raise ValueError(
+                "Emulator requires gphl_test_samples dir specified"
+            )
+        sample_dir = os.path.join(sample_dir, sample_name)
+        if not os.path.isdir(sample_dir):
+            raise ValueError(
+                "Sample data directory %s does not exist" % sample_dir
+            )
+        crystal_file = os.path.join(sample_dir, 'crystal.nml')
+        if not os.path.isfile(crystal_file):
+            raise ValueError(
+                "Emulator crystal data file %s does not exist" % crystal_file
+            )
         # in spite of the simcal_crystal_list name this returns an OrderdDict
-        crystal_data = f90nml.read(
-            os.path.join(sample_dir, 'crystal.nml')
-        )['simcal_crystal_list']
+        crystal_data = f90nml.read(crystal_file)['simcal_crystal_list']
+
+        if isinstance(crystal_data, list):
+            crystal_data = crystal_data[0]
 
         input_data = self._get_simcal_input(data_collect_parameters,
                                             crystal_data)
@@ -249,18 +268,24 @@ class CollectEmulator(CollectMockup):
         # NB outfile is the echo output of the input file;
         # image files templates are set in the input file
         file_info = data_collect_parameters['fileinfo']
-        if not os.path.exists(file_info['process_directory']):
-            os.makedirs(file_info['process_directory'])
         if not os.path.exists(file_info['directory']):
             os.makedirs(file_info['directory'])
-        infile = os.path.join(file_info['process_directory'],
+        if not os.path.exists(file_info['directory']):
+            os.makedirs(file_info['directory'])
+        infile = os.path.join(file_info['directory'],
                               'simcal_in_%s.nml' % self._counter)
 
         f90nml.write(input_data, infile, force=True)
-        outfile = os.path.join(file_info['process_directory'],
+        outfile = os.path.join(file_info['directory'],
                                'simcal_out_%s.nml' % self._counter)
+        logfile = os.path.join(file_info['directory'],
+                               'simcal_log_%s.txt' % self._counter)
         self._counter += 1
         hklfile = os.path.join(sample_dir, 'sample.hkli')
+        if not os.path.isfile(hklfile):
+            raise ValueError(
+                "Emulator hkli file %s does not exist" % hklfile
+            )
         command_list = [simcal_executive, '--input', infile, '--output', outfile,
                         '--hkl', hklfile]
 
@@ -268,13 +293,22 @@ class CollectEmulator(CollectMockup):
             command_list.extend(ConvertUtils.command_option(tag, val,
                                                             prefix='--'))
         logging.getLogger('HWR').info("Executing command: %s" % command_list)
+        logging.getLogger('HWR').info("Executing environment: %s"
+                                      % sorted(envs.items()))
+
+
+        fp1 = open(logfile, 'w')
+        fp2 = subprocess.STDOUT
+        # resource.setrlimit(resource.RLIMIT_STACK, (-1,-1))
 
         try:
-            running_process = subprocess.Popen(command_list, stdout=None,
-                                                     stderr=None, env=envs)
+            running_process = subprocess.Popen(command_list, stdout=fp1,
+                                               stderr=fp2, env=envs)
         except:
             logging.getLogger('HWR').error('Error in spawning workflow application')
             raise
+        finally:
+            fp1.close()
 
         # This does waiting, so we want to collect the result afterwards
         super(CollectEmulator, self).data_collection_hook()
