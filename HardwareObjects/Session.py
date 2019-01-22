@@ -12,6 +12,9 @@ import queue_model_objects_v1 as queue_model_objects
 import logging
 
 class Session(HardwareObject):
+
+    default_raw_data_folder = "RAW_DATA"
+
     def __init__(self, name):
         HardwareObject.__init__(self, name)
 
@@ -28,12 +31,16 @@ class Session(HardwareObject):
         self.user_group = ''
         self.template = None
 
-        self.default_precision = "'05'"
+        self.default_precision = '05'
         self.suffix = None
+
         self.base_directory = None
         self.base_process_directory = None
-        self.raw_data_folder_name = None
-        self.processed_data_folder_name = None
+        self.base_archive_directory = None
+
+        self.raw_data_folder_name = 'RAW_DATA'
+        self.processed_data_folder_name = 'PROCESS_DATA'
+        self.archive_folder_name = 'ARCHIVE'
 
     # Framework-2 method, inherited from HardwareObject and called
     # by the framework after the object has been initialized.
@@ -43,17 +50,27 @@ class Session(HardwareObject):
         self.endstation_name = self.getProperty('endstation_name').lower()
         self.suffix = self["file_info"].getProperty('file_suffix')
         self.template = self["file_info"].getProperty('file_template')
-        self.base_directory = self["file_info"].\
+
+        base_directory = self["file_info"].\
                               getProperty('base_directory')
 
-        self.base_process_directory = self["file_info"].\
+        base_process_directory = self["file_info"].\
             getProperty('processed_data_base_directory')
 
-        self.raw_data_folder_name = self["file_info"].\
+        base_archive_directory = self['file_info'].\
+            getProperty('archive_base_directory')
+
+        raw_folder = self["file_info"].\
             getProperty('raw_data_folder_name')
 
-        self.processed_data_folder_name = self["file_info"].\
+        if raw_folder is None or (not raw_folder.strip()):
+            raw_folder = Session.default_raw_data_folder
+
+        process_folder = self["file_info"].\
             getProperty('processed_data_folder_name')
+
+        archive_folder = self['file_info'].\
+            getProperty('archive_folder')
 
         try:
            inhouse_proposals = self["inhouse_users"]["proposal"]
@@ -66,11 +83,13 @@ class Session(HardwareObject):
 
         queue_model_objects.PathTemplate.\
            set_path_template_style(self.synchrotron_name, self.template) 
-        queue_model_objects.PathTemplate.\
-           set_data_base_path(self.base_directory)
-        queue_model_objects.PathTemplate.set_archive_path(
-           self['file_info'].getProperty('archive_base_directory'),
-           self['file_info'].getProperty('archive_folder'))
+
+        self.set_base_data_directories( base_directory,
+                                        base_process_directory,
+                                        base_archive_directory,
+                                        raw_folder=raw_folder,
+                                        process_folder=process_folder,
+                                        archive_folder=archive_folder)
 
         precision = self.default_precision
                 
@@ -80,6 +99,24 @@ class Session(HardwareObject):
             pass
 
         queue_model_objects.PathTemplate.set_precision(precision)
+
+    def set_base_data_directories(self, base_directory, base_process_directory, base_archive_directory,
+              raw_folder="RAW_DATA", process_folder="PROCESS_DATA", archive_folder="ARCHIVE"):
+
+        self.base_directory = base_directory
+        self.base_process_directory = base_process_directory
+        self.base_archive_directory = base_archive_directory
+
+        self.raw_data_folder_name = raw_folder
+        self.process_data_folder_name = process_folder
+        self.archive_data_folder_name = archive_folder
+
+        if self.base_directory is not None:
+            queue_model_objects.PathTemplate.set_data_base_path(self.base_directory)
+
+        if self.base_archive_directory is not None:
+            queue_model_objects.PathTemplate.set_archive_path(
+               self.base_archive_directory, self.archive_folder_name)
 
     def get_base_data_directory(self):
         """
@@ -201,6 +238,17 @@ class Session(HardwareObject):
             prefix = '<acronym>-<name>'
 
         return prefix
+
+    def get_archive_directory(self):
+        archive_directory = os.path.join(self['file_info'].getProperty('archive_base_directory'),
+                                         self['file_info'].getProperty('archive_folder'))
+
+        if self.synchrotron_name == "EMBL-HH":
+            folders = self.get_base_data_directory().split('/')
+            archive_directory = os.path.join(archive_directory,
+                                             *folders[4:])
+        return archive_directory
+
 
     def get_proposal(self):
         """

@@ -39,7 +39,7 @@ def addHardwareObjectsDirs(hoDirs):
     if type(hoDirs) == list:
         newHoDirs = list(filter(os.path.isdir, list(map(os.path.abspath, hoDirs))))
 
-        for newHoDir in newHoDirs:
+        for newHoDir in reversed(newHoDirs):
             if not newHoDir in sys.path:
                 sys.path.insert(0, newHoDir)
 

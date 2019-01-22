@@ -62,10 +62,12 @@ class Qt4_VideoMockup(GenericVideoDevice):
         qimage.save(filename, image_type)
 
     def get_snapshot(self, bw=None, return_as_array=None):
-        qimage = QImage(self.image)
+        qimage = QImage(self.image,)
         if return_as_array:
             qimage = qimage.convertToFormat(4)
             ptr = qimage.bits()
+            if ptr is None:
+                return None
             ptr.setsize(qimage.byteCount())
 
             image_array = np.array(ptr).reshape(qimage.height(), qimage.width(), 4)
@@ -120,4 +122,3 @@ class Qt4_VideoMockup(GenericVideoDevice):
     
     def getHeigth(self):
         self.get_height()
-        
