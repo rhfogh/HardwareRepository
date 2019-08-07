@@ -23,10 +23,11 @@ from __future__ import division, absolute_import
 from __future__ import print_function, unicode_literals
 
 import uuid
+import operator
 from collections import OrderedDict
 from collections import namedtuple
 
-from HardwareRepository.ConvertUtils import string_types
+from ConvertUtils import string_types
 
 __copyright__ = """ Copyright © 2016 - 2019 by Global Phasing Ltd. """
 __license__ = "LGPLv3+"
@@ -994,21 +995,19 @@ class GeometricStrategy(IdentifiedElement, Payload):
     def sweeps(self):
         return self._sweeps
 
-    def get_ordered_sweeps(self):
+    @property
+    def orderedSweeps(self):
         """Get sweeps in acquisition order.
 
-        WARNING we do not have the necessary information.
-        So we sort in increasing order by angles, in alphabetical name order,
-        (in pracite, 'kappa', 'kappa_phi', 'phi')
-        HORRIBLE HACK, but as it happens this will give
-        at least the first one correct mostly
-        and anyway is the best approximation we have
-
-        TODO get this right, once the workflow allows"""
+        NB scans from sweeps are acquired in sweep group order.
+        Within the same sweep group the order is ARBITRARY,
+        since these are anyway interleaved.
+        This function sorts by setting angles, just to be deterministic"""
         ll0 = []
         for sweep in self._sweeps:
             dd0 = sweep.get_initial_settings()
-            ll0.append((tuple(dd0[x] for x in sorted(dd0)), sweep))
+            tpl = (sweep.sweepGroup,) + tuple(dd0[x] for x in sorted(dd0))
+            ll0.append((tpl, sweep))
         #
         return list(tt0[1] for tt0 in sorted(ll0))
 
@@ -1037,6 +1036,19 @@ class CollectionProposal(IdentifiedElement, Payload):
     @property
     def scans(self):
         return self._scans
+
+    @property
+    def orderedScans(self):
+        """Get scans in desired acquisition order.
+
+        This function keeps the scan order within each sweep, but reorders the sweeps
+
+        NBNB TEMPORARY HACK
+         Eventually the workflow will provide the right order and this function
+        can be retired.
+
+        TODO get this right, once the workflow allows"""
+        return sorted(self._scans, key=operator.attrgetter("sweep.sweepGroup"))
 
 
 class PriorInformation(Payload):

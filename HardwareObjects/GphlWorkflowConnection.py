@@ -1044,30 +1044,30 @@ class GphlWorkflowConnection(HardwareObject, object):
 
         cls = self._gateway.jvm.astra.messagebus.messages.information.SampleCentredImpl
 
-        if sampleCentred.interleaveOrder:
-            result = cls(
-                float(sampleCentred.imageWidth),
-                sampleCentred.wedgeWidth,
-                float(sampleCentred.exposure),
-                float(sampleCentred.transmission),
-                list(sampleCentred.interleaveOrder),
-                list(
-                    self._PhasingWavelength_to_java(x)
-                    for x in sampleCentred.wavelengths
-                ),
-                self._BcsDetectorSetting_to_java(sampleCentred.detectorSetting),
-            )
-        else:
-            result = cls(
-                float(sampleCentred.imageWidth),
-                float(sampleCentred.exposure),
-                float(sampleCentred.transmission),
-                list(
-                    self._PhasingWavelength_to_java(x)
-                    for x in sampleCentred.wavelengths
-                ),
-                self._BcsDetectorSetting_to_java(sampleCentred.detectorSetting),
-            )
+        # if sampleCentred.interleaveOrder:
+        result = cls(
+            float(sampleCentred.imageWidth),
+            int(sampleCentred.wedgeWidth),
+            float(sampleCentred.exposure),
+            float(sampleCentred.transmission),
+            list(sampleCentred.interleaveOrder),
+            list(
+                self._PhasingWavelength_to_java(x)
+                for x in sampleCentred.wavelengths
+            ),
+            self._BcsDetectorSetting_to_java(sampleCentred.detectorSetting),
+        )
+        # else:
+        #     result = cls(
+        #         float(sampleCentred.imageWidth),
+        #         float(sampleCentred.exposure),
+        #         float(sampleCentred.transmission),
+        #         list(
+        #             self._PhasingWavelength_to_java(x)
+        #             for x in sampleCentred.wavelengths
+        #         ),
+        #         self._BcsDetectorSetting_to_java(sampleCentred.detectorSetting),
+        #     )
 
         beamstopSetting = sampleCentred.beamstopSetting
         if beamstopSetting is not None:

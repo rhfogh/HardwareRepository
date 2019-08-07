@@ -266,7 +266,7 @@ class Sample(TaskNode):
         return s
 
     def _print(self):
-        print(("sample: %s" % self.loc_str))
+        print("sample: %s" % self.loc_str)
 
     def has_lims_data(self):
         if self.lims_id > -1:
@@ -281,7 +281,7 @@ class Sample(TaskNode):
         name = self.name
         acronym = self.crystals[0].protein_acronym
 
-        if self.name is not "" and acronym is not "":
+        if name and acronym:
             display_name = "%s - %s-%s" % (self.loc_str, acronym, name)
         else:
             display_name = self.get_name()
@@ -1758,7 +1758,6 @@ class GphlWorkflow(TaskNode):
         self._point_group = None
         self._cell_parameters = None
         self._snapshot_count = None
-        self._centre_before_sweep = None
         self._centre_before_scan = None
 
         self._dose_budget = None
@@ -1889,12 +1888,6 @@ class GphlWorkflow(TaskNode):
     def set_snapshot_count(self, value):
         self._snapshot_count = value
 
-    # (Re)centre before each sweep?.
-    def get_centre_before_sweep(self):
-        return self._centre_before_sweep
-    def set_centre_before_sweep(self, value):
-        self._centre_before_sweep = bool(value)
-
     # (Re)centre before each scan?.
     def get_centre_before_scan(self):
         return self._centre_before_scan
@@ -1987,7 +1980,7 @@ def to_collect_dict(data_collection, session, sample, centred_pos=None):
     acq_params = acquisition.acquisition_parameters
     proc_params = data_collection.processing_parameters
 
-    return [
+    result = [
         {
             "comment": "",
             "take_video": acq_params.take_video,
@@ -2050,6 +2043,19 @@ def to_collect_dict(data_collection, session, sample, centred_pos=None):
             "motors": centred_pos.as_dict() if centred_pos is not None else {},
         }
     ]
+             
+    # NBNB HACK. These start life as default values, and you do NOT want to keep
+    # resetting the beamline to the current value,
+    # as this causes unnecessary hardware activities
+    # So remove them altogether if the value is (was excplicitly set to)  None or 0
+    dd = result[0]
+    for tag in ('detector_distance', 'energy', 'transmission'):
+        if tag in dd and not dd[tag]:
+            del dd[tag]
+    resolution = dd.get('resolution')
+    if resolution is not None and not resolution.get('upper'):
+        del dd['resolution']
+    return result
 
 
 def dc_from_edna_output(

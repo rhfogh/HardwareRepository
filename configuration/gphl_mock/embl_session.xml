@@ -1,4 +1,5 @@
 <object class = "Session" role = "session">
+  <!-- For running EMBL setup in  mock mode-->
   <synchrotron_name>TEST</synchrotron_name>
   <endstation_name>eh1</endstation_name>
   <beamline_name>test</beamline_name>
