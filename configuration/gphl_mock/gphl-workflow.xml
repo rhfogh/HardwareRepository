@@ -186,7 +186,7 @@
         <!--<co.gphl.wf.stratcal.strategy_type>Set Automatically</co.gphl.wf.stratcal.strategy_type>-->
         <!-- Maximum allowed chi - in degrees. NB may be overridden by code -->
         <co.gphl.wf.stratcal.opt.--maximum_chi>48</co.gphl.wf.stratcal.opt.--maximum_chi>
-        <co.gphl.wf.stratcal.opt.--type-of-correction>0</co.gphl.wf.stratcal.opt.--type-of-correction>
+        <co.gphl.wf.stratcal.opt.--type-of-correction>1</co.gphl.wf.stratcal.opt.--type-of-correction>
     </workflow_properties>
 
     <!-- List of supported workflows, with options for each -->
