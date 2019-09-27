@@ -39,7 +39,6 @@ __author__ = "Rasmus H Fogh"
 
 
 class CollectEmulator(CollectMockup):
-    TEST_SAMPLE_PREFIX = "emulate-"
 
     def __init__(self, name):
         CollectMockup.__init__(self, name)
@@ -268,28 +267,7 @@ class CollectEmulator(CollectMockup):
             envs[text_type(tag)] = text_type(val)
 
         # get crystal data
-        sample_name = self.getProperty("default_sample_name")
-        sample = self.sample_changer_hwobj.getLoadedSample()
-        if sample:
-            ss0 = sample.getName()
-            if ss0 and ss0.startswith(self.TEST_SAMPLE_PREFIX):
-                sample_name = ss0[len(self.TEST_SAMPLE_PREFIX) :]
-
-        sample_dir = gphl_connection.software_paths.get("gphl_test_samples")
-        if not sample_dir:
-            raise ValueError("Emulator requires gphl_test_samples dir specified")
-        sample_dir = os.path.join(sample_dir, sample_name)
-        if not os.path.isdir(sample_dir):
-            raise ValueError("Sample data directory %s does not exist" % sample_dir)
-        crystal_file = os.path.join(sample_dir, "crystal.nml")
-        if not os.path.isfile(crystal_file):
-            raise ValueError(
-                "Emulator crystal data file %s does not exist" % crystal_file
-            )
-        # in spite of the simcal_crystal_list name this returns an OrderdDict
-        crystal_data = f90nml.read(crystal_file)["simcal_crystal_list"]
-        if isinstance(crystal_data, list):
-            crystal_data = crystal_data[0]
+        crystal_data, hklfile = api.gphl_workflow.get_emulation_crystal_data()
 
         input_data = self._get_simcal_input(data_collect_parameters, crystal_data)
 
@@ -312,9 +290,6 @@ class CollectEmulator(CollectMockup):
             file_info["directory"], "simcal_log_%s.txt" % self._counter
         )
         self._counter += 1
-        hklfile = os.path.join(sample_dir, "sample.hkli")
-        if not os.path.isfile(hklfile):
-            raise ValueError("Emulator hkli file %s does not exist" % hklfile)
         command_list = [
             simcal_executive,
             "--input",
