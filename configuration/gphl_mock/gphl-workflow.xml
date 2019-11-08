@@ -282,7 +282,7 @@
 
         <NativeData_fast>
             <application>co.gphl.wf.workflows.WFSimpleCharToProcessing</application>
-            <strategy_type>native_fast</strategy_type>
+            <strategy_type>native_short</strategy_type>
             <documentation>
                 Single wavelength data acquisition for native data collection
                 Includes initial characterisation and complete collection.
@@ -309,7 +309,7 @@
 
         <NativeData_medium>
             <application>co.gphl.wf.workflows.WFSimpleCharToProcessing</application>
-            <strategy_type>native_medium</strategy_type>
+            <strategy_type>native_two360</strategy_type>
             <documentation>
                 Single wavelength data acquisition for native data collection
                 Includes initial characterisation and complete collection.
@@ -336,7 +336,7 @@
 
         <NativeData_complete>
             <application>co.gphl.wf.workflows.WFSimpleCharToProcessing</application>
-            <strategy_type>native_complete</strategy_type>
+            <strategy_type>native_antishadow</strategy_type>
             <documentation>
                 Single wavelength data acquisition for native data collection
                 Includes initial characterisation and complete collection.
