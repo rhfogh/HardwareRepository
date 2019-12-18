@@ -1,0 +1,15 @@
+ &SIMCAL_CRYSTAL_LIST
+ ! Taken from 3n0s input and PDB 6MU9
+ SG_NAME = "P1",
+ CELL_DIM        =    35.307 ,  42.094 ,  48.542 ,
+ CELL_ANG_DEG    =    97.734 , 105.516 , 113.343 ,
+ CELL_DIM_SD     =  7.000000000000001E-002,  0.110000000000000     ,  7.000000000000001E-002,
+ U_MAT_ANG_DEG   = 0.0  30.0  30.0
+ U_MAT_SD_DEG    = 3*0.04
+ ! highest inherent res of hkli data: 0.979
+ RES_LIMIT_DEF   =   0.979
+ ! B factor to cause intensities to drop off (a bit).
+ ! 10.0 is a pretty random value
+ B_WILSON = 10.0
+ GEN_MODE = -1
+ /
