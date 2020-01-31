@@ -1,6 +1,6 @@
  &SIMCAL_CRYSTAL_LIST
  ! Taken from 4jrl input and PDB 5OVP
- SG_NAME = "R3212",
+ SG_NAME = "P3212",
  CELL_DIM        = 32.09  32.09  150.22
  CELL_ANG_DEG    = 90.000 90.000 120.000
  CELL_DIM_SD     =  0.133856        0.133856     0.127456
