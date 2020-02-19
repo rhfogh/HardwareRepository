@@ -6,10 +6,14 @@ the QueueModel.
 import copy
 import os
 import logging
-from collections import OrderedDict
+
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict
 
 from HardwareRepository.HardwareObjects import queue_model_enumerables
-
+from HardwareRepository import HardwareRepository as HWR
 
 class TaskNode(object):
     """
@@ -362,18 +366,18 @@ class Sample(TaskNode):
                 self.lims_container_location = int(
                     lims_sample.containerSampleChangerLocation
                 )
+        else:
+            try:
+                self.lims_sample_location = int(lims_sample.get("sampleLocation"))
+                self.lims_container_location = int(lims_sample.get("containerSampleChangerLocation"))
+            except BaseException:
+                pass
 
-                _lims = (
-                    int(lims_sample.containerSampleChangerLocation),
-                    int(lims_sample.sampleLocation),
-                )
+        _lims = (self.lims_container_location, self.lims_sample_location)
+        self.lims_location = _lims
+        self.location = _lims
 
-                self.lims_location = _lims
-                self.location = _lims
-
-                self.loc_str = str(
-                    str(self.lims_location[0]) + ":" + str(self.lims_location[1])
-                )
+        self.loc_str = str(self.lims_location[0]) + ":" + str(self.lims_location[1])
 
         if hasattr(lims_sample, "diffractionPlan"):
             self.diffraction_plan = lims_sample.diffractionPlan
@@ -1314,6 +1318,7 @@ class PathTemplate(object):
         self.start_num = int()
         self.num_files = int()
         self.compression = bool()
+        self.synchrotron_name = None
 
         if not hasattr(self, "precision"):
             self.precision = str()
@@ -1389,11 +1394,13 @@ class PathTemplate(object):
                 "/data/data1/inhouse", "/data/ispyb"
             )
             archive_directory = archive_directory.replace("/data/data1", "/data/ispyb")
+
         elif PathTemplate.synchrotron_name == "EMBL-HH":
             archive_directory = os.path.join(
-                PathTemplate.archive_base_directory, PathTemplate.archive_folder
+                 PathTemplate.archive_base_directory,
+                 PathTemplate.archive_folder,
+                 *folders[4:]
             )
-            archive_directory = os.path.join(archive_directory, *folders[4:])
         elif PathTemplate.synchrotron_name == "ALBA":
             logging.getLogger("HWR").debug(
                 "PathTemplate (ALBA) - directory is %s" % self.directory
@@ -2043,7 +2050,20 @@ def to_collect_dict(data_collection, session, sample, centred_pos=None):
             "motors": centred_pos.as_dict() if centred_pos is not None else {},
         }
     ]
-             
+
+    # NBNB HACK. These start life as default values, and you do NOT want to keep
+    # resetting the beamline to the current value,
+    # as this causes unnecessary hardware activities
+    # So remove them altogether if the value is (was excplicitly set to)  None or 0
+    dd = result[0]
+    for tag in ('detector_distance', 'energy', 'transmission'):
+        if tag in dd and not dd[tag]:
+            del dd[tag]
+    resolution = dd.get('resolution')
+    if resolution is not None and not resolution.get('upper'):
+        del dd['resolution']
+    return result
+
     # NBNB HACK. These start life as default values, and you do NOT want to keep
     # resetting the beamline to the current value,
     # as this causes unnecessary hardware activities
