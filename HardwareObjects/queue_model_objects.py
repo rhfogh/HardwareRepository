@@ -1616,7 +1616,7 @@ class XrayImagingParameters(object):
                 'camera_trigger': self.camera_trigger,
                 'camera_live_view': self.camera_live_view,
                 'camera_write_data': self.camera_write_data,
-                'detector_distance': self.camera_write_data
+                'detector_distance': self.detector_distance
         }
 
 class Crystal(object):
