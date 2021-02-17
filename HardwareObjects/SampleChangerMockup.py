@@ -123,10 +123,10 @@ class SampleChangerMockup(SampleChanger):
         :returns: None
         :rtype: None
         """
-        named_samples = {}
-        if self.hasObject('test_sample_names'):
-            for tag, val in self['test_sample_names'].getProperties().items():
-                named_samples[val] = tag
+        # named_samples = {}
+        # if self.hasObject("test_sample_names"):
+        #     for tag, val in self["test_sample_names"].getProperties().items():
+        #         named_samples[val] = tag
 
         for basket_index in range(self.no_of_baskets):
             basket=self.getComponents()[basket_index]
@@ -142,9 +142,9 @@ class SampleChangerMockup(SampleChanger):
         for spl in sample_list:
             address = Pin.getSampleAddress(spl[1], spl[2])
             sample = self.getComponentByAddress(address)
-            sample_name = named_samples.get(address)
-            if sample_name is not None:
-                sample._name = sample_name
+            # sample_name = named_samples.get(address)
+            # if sample_name is not None:
+            #     sample._name = sample_name
             datamatrix = "matr%d_%d" %(spl[1], spl[2])
             present = scanned = loaded = has_been_loaded = False
             sample._setInfo(present, datamatrix, scanned)

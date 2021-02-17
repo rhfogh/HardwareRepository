@@ -60,7 +60,7 @@ class ApertureMockup(AbstractAperture):
                 "Aperture: no position list defined, using default list")
 
         self.set_position_index(0)
-        self.set_diameter_index(0)
+        self.set_diameter_index(2)
 
     def set_in(self):
         """

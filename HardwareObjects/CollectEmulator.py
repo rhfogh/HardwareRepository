@@ -39,18 +39,12 @@ __author__ = "Rasmus H Fogh"
 
 
 class CollectEmulator(CollectMockup):
-    TEST_SAMPLE_PREFIX = "emulate-"
 
     def __init__(self, name):
         CollectMockup.__init__(self, name)
 
-        # # TODO get appropriate value
-        # # We must have a value for functions to work
-        # # This ought to be OK for a Pilatus 6M (See TangoResolution object)
-        # self.det_radius = 212.
-
-        # self._detector_distance = 300.
-        # self._wavelength = 1.0
+        self.instrument_data = None
+        self.segments = None
 
         self._counter = 1
 
@@ -69,25 +63,40 @@ class CollectEmulator(CollectMockup):
         result = OrderedDict()
         setup_data = result["setup_list"] = crystal_data
 
-        # update with instrument data
-        fp0 = api.gphl_workflow.file_paths.get("instrumentation_file")
-        instrument_input = f90nml.read(fp0)
 
-        instrument_data = instrument_input["sdcp_instrument_list"]
-        segments = instrument_input["segment_list"]
-        if isinstance(segments, dict):
+        if self.instrument_data is None:
+            # Read instrumentation.nml and put data into mock objects
+            # NB if we are here we must be in mock mode.
+            #
+            # update with instrument data
+            # You cannot do this at init time,
+            # as GPhL_wporkflow is not yet inittialised then.
+            fp0 = api.gphl_workflow.file_paths.get("instrumentation_file")
+            instrument_input = f90nml.read(fp0)
+
+            self.instrument_data = instrument_input["sdcp_instrument_list"]
+            self.segments = instrument_input["segment_list"]
+
+        #
+        # # update with instrument data
+        # fp0 = api.gphl_workflow.file_paths.get("instrumentation_file")
+        # instrument_input = f90nml.read(fp0)
+        #
+        # instrument_data = instrument_input["sdcp_instrument_list"]
+        # segments = instrument_input["segment_list"]
+        if isinstance(self.segments, dict):
             segment_count = 1
         else:
-            segment_count = len(segments)
+            segment_count = len(self.segments)
 
         sweep_count = len(data_collect_parameters["oscillation_sequence"])
 
         # Move beamstop settings to top level
-        ll0 = instrument_data.get("beamstop_param_names")
-        ll1 = instrument_data.get("beamstop_param_vals")
+        ll0 = self.instrument_data.get("beamstop_param_names")
+        ll1 = self.instrument_data.get("beamstop_param_vals")
         if ll0 and ll1:
             for tag, val in zip(ll0, ll1):
-                instrument_data[tag.lower()] = val
+                self.instrument_data[tag.lower()] = val
 
         # Setting parameters in order (may not be necessary, but ...)
         # Missing: *mu*
@@ -111,20 +120,24 @@ class CollectEmulator(CollectMockup):
             "det_qy",
             "det_nx",
             "det_ny",
-            "det_org_x",
-            "det_org_y",
+            # "det_org_x",
+            # "det_org_y",
             "det_coord_def",
         )
         for tag in tags:
-            val = instrument_data.get(remap.get(tag, tag))
+            val = self.instrument_data.get(remap.get(tag, tag))
             if val is not None:
                 setup_data[tag] = val
 
-        ll0 = instrument_data["gonio_axis_dirs"]
+        setup_data["det_org_x"], setup_data["det_org_y"] = (
+            api.detector.get_beam_centre()
+        )
+
+        ll0 = self.instrument_data["gonio_axis_dirs"]
         setup_data["omega_axis"] = ll0[:3]
         setup_data["kappa_axis"] = ll0[3:6]
         setup_data["phi_axis"] = ll0[6:]
-        ll0 = instrument_data["gonio_centring_axis_dirs"]
+        ll0 = self.instrument_data["gonio_centring_axis_dirs"]
         setup_data["trans_x_axis"] = ll0[:3]
         setup_data["trans_y_axis"] = ll0[3:6]
         setup_data["trans_z_axis"] = ll0[6:]
@@ -136,7 +149,7 @@ class CollectEmulator(CollectMockup):
             "beam_stop_s_distance",
         )
         for tag in tags:
-            val = instrument_data.get(remap.get(tag, tag))
+            val = self.instrument_data.get(remap.get(tag, tag))
             if val is not None:
                 setup_data[tag] = val
 
@@ -152,10 +165,10 @@ class CollectEmulator(CollectMockup):
         setup_data["n_sweeps"] = sweep_count
 
         # Add segments
-        result["segment_list"] = segments
+        result["segment_list"] = self.segments
 
         # Adjustments
-        val = instrument_data.get("beam")
+        val = self.instrument_data.get("beam")
         if val:
             setup_data["beam"] = val
 
@@ -218,6 +231,12 @@ class CollectEmulator(CollectMockup):
                 template
                 # data_collect_parameters['fileinfo']['template']
             )
+            # We still use the normal name template for compressed data
+            if name_template.endswith(".gz"):
+                compress_data = True
+                name_template = name_template[:-3]
+            else:
+                compress_data = False
             sweep["name_template"] = name_template
 
             # Overwrite kappa and phi from motors - if set
@@ -239,7 +258,7 @@ class CollectEmulator(CollectMockup):
         else:
             result["sweep_list"] = sweeps
         #
-        return result
+        return result, compress_data
 
     @task
     def data_collection_hook(self):
@@ -265,36 +284,15 @@ class CollectEmulator(CollectMockup):
             envs[text_type(tag)] = text_type(val)
 
         # get crystal data
-        sample_name = self.getProperty("default_sample_name")
-        sample = self.sample_changer_hwobj.getLoadedSample()
-        if sample:
-            ss0 = sample.getName()
-            if ss0 and ss0.startswith(self.TEST_SAMPLE_PREFIX):
-                sample_name = ss0[len(self.TEST_SAMPLE_PREFIX) :]
+        crystal_data, hklfile = api.gphl_workflow.get_emulation_crystal_data()
 
-        sample_dir = gphl_connection.software_paths.get("gphl_test_samples")
-        if not sample_dir:
-            raise ValueError("Emulator requires gphl_test_samples dir specified")
-        sample_dir = os.path.join(sample_dir, sample_name)
-        if not os.path.isdir(sample_dir):
-            raise ValueError("Sample data directory %s does not exist" % sample_dir)
-        crystal_file = os.path.join(sample_dir, "crystal.nml")
-        if not os.path.isfile(crystal_file):
-            raise ValueError(
-                "Emulator crystal data file %s does not exist" % crystal_file
-            )
-        # in spite of the simcal_crystal_list name this returns an OrderdDict
-        crystal_data = f90nml.read(crystal_file)["simcal_crystal_list"]
-        if isinstance(crystal_data, list):
-            crystal_data = crystal_data[0]
-
-        input_data = self._get_simcal_input(data_collect_parameters, crystal_data)
+        input_data, compress_data= self._get_simcal_input(
+            data_collect_parameters, crystal_data
+        )
 
         # NB outfile is the echo output of the input file;
         # image files templates are set in the input file
         file_info = data_collect_parameters["fileinfo"]
-        if not os.path.exists(file_info["directory"]):
-            os.makedirs(file_info["directory"])
         if not os.path.exists(file_info["directory"]):
             os.makedirs(file_info["directory"])
         infile = os.path.join(
@@ -309,9 +307,6 @@ class CollectEmulator(CollectMockup):
             file_info["directory"], "simcal_log_%s.txt" % self._counter
         )
         self._counter += 1
-        hklfile = os.path.join(sample_dir, "sample.hkli")
-        if not os.path.isfile(hklfile):
-            raise ValueError("Emulator hkli file %s does not exist" % hklfile)
         command_list = [
             simcal_executive,
             "--input",
@@ -329,6 +324,9 @@ class CollectEmulator(CollectMockup):
             "Executing environment: %s" % sorted(envs.items())
         )
 
+        if compress_data:
+            command_list.append(" --gzip-img")
+
         fp1 = open(logfile, "w")
         fp2 = subprocess.STDOUT
         # resource.setrlimit(resource.RLIMIT_STACK, (-1,-1))
@@ -338,18 +336,18 @@ class CollectEmulator(CollectMockup):
                 command_list, stdout=fp1, stderr=fp2, env=envs
             )
             gphl_connection.collect_emulator_process = running_process
+
+            # This does waiting, so we want to collect the result afterwards
+            super(CollectEmulator, self).data_collection_hook()
+
+            logging.getLogger("HWR").info("Waiting for simcal collection emulation.")
+            # NBNB TODO put in time-out, somehow
+            return_code = running_process.wait()
         except BaseException:
-            logging.getLogger("HWR").error("Error in spawning workflow application")
+            logging.getLogger("HWR").error("Error in GPhL collection emulation")
             raise
         finally:
             fp1.close()
-
-        # This does waiting, so we want to collect the result afterwards
-        super(CollectEmulator, self).data_collection_hook()
-
-        logging.getLogger("HWR").info("Waiting for simcal collection emulation.")
-        # NBNB TODO put in time-out, somehow
-        return_code = running_process.wait()
         process = gphl_connection.collect_emulator_process
         gphl_connection.collect_emulator_process = None
         if process == "ABORTED":

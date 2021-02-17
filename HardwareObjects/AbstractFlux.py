@@ -1,31 +1,29 @@
 #
 #  Project: MXCuBE
-#  https://github.com/mxcube.
+#  https://github.com/mxcube
 #
 #  This file is part of MXCuBE software.
 #
 #  MXCuBE is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
+#  it under the terms of the GNU Lesser General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
 #
 #  MXCuBE is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
+#  GNU Lesser General Public License for more details.
 #
-#  You should have received a copy of the GNU General Public License
-#  along with MXCuBE.  If not, see <http://www.gnu.org/licenses/>.
-
-import api
+#  You should have received a copy of the GNU Lesser General Public License
+#  along with MXCuBE. If not, see <http://www.gnu.org/licenses/>.
 
 from scipy.interpolate import interp1d
 
+import api
+
 from HardwareRepository.BaseHardwareObjects import HardwareObject
 
-
 __credits__ = ["MXCuBE collaboration"]
-__version__ = "2.3."
 __category__ = "General"
 
 
@@ -50,37 +48,45 @@ class AbstractFlux(HardwareObject):
         ],
     )
 
-    def __init__(self, *args):
-        HardwareObject.__init__(self, *args)
+    def __init__(self, name):
+        HardwareObject.__init__(self, name)
+
+        self._value = None
+        self._status = None
+
+    def set_flux(self, value):
+        self._value = value
+        self.emit("fluxValueChanged", self._value)
 
     def get_flux(self):
-        """Get flux at current transmission in units of photons/s"""
-        raise NotImplementedError
-
-    def get_dose_rate(self, energy=None):
-        """
-        Get dose rate in kGy/s for a standard crystal at current settings.
-        Assumes square, top-hat beam with al flux snside the beam size.
-        Override in subclasses for different situations
-
-        :param energy: float Energy for calculation of dose rate, in keV.
-        :return: float
-        """
-
-        energy = energy or api.energy.getCurrentEnergy()
-
-        # NB   Calculation assumes beam sizes in mm
-        beam_size = api.beam_info.get_beam_size()
-
-        # Result in kGy/s
-        result = (
-                self.dose_rate_per_photon_per_mmsq(energy)
-                * self.get_flux()
-                / beam_size[0]
-                / beam_size[1]
-                / 1000.  # Converts to kGy/s
-        )
-        return result
+        return self._value
 
     def update_values(self):
-        self.emit("fluxValueChanged", self.get_flux())
+        self.emit("fluxValueChanged", self._value)
+
+    def get_total_absorbed_dose(self):
+        # FIXME calculate correct value, or refactor away function
+        # return self.get_flux()
+        return 0.0
+
+    def get_average_flux_density(self, transmission=None):
+        """Get average flux density over the beam area in photons / mm^2
+        for a given transmisison setting
+
+        Args:
+            transmission (float): # Target transmission in % (defaults to current value)
+
+        Returns (photons / mm^2) : average flux density over beam area
+
+        """
+
+        beam_size = api.beam_info.get_beam_size()
+        flux = api.flux.get_flux()
+        result = None
+        if flux and all(beam_size):
+            result = flux / (beam_size[0] * beam_size[1])
+            if transmission  is not None:
+                result = result * transmission / api.transmission.get_value()
+        #
+        return result
+

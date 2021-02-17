@@ -23,6 +23,7 @@ from __future__ import division, absolute_import
 from __future__ import print_function, unicode_literals
 
 import uuid
+import enum
 from collections import OrderedDict
 from collections import namedtuple
 
@@ -32,6 +33,11 @@ __copyright__ = """ Copyright © 2016 - 2019 by Global Phasing Ltd. """
 __license__ = "LGPLv3+"
 __author__ = "Rasmus H Fogh"
 
+# Data Structures
+
+ParsedMessage = namedtuple(
+    "ParsedMessage", ("message_type", "payload", "enactment_id", "correlation_id")
+)
 
 # Enumerations
 
@@ -177,9 +183,18 @@ CRYSTAL_SYSTEM_MAP = dict(zip("amothhc", CRYSTAL_SYSTEMS))
 
 POINT_GROUPS = ("1", "2", "222", "4", "422", "6", "622", "32", "23", "432")
 
-ParsedMessage = namedtuple(
-    "ParsedMessage", ("message_type", "payload", "enactment_id", "correlation_id")
-)
+
+# TEMPORARY. Stand-in for HardwareObject states
+@enum.unique
+class States(enum.Enum):
+    """Duplicate of standard HardwareObject states"""
+
+    UNKNOWN = 0
+    WARNING = 1
+    BUSY = 2
+    READY = 3
+    FAULT = 4
+    OFF = 5
 
 
 # Abstract classes
@@ -646,7 +661,10 @@ class PositionerSetting(IdentifiedElement):
                 "Programming error -"
                 " attempt to instantiate abstract class PositionerSetting"
             )
-
+        if None in axisSettings.values():
+            raise ValueError(
+                "axisSettings contain value None: %s" % sorted(axisSettings.items())
+            )
         self._axisSettings = axisSettings.copy()
 
     @property
@@ -696,6 +714,15 @@ class GoniostatRotation(PositionerSetting):
 
         NB This link can be set only by GoniostatTranslation.__init__"""
         return self._translation
+
+    def get_motor_settings(self):
+        """Get dictionary of rotation and translation motor setting"""
+        result = dict(self.axisSettings)
+        translation = self.translation
+        if translation is not None:
+            result.update(translation.axisSettings)
+        #
+        return result
 
 
 class GoniostatSweepSetting(GoniostatRotation):
@@ -877,14 +904,9 @@ class Sweep(IdentifiedElement):
         self._scans.add(scan)
 
     def get_initial_settings(self):
-        """Get dictionary of rotation motor settings for start of sweep"""
-
-        sweepSetting = self.goniostatSweepSetting
-        result = dict(sweepSetting.axisSettings)
-        translation = sweepSetting.translation
-        if translation is not None:
-            result.update(translation.axisSettings)
-        result[sweepSetting.scanAxis] = self.start
+        """Get dictionary of rotation and translation motor settings for start of sweep"""
+        result = self.goniostatSweepSetting.get_motor_settings()
+        result[self.goniostatSweepSetting.scanAxis] = self.start
         #
         return result
 
@@ -997,20 +1019,18 @@ class GeometricStrategy(IdentifiedElement, Payload):
     def get_ordered_sweeps(self):
         """Get sweeps in acquisition order.
 
-        WARNING we do not have the necessary information.
-        So we sort in increasing order by angles, in alphabetical name order,
+        Acquisition order is determined by the sweepGroup -
+        to get results deterministic we use a secondary sort on
+        angles, in alphabetical name order as a backup,
         (in pracite, 'kappa', 'kappa_phi', 'phi')
-        HORRIBLE HACK, but as it happens this will give
-        at least the first one correct mostly
-        and anyway is the best approximation we have
-
-        TODO get this right, once the workflow allows"""
+        which should match what the workflow does internally.
+        Anyway, it is the sweep"""
         ll0 = []
         for sweep in self._sweeps:
             dd0 = sweep.get_initial_settings()
-            ll0.append((tuple(dd0[x] for x in sorted(dd0)), sweep))
+            ll0.append((sweep.sweepGroup, tuple(dd0[x] for x in sorted(dd0)), sweep))
         #
-        return list(tt0[1] for tt0 in sorted(ll0))
+        return list(tt0[2] for tt0 in sorted(ll0))
 
 
 class CollectionProposal(IdentifiedElement, Payload):

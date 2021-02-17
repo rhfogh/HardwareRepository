@@ -376,6 +376,8 @@ class Sample(TaskNode):
 
         if hasattr(lims_sample, 'diffractionPlan'):
             self.diffraction_plan = lims_sample.diffractionPlan
+        else:
+            self.diffraction_plan = lims_sample.get("diffractionPlan")
 
         name = ''
 
@@ -1610,19 +1612,25 @@ class GphlWorkflow(TaskNode):
         self._characterisation_strategy = str()
         self._interleave_order = str()
         self._number = 0
-        self._beam_energies = OrderedDict()
+        self._beam_energy_tags = ("Acquisition",)
         self._detector_resolution = None
         self._space_group = None
         self._crystal_system = None
         self._point_group = None
         self._cell_parameters = None
-        self._snapshot_count = None
-        self._centre_before_sweep = None
-        self._centre_before_scan = None
+        self._snapshot_count = int(
+            workflow_hwobj.getProperty("default_snapshot_count", 0)
+        )
+        self._recentring_mode = str()
+        self._current_rotation_id = None
 
         self._dose_budget = None
-        self._characterisation_budget_fraction = 1.0
+        self._decay_limit = workflow_hwobj.getProperty("default_decay_limit", 25)
+        self._characterisation_budget_fraction = 0.05
         self._relative_rad_sensitivity = 1.0
+        self._dose_consumed = 0.0
+        self._exposure_time = 0.0
+        self._image_width = 0.0
 
         # HACK - to differentiate between characterisation and acquisition
         # TODO remove when workflow gives relevant information
@@ -1653,12 +1661,12 @@ class GphlWorkflow(TaskNode):
     # Starting run number. Unnecessary.
     # Left in as it is modified by signal when edited.
     def get_number(self):
-        logging.getLogger().warning(
+        logging.getLogger().debug(
             "Attempt to get unused attribute GphlWorkflow.number"
         )
         return None
     def set_number(self, value):
-        logging.getLogger().warning(
+        logging.getLogger().debug(
             "Attempt to set unused attribute GphlWorkflow.number"
         )
 
@@ -1668,11 +1676,11 @@ class GphlWorkflow(TaskNode):
     def set_detector_resolution(self, value):
         self._detector_resolution = value
 
-    # role:value beam_energy dictionary (in keV)
-    def get_beam_energies(self):
-        return self._beam_energies.copy()
-    def set_beam_energies(self, value):
-        self._beam_energies = OrderedDict(value)
+    # beam_energy tags (roles) tuple
+    def get_beam_energy_tags(self):
+        return self._beam_energy_tags
+    def set_beam_energy_tags(self, value):
+        self._beam_energy_tags = tuple(value)
 
     # Space Group.
     def get_space_group(self):
@@ -1706,6 +1714,32 @@ class GphlWorkflow(TaskNode):
     def set_dose_budget(self, value):
         self._dose_budget = value
 
+    # Decay limit. smallest relative intensity allowed - used for setting dose budget.
+    def get_decay_limit(self):
+        return self._decay_limit
+
+    def set_decay_limit(self, value):
+        self._decay_limit = value
+
+    # Dose already consumed, typically in characterisation
+    def get_dose_consumed(self):
+        return self._dose_consumed
+
+    def set_dose_consumed(self, value):
+        self._dose_consumed = value
+
+    def get_exposure_time(self):
+        return self._exposure_time
+
+    def set_exposure_time(self, value):
+        self._exposure_time = value
+
+    def get_image_width(self):
+        return self._image_width
+
+    def set_image_width(self, value):
+        self._image_width = value
+
     # Fraction of dose budget intended for characterisation.
     def get_characterisation_budget_fraction(self):
         return self._characterisation_budget_fraction
@@ -1728,8 +1762,7 @@ class GphlWorkflow(TaskNode):
             if len(value) == 6:
                 self._cell_parameters = tuple(float(x) for x in value)
             else:
-                raise ValueError("cell_parameters %s does not have length six"
-                                 % value)
+                raise ValueError("cell_parameters %s does not have length six" % value)
         else:
             self._cell_parameters = None
 
@@ -1740,16 +1773,16 @@ class GphlWorkflow(TaskNode):
         self._snapshot_count = value
 
     # (Re)centre before each sweep?.
-    def get_centre_before_sweep(self):
-        return self._centre_before_sweep
-    def set_centre_before_sweep(self, value):
-        self._centre_before_sweep = bool(value)
+    def get_recentring_mode(self):
+        return self._recentring_mode
+    def set_recentring_mode(self, value):
+        self._recentring_mode = value
 
-    # (Re)centre before each scan?.
-    def get_centre_before_scan(self):
-        return self._centre_before_scan
-    def set_centre_before_scan(self, value):
-        self._centre_before_scan = bool(value)
+    # id_ of GonioostatRotation matching current goniostat position
+    def get_current_rotation_id(self):
+        return self._current_rotation_id
+    def set_current_rotation_id(self, value):
+        self._current_rotation_id = value
 
     def get_path_template(self):
         return self.path_template
@@ -1757,8 +1790,9 @@ class GphlWorkflow(TaskNode):
     def get_workflow_parameters(self):
         result = self.workflow_hwobj.get_available_workflows().get(self.get_type())
         if result is None:
-            raise RuntimeError("No parameters for unknown workflow %s"
-                               % repr(self.get_type()))
+            raise RuntimeError(
+                "No parameters for unknown workflow %s" % repr(self.get_type())
+            )
         return result
 
     # Apparently not used :

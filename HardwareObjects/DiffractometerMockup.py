@@ -354,9 +354,6 @@ class DiffractometerMockup(GenericDiffractometer):
         omega_ref = [0, 238]
         self.emit('omegaReferenceChanged', omega_ref)
 
-    def move_kappa_and_phi(self, kappa, kappa_phi):
-        return
-
     def get_osc_max_speed(self):
         return 66
 

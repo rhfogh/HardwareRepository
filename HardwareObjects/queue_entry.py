@@ -750,15 +750,38 @@ class SampleCentringQueueEntry(BaseQueueEntry):
         # Since setting one motor can change the position of another
         # (on ESRF ID30B setting kappa and kappa_phi changes the translation motors)
         # the order is important.
-        dd = {}
-        if kappa is not None:
-            dd["kappa"] = kappa
-        if kappa_phi is not None:
-            dd["kappa_phi"] = kappa_phi
-        if dd:
-            if (not hasattr(self.diffractometer_hwobj, "in_kappa_mode")
-                or self.diffractometer_hwobj.in_kappa_mode()):
-                self.diffractometer_hwobj.move_motors(dd)
+
+        if kappa is None:
+            d_kappa = 0
+        else:
+            d_kappa = (
+                self.diffractometer_hwobj.current_motor_positions["kappa"] - kappa
+            )
+            d_kappa = min([abs(d_kappa), abs(d_kappa - 360), abs(d_kappa + 360)])
+        if kappa_phi is None:
+            d_kappa_phi = 0
+        else:
+            d_kappa_phi = (
+                self.diffractometer_hwobj.current_motor_positions["kappa_phi"]
+                - kappa_phi
+            )
+            d_kappa_phi = min(
+                [abs(d_kappa_phi), abs(d_kappa_phi - 360), abs(d_kappa_phi + 360)]
+            )
+
+        if d_kappa or d_kappa_phi:
+            # Only move if either kappa or phi are changing
+            ARBITRARY_TOLERANCE = 0.5
+            if d_kappa > ARBITRARY_TOLERANCE or d_kappa_phi > ARBITRARY_TOLERANCE:
+                # The ppint is that it is very rare to centre at an orientation
+                # different from the current one, and when you do you you want
+                # thelihgts ruened on etc.
+                self.diffractometer_hwobj.set_phase("Centring", timeout = 20)
+            if (
+                not hasattr(self.diffractometer_hwobj, "in_kappa_mode")
+                or self.diffractometer_hwobj.in_kappa_mode()
+            ):
+                self.diffractometer_hwobj.move_kappa_and_phi(kappa, kappa_phi)
 
         motor_positions = data_model.get_other_motor_positions()
         dd = dict(tt for tt in data_model.get_other_motor_positions().items()
@@ -771,7 +794,6 @@ class SampleCentringQueueEntry(BaseQueueEntry):
         #log.warning("Please select a centred position, and press continue.")
 
         self.get_queue_controller().pause(True)
-        pos = None
 
         shapes = list(self.shape_history.get_selected_shapes())
         if shapes:

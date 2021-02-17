@@ -113,7 +113,7 @@ class ResolutionMockup(BaseHardwareObjects.Equipment):
     def getLimits(self, callback=None, error_callback=None):
         return (0, 20)
 
-    def move(self, pos, wait=True):
+    def move(self, pos, wait=True, timeout=None):
         self.dtox.move(self.res2dist(pos), wait=wait)
 
     def motorIsMoving(self):
