@@ -311,34 +311,58 @@ class Sample(TaskNode):
         if hasattr(lims_sample, 'cellA'):
             self.crystals[0].cell_a = lims_sample.cellA
             self.processing_parameters.cell_a = lims_sample.cellA
+        else:
+            self.crystals[0].cell_a = lims_sample.get("cellA", 0)
+            self.processing_parameters.cell_a = lims_sample.get("cellA", 0)
 
         if hasattr(lims_sample, 'cellAlpha'):
             self.crystals[0].cell_alpha = lims_sample.cellAlpha
             self.processing_parameters.cell_alpha = lims_sample.cellAlpha
+        else:
+            self.crystals[0].cell_alpha = lims_sample.get("cellAlpha", 0)
+            self.processing_parameters.cell_alpha = lims_sample.get("cellAlpha", 0)
 
         if hasattr(lims_sample, 'cellB'):
             self.crystals[0].cell_b = lims_sample.cellB
             self.processing_parameters.cell_b = lims_sample.cellB
+        else:
+            self.crystals[0].cell_b = lims_sample.get("cellB", 0)
+            self.processing_parameters.cell_b = lims_sample.get("cellB", 0)
 
         if hasattr(lims_sample, 'cellBeta'):
             self.crystals[0].cell_beta = lims_sample.cellBeta
             self.processing_parameters.cell_beta = lims_sample.cellBeta
+        else:
+            self.crystals[0].cell_beta = lims_sample.get("cellBeta", 0)
+            self.processing_parameters.cell_beta = lims_sample.get("cellBeta", 0)
 
         if hasattr(lims_sample, 'cellC'):
             self.crystals[0].cell_c = lims_sample.cellC
             self.processing_parameters.cell_c = lims_sample.cellC
+        else:
+            self.crystals[0].cell_c = lims_sample.get("cellC", 0)
+            self.processing_parameters.cell_c = lims_sample.get("cellC", 0)
 
         if hasattr(lims_sample, 'cellGamma'):
             self.crystals[0].cell_gamma = lims_sample.cellGamma
             self.processing_parameters.cell_gamma = lims_sample.cellGamma
+        else:
+            self.crystals[0].cell_gamma = lims_sample.get("cellGamma", 0)
+            self.processing_parameters.cell_gamma = lims_sample.get("cellGamma", 0)
 
         if hasattr(lims_sample, 'proteinAcronym'):
             self.crystals[0].protein_acronym = lims_sample.proteinAcronym
             self.processing_parameters.protein_acronym = lims_sample.proteinAcronym
+        else:
+            self.crystals[0].protein_acronym = lims_sample.get("proteinAcronym")
+            self.processing_parameters.protein_acronym = lims_sample.get("proteinAcronym")
 
         if hasattr(lims_sample, 'crystalSpaceGroup'):
             self.crystals[0].space_group = lims_sample.crystalSpaceGroup
             self.processing_parameters.space_group = lims_sample.crystalSpaceGroup
+        else:
+            self.crystals[0].space_group = lims_sample.get("crystalSpaceGroup", 0)
+            self.processing_parameters.space_group = lims_sample.get("crystalSpaceGroup", 0)
 
         if hasattr(lims_sample, 'code'):
             self.lims_code = lims_sample.code
@@ -348,12 +372,18 @@ class Sample(TaskNode):
 
         if hasattr(lims_sample, 'holderLength'):
             self.holder_length = lims_sample.holderLength
+        else:
+            self.holder_length = lims_sample.get("holderLength")
 
         if hasattr(lims_sample, 'sampleId'):
             self.lims_id = lims_sample.sampleId
+        else:
+            self.lims_id = lims_sample.get("sampleId")
 
         if hasattr(lims_sample, 'sampleName'):
             self.name = str(lims_sample.sampleName)
+        else:
+            self.name = str(lims_sample.get("sampleName"))
 
         if hasattr(lims_sample, 'containerSampleChangerLocation') and\
                 hasattr(lims_sample, 'sampleLocation'):
@@ -362,17 +392,26 @@ class Sample(TaskNode):
                     lims_sample.sampleLocation:
 
                 self.lims_sample_location = int(lims_sample.sampleLocation)
-                self.lims_container_location = \
-                    int(lims_sample.containerSampleChangerLocation)
+                self.lims_container_location = int(
+                    lims_sample.containerSampleChangerLocation
+                )
+        else:
+            try:
+                self.lims_sample_location = int(lims_sample.get("sampleLocation"))
+                self.lims_container_location = int(lims_sample.get("containerSampleChangerLocation"))
+            except:
+                pass
 
-                l = (int(lims_sample.containerSampleChangerLocation),
-                     int(lims_sample.sampleLocation))
+        _lims = (self.lims_container_location, self.lims_sample_location)
+        self.lims_location = _lims
+        self.location = _lims
 
-                self.lims_location = l
-                self.location = l
+        self.loc_str = str(self.lims_location[0]) + ":" + str(self.lims_location[1])
 
-                self.loc_str = str(str(self.lims_location[0]) +\
-                                   ':' + str(self.lims_location[1]))
+        if hasattr(lims_sample, "containerCode"):
+            self.container_code = str(lims_sample.containerCode)
+        else:
+            self.container_code = str(lims_sample.get("containerCode"))
 
         if hasattr(lims_sample, 'diffractionPlan'):
             self.diffraction_plan = lims_sample.diffractionPlan
