@@ -163,6 +163,9 @@ class AbstractMotor(HardwareObject):
         self.__position = position
         self.emit('positionChanged', (position, ))
 
+    get_value = get_position
+    set_value = set_position
+
     def get_limits(self):
         """Returns motor limits as (float, float)
 
