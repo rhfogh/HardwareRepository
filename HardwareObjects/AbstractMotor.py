@@ -85,6 +85,10 @@ class AbstractMotor(HardwareObject):
         self.__default_limits = (None, None)
         self.__velocity = None
 
+        # Temporary hack to unify various value getters, pending refactoring
+        self.get_value = self.get_position
+        self.set_value = self.set_position
+
     def isReady(self):
         #TODO remove this method
         #print ("Deprecation warning: Instead of isReady please call is_ready")
@@ -162,9 +166,6 @@ class AbstractMotor(HardwareObject):
         """
         self.__position = position
         self.emit('positionChanged', (position, ))
-
-    get_value = get_position
-    set_value = set_position
 
     def get_limits(self):
         """Returns motor limits as (float, float)
