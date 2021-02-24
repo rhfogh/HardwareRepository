@@ -1557,7 +1557,7 @@ class ALBACollect(AbstractCollect):
         Descript. :
         """
         for directory in args:
-            self.logger.debug('Creating directory: ' % directory)
+            self.logger.debug('Creating directory: %s' % directory)
             try:
                 os.makedirs(directory)
             except OSError as e:
