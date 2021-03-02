@@ -1621,17 +1621,29 @@ class GphlWorkflowQueueEntry(BaseQueueEntry):
         #group_node_id = self._parent_container._data_model._node_id
         #workflow_params.append("group_node_id")
         #workflow_params.append("%d" % group_node_id)
-        api.gphl_workflow.execute()
+        try:
+            api.gphl_workflow.execute()
+        except:
+            logging.getLogger("HWR").exception("Error in GphlWorkflow.execute:")
+            raise
 
     def pre_execute(self):
         BaseQueueEntry.pre_execute(self)
-        api.gphl_workflow.pre_execute(self)
+        try:
+            api.gphl_workflow.pre_execute(self)
+        except:
+            logging.getLogger("HWR").exception("Error in GphlWorkflow.pre_execute:")
+            raise
         logging.getLogger('HWR').debug(
             "Done GphlWorkflowQueueEntry.pre_execute"
         )
 
     def post_execute(self):
-        BaseQueueEntry.post_execute(self)
+        try:
+            BaseQueueEntry.post_execute(self)
+        except:
+            logging.getLogger("HWR").exception("Error in GphlWorkflow.post_execute:")
+            raise
         msg = "Finishing workflow %s" % (self.get_data_model()._type)
         logging.getLogger("user_level_log").info(msg)
         api.gphl_workflow.post_execute()
