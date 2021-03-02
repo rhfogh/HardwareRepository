@@ -687,6 +687,8 @@ class GphlWorkflowConnection(HardwareObject, object):
             isInterleaved=py4jGeometricStrategy.isInterleaved(),
             isUserModifiable=py4jGeometricStrategy.isUserModifiable(),
             allowedWidths=py4jGeometricStrategy.getAllowedWidths(),
+            sweepOffset=py4jGeometricStrategy.getSweepOffset(),
+            sweepRepeat=py4jGeometricStrategy.getSweepRepeat(),
             defaultWidthIdx=py4jGeometricStrategy.getDefaultWidthIdx(),
             defaultBeamSetting=beamSetting,
             defaultDetectorSetting=detectorSetting,

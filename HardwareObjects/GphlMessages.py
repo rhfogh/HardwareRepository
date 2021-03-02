@@ -967,6 +967,8 @@ class GeometricStrategy(IdentifiedElement, Payload):
         defaultDetectorSetting,
         defaultBeamSetting,
         allowedWidths=(),
+        sweepOffset=None,
+        sweepRepeat=None,
         defaultWidthIdx=None,
         sweeps=(),
         id_=None,
@@ -987,6 +989,9 @@ class GeometricStrategy(IdentifiedElement, Payload):
             )
         else:
             self._allowedWidths = tuple(allowedWidths)
+
+        self._sweepOffset = sweepOffset
+        self._sweepRepeat = sweepRepeat
 
     @property
     def isInterleaved(self):
