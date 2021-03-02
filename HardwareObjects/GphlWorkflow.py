@@ -466,7 +466,9 @@ class GphlWorkflow(HardwareObject, object):
                 current_pos_dict = api.diffractometer.get_motor_positions()
                 dd0 = axis_setting_dicts.values()[0]
                 for tag in dd0:
-                    dd0[tag] = current_pos_dict[tag]
+                    pos = current_pos_dict.get(tag)
+                    if pos is not None:
+                        dd0[tag] = pos
 
         if len(beam_energies) > 1:
             lines.append(
