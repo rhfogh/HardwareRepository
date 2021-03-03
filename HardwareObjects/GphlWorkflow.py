@@ -1373,10 +1373,16 @@ class GphlWorkflow(HardwareObject, object):
         sweep_offset = geometric_strategy.sweepOffset
         scan_count = len(scans)
 
-        if repeat_count and scan_count and self.getProperty("use_multitrigge"):
+        if repeat_count and sweep_offset and self.getProperty("use_multitrigger"):
             # commpress unrolled multi-trigger sweep
             # NBNB as of 202103 this is only allowed for a single sweep
             #
+            # For now this is required
+            if repeat_count != scan_count:
+                raise ValueError(
+                    " scan count %s does not match repreat count %s"
+                    % (scan_count, repeat_count)
+                )
             # treat only the first scan
             scans = scans[:1]
 
@@ -1500,7 +1506,7 @@ class GphlWorkflow(HardwareObject, object):
             sweeps.add(sweep)
 
 
-            if repeat_count and scan_count and self.getProperty("use_multitrigge"):
+            if repeat_count and sweep_offset and self.getProperty("use_multitrigger"):
                 # Multitrigger sweep - add in parameters.
                 # NB if we are here ther can be only one scan
                 acq_parameters.num_triggers = scan_count

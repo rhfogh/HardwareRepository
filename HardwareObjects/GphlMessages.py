@@ -998,6 +998,14 @@ class GeometricStrategy(IdentifiedElement, Payload):
         return self._isInterleaved
 
     @property
+    def sweepRepeat(self):
+        return self._sweepRepeat
+
+    @property
+    def sweepOffset(self):
+        return self._sweepOffset
+
+    @property
     def isUserModifiable(self):
         return self._isUserModifiable
 
