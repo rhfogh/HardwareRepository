@@ -1368,6 +1368,18 @@ class GphlWorkflow(HardwareObject, object):
         data_collections = []
         scans = collection_proposal.scans
 
+        geometric_strategy = collection_proposal.strategy
+        repeat_count = geometric_strategy.sweepRepeat
+        sweep_offset = geometric_strategy.sweepOffset
+        scan_count = len(scans)
+
+        if repeat_count and scan_count and self.getProperty("use_multitrigge"):
+            # commpress unrolled multi-trigger sweep
+            # NBNB as of 202103 this is only allowed for a single sweep
+            #
+            # treat only the first scan
+            scans = scans[:1]
+
         sweeps = set()
         snapshotted_rotation_ids = set()
         for scan in scans:
@@ -1487,6 +1499,18 @@ class GphlWorkflow(HardwareObject, object):
 
             sweeps.add(sweep)
 
+
+            if repeat_count and scan_count and self.getProperty("use_multitrigge"):
+                # Multitrigger sweep - add in parameters.
+                # NB if we are here ther can be only one scan
+                acq_parameters.num_triggers = scan_count
+                acq_parameters.num_images_per_trigger =  acq_parameters.num_images
+                acq_parameters.num_images *= scan_count
+                # NB this assumes sweepOffset is the offset between starting points
+                acq_parameters.overlap = (
+                    acq_parameters.num_images_per_trigger * acq_parameters.osc_range
+                    - sweep_offset
+                )
             data_collection = queue_model_objects.DataCollection([acq], crystal)
             data_collections.append(data_collection)
 
