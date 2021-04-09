@@ -69,9 +69,6 @@ __copyright__ = """ Copyright © 2016 - 2019 by Global Phasing Ltd. """
 __license__ = "LGPLv3+"
 __author__ = "Rasmus H Fogh"
 
-# Used to pass to priorInformation when no wavelengths are set (DiffractCal)
-DUMMY_WAVELENGTH = 999.999
-
 # Additional sample/diffraction plan data for GPhL emulation samples.
 EMULATION_DATA = {"3n0s": {"radiationSensitivity": 0.9}}
 
@@ -596,6 +593,24 @@ class GphlWorkflow(HardwareObject, object):
                     use_dose=use_dose + data_model.get_dose_consumed()
                 )
 
+        def update_resolution(field_widget):
+
+            parameters = field_widget.get_parameters_map()
+            resolution = float(parameters.get("resolution"))
+            dbg = self.resolution2dose_budget(
+                resolution,
+                decay_limit=data_model.get_decay_limit(),
+                relative_sensitivity=data_model.get_relative_rad_sensitivity(),
+            )
+            field_widget.set_values(dose_budget=dbg)
+            use_dose = dbg * budget_use_fraction
+            if use_dose < std_dose_rate * experiment_time:
+                field_widget.set_values(use_dose=use_dose)
+                update_dose(field_widget)
+            else:
+                field_widget.set_values(transmission=100)
+                update_transmission(field_widget)
+
         def update_dose(field_widget):
             """When use_dose changes, update transmission and/or exposure_time
             In parameter popup"""
@@ -714,10 +729,13 @@ class GphlWorkflow(HardwareObject, object):
                 "lowerBound": reslimits[0],
                 "upperBound": reslimits[1],
                 "decimals": 3,
-                "readOnly": True,
-                # "update_function": update_function,
+                "readOnly": False,
             }
         )
+        if data_model.lattice_selected:
+            field_list[-1]["readOnly"] = True
+        else:
+            field_list[-1]["update_function"] = update_resolution
         field_list.extend(
             [
                 {
@@ -875,7 +893,7 @@ class GphlWorkflow(HardwareObject, object):
             if value:
                 result[tag] = int(float(value) / image_width)
             else:
-                # If not set is likely not used, but we want a detault value anyway
+                # If not set is likely not used, but we want a default value anyway
                 result[tag] = 150
             tag = "resolution"
             value = params.get(tag)
@@ -992,20 +1010,23 @@ class GphlWorkflow(HardwareObject, object):
         #     api.energy.move_wavelength(wavelengths[0].wavelength)
         # # TODO ensure that move is finished before resolution is set
 
-        # transmission = parameters["transmission"]
-        # logging.getLogger("GUI").info(
-        #     "GphlWorkflow: setting transmission to %7.3f %%" % (100.0 * transmission)
-        # )
-        # api.transmission.set_value(100 * transmission)
-        # new_resolution = parameters.pop("resolution")
-        # if new_resolution != initial_resolution:
-        #     logging.getLogger("GUI").info(
-        #         "GphlWorkflow: setting detector distance for resolution %7.3f A"
-        #         % new_resolution
-        #     )
-        #     # timeout in seconds: max move is ~2 meters, velocity 4 cm/sec
-        #     api.resolution.move(new_resolution, timeout=60)
-        parameters.pop("resolution")
+        transmission = parameters["transmission"]
+        logging.getLogger("GUI").info(
+            "GphlWorkflow: setting transmission to %7.3f %%" % (100.0 * transmission)
+        )
+        api.transmission.set_value(100 * transmission)
+
+        new_resolution = parameters.pop("resolution")
+        if (
+            new_resolution != initial_resolution
+            and not gphl_workflow_model.lattice_selected
+        ):
+            logging.getLogger("GUI").info(
+                "GphlWorkflow: setting detector distance for resolution %7.3f A"
+                % new_resolution
+            )
+            # timeout in seconds: max move is ~2 meters, velocity 4 cm/sec
+            api.resolution.move(new_resolution, timeout=60)
 
         snapshot_count = parameters.pop("snapshot_count", None)
         if snapshot_count is not None:
@@ -1570,6 +1591,10 @@ class GphlWorkflow(HardwareObject, object):
 
         dd0 = self.parse_indexing_solution(solution_format, choose_lattice.solutions)
 
+        reslimits = api.resolution.get_limits()
+        resolution = api.resolution.get_value()
+        if None in reslimits:
+            reslimits = (0.5, 5.0)
         field_list = [
             {
                 "variableName": "_cplx",
@@ -1578,6 +1603,16 @@ class GphlWorkflow(HardwareObject, object):
                 "header": dd0["header"],
                 "colours": None,
                 "defaultValue": (dd0["solutions"],),
+            },
+            {
+                "variableName": "resolution",
+                "uiLabel": "Detector resolution (A)",
+                "type": "floatstring",
+                "defaultValue":resolution,
+                "lowerBound": reslimits[0],
+                "upperBound": reslimits[1],
+                "decimals": 3,
+                "readOnly": False,
             }
         ]
 
@@ -1604,11 +1639,20 @@ class GphlWorkflow(HardwareObject, object):
         params = self._return_parameters.get()
         if params is StopIteration:
             return StopIteration
-        if self.getProperty("starting_beamline_energy") == "current":
-            logging.getLogger("user_level_log").warning(
-                "Please set acquisition energy and resolution and press Continue."
+        # if self.getProperty("starting_beamline_energy") == "current":
+        #     logging.getLogger("user_level_log").warning(
+        #         "Please set acquisition energy and resolution and press Continue."
+        #     )
+        #     self._queue_entry.get_queue_controller().pause(True)
+
+        new_resolution = float(params.pop("resolution", 0))
+        if new_resolution and new_resolution != resolution:
+            logging.getLogger("GUI").info(
+                "GphlWorkflow: setting detector distance for resolution %7.3f A"
+                % new_resolution
             )
-            self._queue_entry.get_queue_controller().pause(True)
+            # timeout in seconds: max move is ~2 meters, velocity 4 cm/sec
+            api.resolution.move(new_resolution, timeout=60)
 
         ll0 = ConvertUtils.text_type(params["_cplx"][0]).split()
         if ll0[0] == "*":
