@@ -36,7 +36,7 @@ class QtVideoMockup(AbstractVideoDevice):
 
     def init(self):
         current_path = os.path.dirname(os.path.abspath(__file__)).split(os.sep)
-        current_path = os.path.join(*current_path[1:-2])
+        current_path = os.path.join(*current_path[1:-3])
 
         default_image_path = "/" + current_path + "/test/fakeimg.jpg"
         image_path = self.get_property("file_name", default_image_path)
