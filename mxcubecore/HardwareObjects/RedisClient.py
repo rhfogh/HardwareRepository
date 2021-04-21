@@ -123,9 +123,13 @@ class RedisClient(HardwareObject):
             selected_model = self.redis_client.get(
                 "mxcube:%s:%s:queue_model" % (self.proposal_id, self.beamline_name)
             )
+            if type(selected_model) == type(b''):
+                selected_model.decode('utf-8')
             serialized_queue = self.redis_client.get(
                 "mxcube:%s:%s:queue_current" % (self.proposal_id, self.beamline_name)
             )
+            if type(serialized_queue) == type(b''):
+                serialized_queue.decode('utf-8')
             if selected_model is not None:
                 HWR.beamline.queue_model.select_model(selected_model)
                 HWR.beamline.queue_model.load_queue_from_json_list(
