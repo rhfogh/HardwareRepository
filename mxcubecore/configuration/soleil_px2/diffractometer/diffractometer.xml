@@ -26,17 +26,19 @@
     <object href="/diffractometer/centringy" role="sampy"/>
     <object href="/diffractometer/kappa" role="kappa"/>
     <object href="/diffractometer/phi" role="kappa_phi"/>
-    <object href="/singleton_objects/camera" role="camera"/>
     <object href="/singleton_objects/beaminfo" role="beam_info"/>
     <object href="/singleton_objects/centring-math" role="centring"/>
     <object href="/singleton_objects/minikappa-correction" role="minikappa_correction"/>
     <object href="/singleton_objects/camera" role="camera"/>
     <object href="/singleton_objects/cats" role="samplechanger"/>
+    <object href="/tango_motors/detector_distance" role="detector_distance_motor"/>
     
     <use_sample_changer>True</use_sample_changer> 
+    <sample_centring>False</sample_centring>
     <zoom_centre>{"x": 680,"y": 512}</zoom_centre>
 
-    <omega_reference>{"actuator_name": "phiz", "position": -0.121, "camera_axis":"y","direction": -1}</omega_reference>
+    <omega_reference>{"motor_name": "phiz", "position": 0.1017, "camera_axis":"y","direction": -1}</omega_reference>
     <grid_direction>{"fast": (1, 0), "slow": (0, -1), "omega_ref" : 0.0}</grid_direction>
     <reversing_rotation>True</reversing_rotation>
+    
 </object>

@@ -1,6 +1,6 @@
-<device class="MicrodiffMotor">
+<device class="SOLEILMicrodiffMotor">
     <tangoname>i11-ma-cx1/ex/md2</tangoname>
-    <actuator_name>CapillaryHorizontal</actuator_name>
+    <motor_name>CapillaryHorizontal</motor_name>
     <username>CapillaryHorizontal</username>
     <direction>1</direction>
     <GUIstep>0.05</GUIstep>

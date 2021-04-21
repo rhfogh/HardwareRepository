@@ -1,6 +1,6 @@
-<device class="MicrodiffMotor">
+<device class="SOLEILMicrodiffMotor">
     <tangoname>i11-ma-cx1/ex/md2</tangoname>
-    <actuator_name>ApertureVertical</actuator_name>
+    <motor_name>ApertureVertical</motor_name>
     <username>ApertureVertical</username>
     <direction>1</direction>
     <GUIstep>0.025</GUIstep>

@@ -1,0 +1,11 @@
+<procedure class="MiniKappaCorrection">
+    <aligndirection>[0, 0, -1]</aligndirection>
+    <kappa>
+        <direction>[0.29636375,  0.29377944, -0.90992064]</direction>
+        <position>[-0.30655466, -0.3570731, 0.52893628]</position>
+    </kappa>
+    <phi>
+        <direction>[0.03149443, 0.03216924, -0.99469729]</direction>
+        <position>[-0.01467116, -0.08069945, 0.46818622]</position>
+    </phi>
+</procedure>

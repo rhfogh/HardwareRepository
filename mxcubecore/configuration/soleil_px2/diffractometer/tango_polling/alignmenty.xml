@@ -1,6 +1,6 @@
-<device class="MicrodiffMotor">
+<device class="SOLEILMicrodiffMotor">
     <tangoname>i11-ma-cx1/ex/md2</tangoname>
-    <actuator_name>AlignmentY</actuator_name>
+    <motor_name>AlignmentY</motor_name>
     <username>AlignmentY</username>
     <direction>1</direction>
     <GUIstep>0.1</GUIstep>

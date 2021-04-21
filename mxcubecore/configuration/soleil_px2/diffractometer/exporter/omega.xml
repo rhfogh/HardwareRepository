@@ -1,6 +1,6 @@
-<device class="MicrodiffMotor">
+<device class="SOLEILMicrodiffMotor">
     <exporter_address>172.19.10.119:9001</exporter_address>
-    <actuator_name>Omega</actuator_name>
+    <motor_name>Omega</motor_name>
     <username>Omega</username>
     <direction>-1</direction>
     <GUIstep>45</GUIstep>

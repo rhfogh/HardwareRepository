@@ -1,6 +1,6 @@
-<device class="MicrodiffMotor">
+<device class="SOLEILMicrodiffMotor">
     <exporter_address>172.19.10.119:9001</exporter_address>
-    <actuator_name>CapillaryHorizontal</actuator_name>
+    <motor_name>CapillaryHorizontal</motor_name>
     <username>CapillaryHorizontal</username>
     <direction>1</direction>
     <GUIstep>0.05</GUIstep>

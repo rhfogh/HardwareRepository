@@ -1,6 +1,6 @@
-<device class="MicrodiffMotor">
+<device class="SOLEILMicrodiffMotor">
     <tangoname>i11-ma-cx1/ex/md2</tangoname>
-    <actuator_name>Omega</actuator_name>
+    <motor_name>Omega</motor_name>
     <username>Omega</username>
     <direction>-1</direction>
     <GUIstep>45</GUIstep>

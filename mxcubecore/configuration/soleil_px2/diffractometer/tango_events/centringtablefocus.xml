@@ -1,6 +1,6 @@
-<device class="MicrodiffMotor">
+<device class="SOLEILMicrodiffMotor">
     <tangoname>i11-ma-cx1/ex/md2</tangoname>
-    <actuator_name>CentringTableFocus</actuator_name>
+    <motor_name>CentringTableFocus</motor_name>
     <username>CentringTableFocus</username>
     <direction>1</direction>
     <GUIstep>0.05</GUIstep>

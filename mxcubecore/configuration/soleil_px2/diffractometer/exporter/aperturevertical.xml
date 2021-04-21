@@ -1,6 +1,6 @@
-<device class="MicrodiffMotor">
+<device class="SOLEILMicrodiffMotor">
     <exporter_address>172.19.10.119:9001</exporter_address>
-    <actuator_name>ApertureVertical</actuator_name>
+    <motor_name>ApertureVertical</motor_name>
     <username>ApertureVertical</username>
     <direction>1</direction>
     <GUIstep>0.025</GUIstep>
