@@ -1,4 +1,4 @@
 <device class = "ResolutionMockup">
   <object hwrid="/tango_motors/detector_distance" role="detector_distance"/>
-  <object hwrid="/singleton_objects/photon_energy" role="energy"/>
+  <object hwrid="/singleton_motors/photon_energy" role="energy"/>
 </device>
