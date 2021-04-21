@@ -19,6 +19,7 @@
 #  along with MXCuBE. If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import traceback
 import gevent
 import gevent.event
 from gevent.queue import Queue
@@ -33,9 +34,15 @@ from mxcubecore.dispatcher import saferef
 gevent_version = list(map(int,gevent.__version__.split('.')))
 
 try:
-    import PyTango
-    from PyTango.gevent import DeviceProxy
-    from PyTango import DeviceProxy as RawDeviceProxy
+    import sys
+    if sys.version_info.major == 3:
+        import tango
+        from tango.gevent import DeviceProxy
+        from tango import DeviceProxy as RawDeviceProxy
+    else:
+        import PyTango as tango
+        from PyTango.gevent import DeviceProxy
+        from PyTango import DeviceProxy as RawDeviceProxy
 except ImportError:
     logging.getLogger("HWR").warning("Tango support is not available.")
 
@@ -56,7 +63,7 @@ class TangoCommand(CommandObject):
     def init_device(self):
         try:
             self.device = DeviceProxy(self.device_name)
-        except PyTango.DevFailed as traceback:
+        except tango.DevFailed as traceback:
             last_error = traceback[-1]
             logging.getLogger("HWR").error(
                 "%s: %s", str(self.name()), last_error["desc"]
@@ -65,7 +72,7 @@ class TangoCommand(CommandObject):
         else:
             try:
                 self.device.ping()
-            except PyTango.ConnectionFailed:
+            except tango.ConnectionFailed:
                 self.device = None
                 raise ConnectionError
 
@@ -82,7 +89,7 @@ class TangoCommand(CommandObject):
             ret = tango_cmd_object(
                 *args
             )  # eval('self.device.%s(*%s)' % (self.command, args))
-        except PyTango.DevFailed as error_dict:
+        except tango.DevFailed as error_dict:
             logging.getLogger("HWR").error(
                 "%s: Tango, %s", str(self.name()), error_dict
             )
@@ -215,12 +222,12 @@ class TangoChannel(ChannelObject):
                     # logging.getLogger("HWR").debug("subscribing to CHANGE event for %s", self.attribute_name)
                     self.device.subscribe_event(
                         self.attribute_name,
-                        PyTango.EventType.CHANGE_EVENT,
+                        tango.EventType.CHANGE_EVENT,
                         self,
                         [],
                         True,
                     )
-                    # except PyTango.EventSystemFailed:
+                    # except tango.EventSystemFailed:
                     #   pass
                 except Exception:
                     logging.getLogger("HWR").exception("could not subscribe event")
@@ -229,7 +236,7 @@ class TangoChannel(ChannelObject):
     def init_device(self):
         try:
             self.device = DeviceProxy(self.device_name)
-        except PyTango.DevFailed as traceback:
+        except tango.DevFailed as traceback:
             self.imported = False
             last_error = traceback[-1]
             logging.getLogger("HWR").error(
@@ -239,13 +246,13 @@ class TangoChannel(ChannelObject):
             self.imported = True
             try:
                 self.device.ping()
-            except PyTango.ConnectionFailed:
+            except tango.ConnectionFailed:
                 self.device = None
                 raise ConnectionError
             else:
                 self.device.set_timeout_millis(self.timeout)
 
-                # check that the attribute exists (to avoid Abort in PyTango grrr)
+                # check that the attribute exists (to avoid Abort in tango.grrr)
                 if not self.attribute_name.lower() in [
                     attr.name.lower() for attr in self.device.attribute_list_query()
                 ]:
@@ -261,7 +268,7 @@ class TangoChannel(ChannelObject):
         if (
             event.attr_value is None
             or event.err
-            or event.attr_value.quality != PyTango.AttrQuality.ATTR_VALID
+            or event.attr_value.quality != tango.AttrQuality.ATTR_VALID
         ):
             # logging.getLogger("HWR").debug("%s, receving BAD event... attr_value=%s, event.errors=%s, quality=%s", self.name(), event.attr_value, event.errors, event.attr_value is None and "N/A" or event.attr_value.quality)
             return
@@ -277,7 +284,7 @@ class TangoChannel(ChannelObject):
 
         if self.read_as_str:
             value = self.raw_device.read_attribute(
-                self.attribute_name, PyTango.DeviceAttribute.ExtractAs.String
+                self.attribute_name, tango.DeviceAttribute.ExtractAs.String
             ).value
             # value = self.device.read_attribute_as_str(self.attribute_name).value
         else:
@@ -333,7 +340,7 @@ class TangoChannel(ChannelObject):
         
         if self.read_as_str:
             value = self.device.read_attribute(
-                self.attribute_name, PyTango.DeviceAttribute.ExtractAs.String
+                self.attribute_name, tango.DeviceAttribute.ExtractAs.String
             ).value
         else:
             value = self.device.read_attribute(self.attribute_name).value
@@ -345,7 +352,7 @@ class TangoChannel(ChannelObject):
 
     def set_value(self, new_value):
         self.device.write_attribute(self.attribute_name, new_value)
-        # attr = PyTango.AttributeProxy(self.device_name + "/" + self.attribute_name)
+        # attr = tango.AttributeProxy(self.device_name + "/" + self.attribute_name)
         # a = attr.read()
         # a.value = newValue
         # attr.write(a)
