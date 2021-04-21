@@ -21,7 +21,7 @@ import os
 import time
 import numpy as np
 
-from mxcubecore.utils.qt_import import QPainter, QPixmap, QPen, QBrush, QImage
+from mxcubecore.utils.qt_import import QPainter, QPixmap, QPen, QBrush, QImage, Qt
 from mxcubecore.HardwareObjects.abstract.AbstractVideoDevice import (
     AbstractVideoDevice,
 )
