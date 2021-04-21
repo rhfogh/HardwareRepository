@@ -1,12 +1,16 @@
-from mxcubecore.HardwareObjects.mockup.EnergyMockup import EnergyMockup
 from energy import energy
+from motor import monochromator_rx_motor
+
 from scipy.constants import kilo, h, c, eV, angstrom
 import logging
 
+from mxcubecore.HardwareObjects.mockup.EnergyMockup import EnergyMockup
 
 class PX2Energy(EnergyMockup):
     def init(self):
+        super(EnergyMockup, self).init()
         self.energy = energy()
+        self.monochromator_rx_motor = monochromator_rx_motor()
 
         self.energy_channel = self.get_channel_object("energy")
         self.energy_channel.connect_signal("update", self.energy_changed)
@@ -20,12 +24,15 @@ class PX2Energy(EnergyMockup):
         self.minimum_energy = self.get_property("min_energy")
         self.maximum_energy = self.get_property("max_energy")
 
-        self.current_energy = self.energy.get_value() / kilo
+        self.current_energy = self.energy.get_energy() / kilo
         self.current_wavelength = self.get_wavelegth_from_energy(self.current_energy)
 
         self.checkLimits = self.check_limits
         self.cancelMoveEnergy = self.cancel_move_energy
-
+        self.last_state = None
+        self.update_value(self.current_energy)
+        self.update_state(self.STATES.READY)
+        
     def re_emit_values(self):
         self.emit("energyChanged", (self.current_energy, self.current_wavelength))
         self.emit("valueChanged", (self.current_energy,))
@@ -95,14 +102,13 @@ class PX2Energy(EnergyMockup):
 
     def energy_state_changed(self, state):
         logging.getLogger("HWR").info("energy_state_changed %s" % str(state))
-        # self.energy_server_check_for_errors(state)
+        state = str(state)
+        if self.last_state != state:
+            logging.getLogger('HWR').info("energy_state_changed %s" % str(state))
         if state == "STANDBY":
-            if self.moving:
-                self.moving = False
-                self.set_break_bragg()
-            self.move_energy_finished(0)
-            self.emit("stateChanged", "ready")
-            self.emit("statusInfoChanged", "")
-        elif state in ["MOVING", "ALARM"]:
-            self.move_energy_started()
-            self.emit("stateChanged", "busy")
+            self.update_state(self.STATES.READY)
+        elif state in ["MOVING"]:
+            self.update_state(self.STATES.BUSY)
+        elif state in ['ALARM']:
+            self.update_state(self.STATES.READY)
+        self.last_state = state
