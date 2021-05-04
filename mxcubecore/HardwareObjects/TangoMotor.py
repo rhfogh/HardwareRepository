@@ -17,10 +17,10 @@
 #  along with MXCuBE. If not, see <http://www.gnu.org/licenses/>.
 
 """
-TangoMotor class defines motor in the Tango control system (used and tested in DESY/P11
+TangoMotor class defines motor in the Tango control system (used and tested in DESY/P11)
 """
 
-from mxcubecore.utils.mxcube_logging import log
+import logging
 from mxcubecore.HardwareObjects.abstract.AbstractMotor import AbstractMotor
 
 import gevent
@@ -30,7 +30,7 @@ __license__ = "LGPLv3+"
 __category__ = "Motor"
 
 class TangoMotor(AbstractMotor):
-    """TINEMotor class defines motor in the TINE control system
+    """TangoMotor class defines motor in the Tango control system
     """
 
     default_polling = 500
@@ -64,8 +64,8 @@ class TangoMotor(AbstractMotor):
                   }, "Position",)
 
         if self.chan_position is not None:
-            self.chan_position.connectSignal("update", self.update_value)
-            self.update_value(self.chan_position.getValue())
+            self.chan_position.connect_signal("update", self.update_value)
+            self.update_value(self.chan_position.get_value())
 
         self.chan_state = self.get_channel_object("axisState", None)
         if self.chan_state is None:
@@ -78,12 +78,12 @@ class TangoMotor(AbstractMotor):
                   }, "State",)
 
         if self.chan_state is not None:
-            self.chan_state.connectSignal("update", self.motor_state_changed)
+            self.chan_state.connect_signal("update", self.motor_state_changed)
 
         self.chan_limits = self.get_channel_object("axisLimits", optional=True)
         if self.chan_limits is not None:
-            self.chan_limits.connectSignal("update", self.update_limits)
-            self.update_limits(self.chan_limits.getValue())
+            self.chan_limits.connect_signal("update", self.update_limits)
+            self.update_limits(self.chan_limits.get_value())
         else:
             try:
                 if self.get_property("default_limits"):
@@ -101,7 +101,7 @@ class TangoMotor(AbstractMotor):
                       "polling": self.polling,
                   }, "Stop",)
 
-    def connectNotify(self, signal):
+    def connect_notify(self, signal):
         """
         :param signal: signal
         :type signal: signal
@@ -114,7 +114,7 @@ class TangoMotor(AbstractMotor):
             self.update_value()
 
     def get_value(self):
-        value = self.chan_position.getValue()
+        value = self.chan_position.get_value()
         return value
 
     def motstate_to_state(self, motstate):
@@ -129,6 +129,8 @@ class TangoMotor(AbstractMotor):
             state = self.STATES.FAULT
         elif motstate == "OFF":
             state = self.STATES.OFF
+        elif motstate == 'STANDBY':
+            state = self.STATES.READY
         else:
             state = self.STATES.UNKNOWN
 
@@ -136,8 +138,7 @@ class TangoMotor(AbstractMotor):
 
     def motor_state_changed(self, state=None):
         if state == None:
-            state = self.chan_state.getValue()
-
+            state = self.chan_state.get_value()
         self.update_state( self.motstate_to_state(state) )
 
     def abort(self):
@@ -151,9 +152,9 @@ class TangoMotor(AbstractMotor):
         :param value: float
         :return:
         """
-        log.debug("TangoMotor.py - Moving motor %s to %s" % (self.name(), value))
+        logging.debug("TangoMotor.py - Moving motor %s to %s" % (self.name(), value))
         self.start_moving()
-        self.chan_position.setValue(value)
+        self.chan_position.set_value(value)
 
     def start_moving(self):
         self.motor_state_changed("MOVING")
@@ -164,7 +165,7 @@ class TangoMotor(AbstractMotor):
 
     def _update_state(self):
         gevent.sleep(0.5)
-        self.motor_state_changed(self.chan_state.getValue())
+        self.motor_state_changed(self.chan_state.get_value())
             
     def update_value(self, value=None):
         """Updates motor position
@@ -179,3 +180,4 @@ class TangoMotor(AbstractMotor):
         :return:
         """
         return "TangoMotor"
+
