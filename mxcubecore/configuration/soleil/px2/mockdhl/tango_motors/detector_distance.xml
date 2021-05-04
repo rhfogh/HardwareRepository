@@ -1,0 +1,12 @@
+<device class="TangoMotor">
+    <username>detector_distance</username>
+    <motor_name>detector_distance</motor_name>
+    <actuator_name>detector_distance</actuator_name>
+    <tolerance>0.002</tolerance>
+    <tangoname>i11-ma-cx1/dt/dtc_ccd.1-mt_ts</tangoname>
+    <channel type="tango" polling="500" name="axisPosition">position</channel>
+    <channel type="tango" polling="500" name="axisState">State</channel>
+    <command type="tango" name="stopAxis">Stop</command>
+    <default_limits>[115., 1001.]</default_limits>
+    <interval>1000</interval>
+</device>

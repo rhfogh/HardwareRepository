@@ -1,0 +1,13 @@
+<device class="PX2MicrodiffZoom">
+    <tangoname>i11-ma-cx1/ex/md2</tangoname>
+    <motor_name>Zoom</motor_name>
+    <channel type="tango" polling="500" name="predefined_position">CoaxialCameraZoomValue</channel>
+    <channel type="tango" polling="500" name="ZoomPosition">ZoomPosition</channel>
+    <channel type="tango" polling="500" name="ZoomState">ZoomState</channel>
+    <channel type="tango" polling="500" name="motor_states">MotorStates</channel>
+    <command type="tango" name="abort">abort</command>
+    <command type="tango" name="homing">startHomingMotor</command>
+    <command type="tango" name="getZoomDynamicLimits">getMotorDynamicLimits</command>
+    <command type="tango" name="getMotorLimits">getMotorLimits</command>
+    <command type="tango" name="getMotorMaxSpeed">getMotorMaxSpeed</command>
+</device>

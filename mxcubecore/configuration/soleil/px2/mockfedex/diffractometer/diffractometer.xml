@@ -1,0 +1,31 @@
+<equipment class="DiffractometerMockup">
+    <object href="/diffractometer/omega" role="phi"/>
+    <object href="/diffractometer/kappa" role="kappa"/>
+    <object href="/diffractometer/phi" role="kappa_phi"/>
+    <object href="/singleton_objects/beam" role="beam_info"/>
+
+    <!-- Next block added by rhfogh for better representation of move_motor behaviour -->
+    <object href="/diffractometer/alignmentz" role="phiz"/>
+    <object href="/diffractometer/alignmenty" role="phiy"/>
+    <object href="/diffractometer/centringx" role="sampx"/>
+    <object href="/diffractometer/centringy" role="sampy"/>
+    <object href="/singleton_objects/centring-math" role="centring"/>
+    <object href="/singleton_objects/minikappa-correction" role="minikappa_correction"/>
+    <object href="/singleton_objects/camera" role="camera"/>
+    <object href="/singleton_objects/sample_changer" role="samplechanger"/>
+    <centring_motors>("phi", "kappa", "kappa_phi", "phiz", "phiy", "sampx", "sampy")</centring_motors>
+
+    <zoom_centre>{"x":680, "y":512}</zoom_centre>
+    
+    <ref_omega>[0, 512]</ref_omega>
+    <omega_reference>{"motor_name": "phiz", "position": -0.121, "camera_axis":"y", "direction": -1}</omega_reference>
+    <sample_mount_mode>sample_changer</sample_mount_mode>
+    <grid_direction>{"fast": (1, 0), "slow": (0, -1), "omega_ref" : 0.0}</grid_direction>
+    <reversing_rotation>True</reversing_rotation>
+    <x_calib>0.0016051</x_calib>
+    <y_calib>0.0015941</y_calib>
+    <image_width>1360</image_width>
+    <image_height>1024</image_height>
+    <beamposition>[680, 512]</beamposition>
+    <lastcentredposition>[681, 512]</lastcentredposition>
+</equipment>

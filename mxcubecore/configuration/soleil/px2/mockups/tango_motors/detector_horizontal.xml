@@ -1,0 +1,5 @@
+<device class="MotorMockup">
+  <start_position>22.5</start_position>
+  <velocity>50</velocity>
+  <static_limits>[10, 35]</static_limits>
+</device>

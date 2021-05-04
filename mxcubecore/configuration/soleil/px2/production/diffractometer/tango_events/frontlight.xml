@@ -1,0 +1,7 @@
+<device class="MicrodiffLight">
+    <tangoname>i11-ma-cx1/ex/md2</tangoname>
+    <motor_name>FrontLight</motor_name>
+    <channel type="tango" polling="1000" name="chanLightValue">FrontLightLevel</channel>
+    <channel type="tango" polling="1000" name="chanLightIsOn">FrontLightIsOn</channel>
+    <limits>[0, 100]</limits>
+</device>

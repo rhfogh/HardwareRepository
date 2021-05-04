@@ -1,0 +1,7 @@
+<device class="MicrodiffLight">
+    <tangoname>i11-ma-cx1/ex/md2</tangoname>
+    <motor_name>BackLight</motor_name>
+    <channel type="tango" polling="events" name="chanLightValue">BackLightLevel</channel>
+    <channel type="tango" polling="events" name="chanLightIsOn">BackLightIsOn</channel>
+    <limits>[0, 100]</limits>
+</device>

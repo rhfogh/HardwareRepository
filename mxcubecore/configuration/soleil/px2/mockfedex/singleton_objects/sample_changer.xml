@@ -1,0 +1,27 @@
+<equipment class="SampleChangerMockup">
+    <no_of_lids>3</no_of_lids>
+    <no_of_baskets_in_lid>3</no_of_baskets_in_lid>
+    <no_of_baskets>9</no_of_baskets>
+    <no_of_samples_in_basket>16</no_of_samples_in_basket>
+    <useUpdateTimer>False</useUpdateTimer>
+
+    <tool>CRYOTONG</tool>
+    <pucktype>UNIPUCK</pucktype>
+
+    <!-- SC3 commands and channels -->
+    <test_sample_names>
+        <!-- Sample names to show in UI and matching addresses.   -->
+        <!-- Names of the form "emulate-<name>" are used for GPhL emulation, ...  -->
+        <emulate-3n0s>1:1</emulate-3n0s>
+        <emulate-4mxt>1:2</emulate-4mxt>
+        <emulate-4k4k>1:3</emulate-4k4k>
+        <emulate-4k61>1:4</emulate-4k61>
+        <emulate-4j8p>1:5</emulate-4j8p>
+        <emulate-4jrl>1:6</emulate-4jrl>
+        <emulate-4iej>1:7</emulate-4iej>
+        <emulate-thermolysin>1:8</emulate-thermolysin>
+        <emulate-4kw2>1:9</emulate-4kw2>
+        <emulate-germanate>1:10</emulate-germanate>
+        <emulate-germanate2>1:11</emulate-germanate2>
+    </test_sample_names>
+</equipment>
