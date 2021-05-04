@@ -12,8 +12,6 @@ log = logging.getLogger("HWR")
 
 POLLERS = {}
 
-gevent_version = list(map(int,gevent.__version__.split('.')))
-
 class _NotInitializedValue:
     pass
 
@@ -86,10 +84,7 @@ class _Poller:
         self.delay = 0
         self.stop_event = Event()
 
-        if gevent_version < [1,3,0]:
-            self.async_watcher = gevent.get_hub().loop.async()
-        else:
-            self.async_watcher = gevent.get_hub().loop.async_()
+        self.async_watcher = gevent.get_hub().loop.async_()
 
     def start_delayed(self, delay):
         self.delay = delay
