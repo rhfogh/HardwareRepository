@@ -17,31 +17,33 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with MXCuBE. If not, see <http://www.gnu.org/licenses/>.
 
-import os
 import time
-import logging
-import traceback
-import pickle
-import copy
-import datetime
-import h5py
-
-import numpy as np
-from scipy.optimize import minimize
-from math import sqrt
-
 import gevent
+import logging
+import os
+import traceback
 
+from math import sqrt
 from goniometer import goniometer
 from detector import detector
 from camera import camera
+from film import film
 
 import beam_align
 import scan_and_align
 import optical_alignment
+import pickle
+import numpy as np
+from scipy.optimize import minimize
+import copy
+import datetime
+import h5py
 
 from anneal import anneal as anneal_procedure
-from queue_model_enumerables_v1 import CENTRING_METHOD
+import datetime
+import h5py
+from queue_model_enumerables import CENTRING_METHOD
+from optical_path_report import optical_path_analysis
 
 try:
     import lmfit
@@ -102,9 +104,11 @@ class PX2Diffractometer(GenericDiffractometer):
 
         # Hardware objects ----------------------------------------------------
         self.zoom_motor_hwobj = None
+        self.camera_hwobj = None
         self.omega_reference_motor = None
         self.centring_hwobj = None
         self.minikappa_correction_hwobj = None
+        self.detector_distance_motor_hwobj = None
         self.nclicks = None
         self.step = None
         self.centring_method = None
@@ -452,6 +456,7 @@ class PX2Diffractometer(GenericDiffractometer):
         """
         Descript. :
         """
+        start = time.time()
         try:
             motor_pos = centring_procedure.get()
             # if isinstance(motor_pos, gevent.GreenletExit):
@@ -463,6 +468,7 @@ class PX2Diffractometer(GenericDiffractometer):
         else:
             self.emit_progress_message("Moving sample to centred position...")
             self.emit_centring_moving()
+            s_move = time.time()
             try:
                 self.move_to_motors_positions(motor_pos)
             except Exception:
@@ -496,19 +502,22 @@ class PX2Diffractometer(GenericDiffractometer):
         """
         Descript. :
         """
-
-        self.log.info("get_centred_point_from_coord: x, y: %s %s" % (x, y))
-        self.log.info(
-            "get_centred_point_from_coord: self.pixels_per_mm_x, self.pixels_per_mm_ y: %s %s"
-            % (self.pixels_per_mm_x, self.pixels_per_mm_y)
-        )
-        self.log.info(
-            "get_centred_point_from_coord: self.beam_position: %s"
-            % str(self.beam_position)
-        )
-
+        
+        self.log.info('get_centred_point_from_coord: x, y: %s %s' % (x, y))
+        self.log.info('get_centred_point_from_coord: self.pixels_per_mm_x, self.pixels_per_mm_ y: %s %s' % (self.pixels_per_mm_x,  self.pixels_per_mm_y))
+        self.log.info('get_centred_point_from_coord: self.beam_position: %s' % str(self.beam_position))
+        
+        timestamp = time.time()
+        name_pattern= '%s_%s' % (os.getuid(), time.asctime(time.localtime(timestamp)).replace(' ', '_'))
+        directory ='%s/manual_optical_alignment' % os.getenv('HOME')
+        
+        save_double_click_command = 'double_click_saver.py -x %.2f -y %.2f -d %s -n %s -t %.3f &' % (x, y, directory, name_pattern, timestamp)
+        
+        self.log.info('save_double_click_command: %s' % save_double_click_command)
+        os.system(save_double_click_command)
+        
         current_position = self.goniometer.get_aligned_position()
-
+        
         omega_reference = self.omega_reference_par["position"]
 
         alignmentz_shift = current_position["AlignmentZ"] - omega_reference
@@ -1094,16 +1103,13 @@ class PX2Diffractometer(GenericDiffractometer):
                 new_phi,
                 (new_sampx, new_sampy, new_phiy,),
             ) = self.goniometer.get_align_vector(t1, t2, kappa, phi)
-            # self.minikappa_correction_hwobj.alignVector(t1,t2,kappa,phi)
-            self.move_to_motors_positions(
-                {
-                    self.motor_hwobj_dict["kappa"]: new_kappa,
-                    self.motor_hwobj_dict["kappa_phi"]: new_phi,
-                    self.motor_hwobj_dict["sampx"]: new_sampx,
-                    self.motor_hwobj_dict["sampy"]: new_sampy,
-                    self.motor_hwobj_dict["phiy"]: new_phiy,
-                }
-            )
+            new_position = {self.motor_hwobj_dict['kappa'] : new_kappa, 
+                            self.motor_hwobj_dict['kappa_phi'] : new_phi, 
+                            self.motor_hwobj_dict['sampx'] : new_sampx,
+                            self.motor_hwobj_dict['sampy'] : new_sampy, 
+                            self.motor_hwobj_dict['phiy'] : new_phiy}
+
+            self.move_to_motors_positions(new_position)
 
     def re_emit_values(self):
         """
@@ -1328,7 +1334,7 @@ class PX2Diffractometer(GenericDiffractometer):
         scan_length=0.1,
         step=90.0,
         start=0.0,
-        base_directory="/nfs/ruche/proxima2a-spool/2019_Run1/excenter",
+        base_directory="/nfs/data2/excenter'",
         name_pattern="excenter",
     ):
 
@@ -1336,7 +1342,7 @@ class PX2Diffractometer(GenericDiffractometer):
 
         angles = str(tuple(np.arange(start, 360.0, step)))
 
-        execute_line = 'excenter.py -d %s -n %s -l %.2f -a "%s" &' % (
+        execute_line = '/usr/local/experimental_methods/diffraction_tomography.py -d %s -n %s -l %.2f -a "%s" &' % (
             directory,
             name_pattern,
             scan_length,

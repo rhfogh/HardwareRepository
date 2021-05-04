@@ -25,9 +25,6 @@ beamPosChanged
   <channel type="tango" tangoname="i11-ma-cx1/ex/md2" polling="1000" name="positiony">BeamPositionVertical</channel>
   <object  role="zoom"  hwrid="/zoom"></object>
 </device>
-
-
-
 """
 
 import logging
@@ -56,7 +53,6 @@ class PX2BeamInfo(Equipment):
 
         # Zoom motor
         self.zoomMotor = None
-        # self.minidiff = None
         self.positionTable = {}
 
     def init(self):
@@ -93,7 +89,7 @@ class PX2BeamInfo(Equipment):
                 "%s: cannot connect to beamposition z channel ", self.name()
             )
 
-        self.zoomMotor = self.get_deviceby_role("zoom")
+        self.zoomMotor = self.get_device_by_role("zoom")
 
         self.beam_position[0], self.beam_position[1] = (
             self.chanBeamPosX.value,
@@ -188,3 +184,9 @@ class PX2BeamInfo(Equipment):
 
     def get_beam_divergence_ver(self):
         return self.get_property("beam_divergence_vert")
+
+    def get_beam_divergence(self):
+        h = self.get_beam_divergence_hor()
+        v = self.get_beam_divergence_ver()
+        return h, v
+        
