@@ -42,12 +42,12 @@ class MicrodiffMotor(AbstractMotor):
         self.motor_pos_attr_suffix = "Position"
         self.motor_state_attr_suffix = "State"
         self.translate_state = {
-            MicrodiffMotor.NOTINITIALIZED: self.motor_states.NOTINITIALIZED,
-            MicrodiffMotor.UNUSABLE: self.motor_states.BUSY,
-            MicrodiffMotor.READY: self.motor_states.READY,
-            MicrodiffMotor.MOVESTARTED: self.motor_states.MOVESTARTED,
-            MicrodiffMotor.MOVING: self.motor_states.MOVING,
-            MicrodiffMotor.ONLIMIT: self.motor_states.HIGHLIMIT,
+            MicrodiffMotor.NOTINITIALIZED: self.STATES.UNKNOWN,
+            MicrodiffMotor.UNUSABLE: self.STATES.BUSY,
+            MicrodiffMotor.READY: self.STATES.READY,
+            MicrodiffMotor.MOVESTARTED: self.STATES.BUSY,
+            MicrodiffMotor.MOVING: self.STATES.BUSY,
+            MicrodiffMotor.ONLIMIT: self.STATES.WARNING,
         }
 
     def init(self):
@@ -141,13 +141,6 @@ class MicrodiffMotor(AbstractMotor):
         elif signal == "limitsChanged":
             self.motorLimitsChanged()
 
-    def updateState(self):
-        self.set_is_ready(self._get_state() > MicrodiffMotor.UNUSABLE)
-
-    def set_is_ready(self, value):
-        if value is True:
-            self.set_ready()
-
     def updateMotorState(self, motor_states):
         d = dict([x.split("=") for x in motor_states])
         # Some are like motors but have no state
@@ -166,7 +159,7 @@ class MicrodiffMotor(AbstractMotor):
         self.motorStateChanged(self.motorState)
 
     def motorStateChanged(self, state):
-        self.updateState()
+        self.update_state()
         if not isinstance(state, int):
             state = self.get_state()
         self.emit("stateChanged", (state,))
