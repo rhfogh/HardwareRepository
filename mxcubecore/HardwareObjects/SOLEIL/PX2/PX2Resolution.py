@@ -22,7 +22,7 @@ class PX2Resolution(AbstractResolution):
     def _set_value(self, value):
         self.resolution_motor.set_resolution(value)
 
-    def get_beam_centre(self, dtox=None):
+    def get_beam_centre(self, distance=None, wavelength=None):
         return self.beam_center.get_beam_center()
 
     def get_limits(self):
@@ -34,7 +34,7 @@ class PX2Resolution(AbstractResolution):
     def is_ready(self):
         return True
 
-    def update_distance(self, value):
+    def update_distance(self, value=None):
         """Update the resolution when distance changed.
         Args:
             value (float): Detector distance [mm].

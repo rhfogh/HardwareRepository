@@ -43,7 +43,7 @@ det_gonio_axis_calibratable = 'False'
 det_filename_suffix= '.cbf'
 
 gonio_name= "MiniKappa"
-gonio_axis:q_dirs= 1.0 0.0 0.0,
+gonio_axis_dirs= 1.0 0.0 0.0,
    ! Added final '2' to first float in order to sum to 1.0000000 exactly
    0.9131443849167312, -0.281940552428199, -0.294409336114748,
    1.0 0.0 0.0
