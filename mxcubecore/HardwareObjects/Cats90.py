@@ -66,69 +66,17 @@ def cats_basket_presence_void(value, basket=1):
         "Basket %s presence changed void. %s" % (basket, value)
     )
 
-
-class Basket(Container):
-    __TYPE__ = "Puck"
-
-    def __init__(self, container, number, samples_num=10, name="Puck"):
-        super(Basket, self).__init__(
-            self.__TYPE__, container, Basket.get_basket_address(number), True
-        )
-
-        self.samples_num = samples_num
-
-        for i in range(samples_num):
-            slot = Pin(self, number, i + 1)
-            self._add_component(slot)
-
-    @staticmethod
-    def get_basket_address(basket_number):
-        return str(basket_number)
-
-    def get_number_of_samples(self):
-        return self.samples_num
-
-    def clear_info(self):
-        # self.get_container()._reset_basket_info(self.get_index()+1)
-        self.get_container()._trigger_info_changed_event()
-
-
 class SpineBasket(Basket):
     def __init__(self, container, number, name="SpinePuck"):
         super(SpineBasket, self).__init__(
             container, Basket.get_basket_address(number), SAMPLES_SPINE, True
         )
 
-
 class UnipuckBasket(Basket):
     def __init__(self, container, number, name="UniPuck"):
         super(UnipuckBasket, self).__init__(
             container, Basket.get_basket_address(number), SAMPLES_UNIPUCK, True
         )
-
-
-class Pin(Sample):
-    STD_HOLDERLENGTH = 22.0
-
-    def __init__(self, basket, basket_no, sample_no):
-        super(Pin, self).__init__(
-            basket, Pin.get_sample_address(basket_no, sample_no), False
-        )
-        self._set_holder_length(Pin.STD_HOLDERLENGTH)
-
-    def get_basket_no(self):
-        return self.get_container().get_index() + 1
-
-    def get_vial_no(self):
-        return self.get_index() + 1
-
-    @staticmethod
-    def get_sample_address(basket_number, sample_number):
-        if basket_number is not None and sample_number is not None:
-            return str(basket_number) + ":" + "%02d" % (sample_number)
-        else:
-            return ""
-
 
 class Cats90(SampleChanger):
     """
@@ -179,7 +127,7 @@ class Cats90(SampleChanger):
         self.cats_lids_closed = False
 
         self.basket_types = None
-        self.number_of_baskets = None
+        self.no_of_baskets = None
 
         # add support for CATS dewars with variable number of lids
 
@@ -417,12 +365,12 @@ class Cats90(SampleChanger):
         # cassettes/baskets)
         try:
             self.basket_types = self.cats_device.read_attribute("CassetteType").value
-            self.number_of_baskets = len(self.basket_types)
+            self.no_of_baskets = len(self.basket_types)
         except PyTango.DevFailed:
             pass
 
         # find number of baskets and number of samples per basket
-        if self.number_of_baskets is not None:
+        if self.no_of_baskets is not None:
             if self.is_cats():
                 # if CATS... uniform type of baskets. the first number in CassetteType
                 # is used for all
@@ -440,11 +388,11 @@ class Cats90(SampleChanger):
             samples_per_basket = self.get_property("samples_per_basket")
 
             if no_of_baskets is None:
-                self.number_of_baskets = self.baskets_per_lid * self.number_of_lids
+                self.no_of_baskets = self.baskets_per_lid * self.number_of_lids
             else:
-                self.number_of_baskets = int(no_of_baskets)
+                self.no_of_baskets = int(no_of_baskets)
 
-            self.basket_types = [None] * self.number_of_baskets
+            self.basket_types = [None] * self.no_of_baskets
 
             if samples_per_basket is None:
                 self.samples_per_basket = SAMPLES_SPINE
@@ -469,9 +417,9 @@ class Cats90(SampleChanger):
                 )
             self.samples_per_basket = None
         else:
-            self.basket_channels = [None] * self.number_of_baskets
+            self.basket_channels = [None] * self.no_of_baskets
 
-            for basket_index in range(self.number_of_baskets):
+            for basket_index in range(self.no_of_baskets):
                 channel_name = "_chnBasket%dState" % (basket_index + 1)
                 chan = self.get_channel_object(channel_name, optional=True)
                 if chan is None:
@@ -512,7 +460,7 @@ class Cats90(SampleChanger):
 
         # connect presence channels
         if self.basket_channels is not None:  # old device server
-            for basket_index in range(self.number_of_baskets):
+            for basket_index in range(self.no_of_baskets):
                 channel = self.basket_channels[basket_index]
                 channel.connect_signal("update", self.cats_basket_presence_changed)
         else:  # new device server with global CassettePresence attribute
@@ -552,9 +500,9 @@ class Cats90(SampleChanger):
         """
         logging.getLogger("HWR").warning("Cats90:  initializing contents")
 
-        self.basket_presence = [None] * self.number_of_baskets
+        self.basket_presence = [None] * self.no_of_baskets
 
-        for i in range(self.number_of_baskets):
+        for i in range(self.no_of_baskets):
             if self.basket_types[i] == BASKET_SPINE:
                 basket = SpineBasket(self, i + 1)
             elif self.basket_types[i] == BASKET_UNIPUCK:
@@ -565,7 +513,7 @@ class Cats90(SampleChanger):
             self._add_component(basket)
 
         # write the default basket information into permanent Basket objects
-        for basket_index in range(self.number_of_baskets):
+        for basket_index in range(self.no_of_baskets):
             basket = self.get_components()[basket_index]
             datamatrix = None
             present = scanned = False
@@ -573,7 +521,7 @@ class Cats90(SampleChanger):
 
         # create temporary list with default sample information and indices
         sample_list = []
-        for basket_index in range(self.number_of_baskets):
+        for basket_index in range(self.no_of_baskets):
             basket = self.get_components()[basket_index]
             for sample_index in range(basket.get_number_of_samples()):
                 sample_list.append(
@@ -588,7 +536,7 @@ class Cats90(SampleChanger):
             datamatrix = None
             present = scanned = loaded = _has_been_loaded = False
             sample._set_info(present, datamatrix, scanned)
-            sample._set_loaded(loaded, has_been_loaded)
+            sample._set_loaded(loaded, _has_been_loaded)
             sample._set_holder_length(spl[4])
 
         logging.getLogger("HWR").warning("Cats90:  initializing contents done")
@@ -643,7 +591,7 @@ class Cats90(SampleChanger):
         :rtype: None
         """
         logging.info(
-            "doUpdateInfo should not be called for cats. only for update timer type of SC"
+            "_do_update_info should not be called for cats. only for update timer type of SC"
         )
         return
 
@@ -666,7 +614,7 @@ class Cats90(SampleChanger):
             if (
                 basket_no is not None
                 and basket_no > 0
-                and basket_no <= self.number_of_baskets
+                and basket_no <= self.no_of_baskets
             ):
                 basket = self.get_component_by_address(
                     Basket.get_basket_address(basket_no)
@@ -1003,8 +951,8 @@ class Cats90(SampleChanger):
         self._update_state()
 
     def cats_basket_presence_changed(self, value):
-        presence = [None] * self.number_of_baskets
-        for basket_index in range(self.number_of_baskets):
+        presence = [None] * self.no_of_baskets
+        for basket_index in range(self.no_of_baskets):
             value = self.basket_channels[basket_index].get_value()
             presence[basket_index] = value
 
@@ -1280,17 +1228,16 @@ class Cats90(SampleChanger):
         else:
             lid_base = (lid - 1) * self.baskets_per_lid  # nb of first basket in lid
             basket_type = self.basket_types[lid_base]
-
             if basket_type == BASKET_UNIPUCK:
                 samples_per_basket = SAMPLES_UNIPUCK
             elif basket_type == BASKET_SPINE:
                 samples_per_basket = SAMPLES_SPINE
             else:
                 samples_per_basket = self.samples_per_basket
-
+            
             lid_offset = ((num - 1) / samples_per_basket) + 1
-            sample_pos = ((num - 1) % samples_per_basket) + 1
-            basket = lid_base + lid_offset
+            sample_pos = int(((num - 1) % samples_per_basket) + 1)
+            basket = int(lid_base + lid_offset)
             return basket, sample_pos
 
     def basketsample_to_lidsample(self, basket, num):
@@ -1433,7 +1380,7 @@ class Cats90(SampleChanger):
         :rtype: None
         """
 
-        for basket_index in range(self.number_of_baskets):
+        for basket_index in range(self.no_of_baskets):
             # get presence information from the device server
             channel = self.basket_channels[basket_index]
             is_present = channel.get_value()
@@ -1446,7 +1393,7 @@ class Cats90(SampleChanger):
         logging.getLogger("HWR").warning(
             "Updating contents %s" % str(self.basket_presence)
         )
-        for basket_index in range(self.number_of_baskets):
+        for basket_index in range(self.no_of_baskets):
             # get saved presence information from object's internal bookkeeping
             basket = self.get_components()[basket_index]
             is_present = self.basket_presence[basket_index]
@@ -1485,7 +1432,7 @@ class Cats90(SampleChanger):
 
                     # forget about any loaded state in newly mounted or removed basket)
                     loaded = _has_been_loaded = False
-                    sample._set_loaded(loaded, has_been_loaded)
+                    sample._set_loaded(loaded, _has_been_loaded)
 
         self._trigger_contents_updated_event()
         self._update_loaded_sample()
@@ -1516,6 +1463,6 @@ def test_hwo(hwo):
     print("All lids closed: ", hwo._chnAllLidsClosed.get_value())
 
     print("Sample Changer State is: ", hwo.get_status())
-    for basketno in range(hwo.number_of_baskets):
+    for basketno in range(hwo.no_of_baskets):
         no = basketno + 1
         print("Tool for basket %d is: %d" % (no, hwo.tool_for_basket(no)))
