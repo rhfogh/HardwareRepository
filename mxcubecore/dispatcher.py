@@ -26,6 +26,8 @@ if not hasattr(robustapply, "_robust_apply"):
         try:
             return robustapply._robust_apply(*args, **kwargs)
         except Exception:
+            print('*args', str(args))
+            print('**kwargs', str(kwargs))
             sys.excepthook(*sys.exc_info())
 
     if louie:
