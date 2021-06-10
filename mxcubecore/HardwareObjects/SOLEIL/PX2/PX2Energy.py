@@ -101,14 +101,17 @@ class PX2Energy(EnergyMockup):
             )
 
     def energy_state_changed(self, state):
-        logging.getLogger("HWR").info("energy_state_changed %s" % str(state))
         state = str(state)
+        logging.getLogger("HWR").info("energy_state_changed %s" % state)
+        
         if self.last_state != state:
             logging.getLogger('HWR').info("energy_state_changed %s" % str(state))
         if state == "STANDBY":
-            self.update_state(self.STATES.READY)
+            translated_state = self.STATES.READY
         elif state in ["MOVING"]:
-            self.update_state(self.STATES.BUSY)
+            translated_state = self.STATES.BUSY
         elif state in ['ALARM']:
-            self.update_state(self.STATES.READY)
+            translated_state = self.STATES.READY
+        self.update_state(translated_state)
+        logging.getLogger("HWR").info("energy_state_changed translated_state %s" % str(translated_state))
         self.last_state = state
