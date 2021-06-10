@@ -15,7 +15,7 @@ class MicrodiffLight(ExporterMotor):
         except (AttributeError, TypeError, ValueError):
             self._limits = (0, 10)
         self.chan_light_is_on = self.get_channel_object("chanLightIsOn")
-
+        
     def get_state(self):
         """Get the light state as a motor.
         Returns:
@@ -34,3 +34,9 @@ class MicrodiffLight(ExporterMotor):
 
     def move_out(self):
         self.chan_light_is_on.set_value(False)
+
+    def get_value(self):
+        return self.motor_position.get_value()
+    
+    def update_state(self, state=None):
+        self.emit('stateChanged', self.get_state())
