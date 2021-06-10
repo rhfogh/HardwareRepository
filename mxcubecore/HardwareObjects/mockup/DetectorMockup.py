@@ -26,11 +26,11 @@ class DetectorMockup(AbstractDetector):
         self._temperature = 25
         self._humidity = 60
         self._actual_frame_rate = 50
-        self._roi_modes_list = ("0", "C2", "C16")
+        self._roi_modes_list = eval(self.get_property("roi_mode_list", ("0", "C2", "C16")))
         self._roi_mode = 0
-        self._exposure_time_limits = [0.04, 60000]
+        self._exposure_time_limits = eval(self.get_property("exposure_time_limits", [0.04, 60000]))
         self.update_state(self.STATES.READY)
-
+            
     def has_shutterless(self):
         """Returns always True
         """
