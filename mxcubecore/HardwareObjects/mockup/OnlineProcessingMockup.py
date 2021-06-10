@@ -107,6 +107,6 @@ class OnlineProcessingMockup(AbstractOnlineProcessing):
                 break
             else:
                 time.sleep(self.params_dict["exp_time"])
-        self.align_processing_results(0, self.params_dict["images_num"] - 1)
+        #self.align_processing_results(0, self.params_dict["images_num"] - 1)
         self.emit("processingResultsUpdate", True)
         self.set_processing_status("Success")
