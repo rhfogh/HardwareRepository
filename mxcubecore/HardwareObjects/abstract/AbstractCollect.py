@@ -140,13 +140,15 @@ class AbstractCollect(HardwareObject, object):
         """
         Main collect method.
         """
+        log.info('AbstractCollect collect owner %s, cp_dict %s' % (str(owner), str(cp_dict)))
         self.ready_event.clear()
         self.data_collect_task = gevent.spawn(
-            self._pre_collect, owner, DataObject(cp_dict)
+            self._pre_collect, owner, DataObject(cp_dict[0])
         )
         self.ready_event.wait()
         self.ready_event.clear()
-
+        return self.data_collect_task
+    
     def _pre_collect(self, owner, cp):
         """
         Actual collect sequence
@@ -155,15 +157,16 @@ class AbstractCollect(HardwareObject, object):
         self.emit("collectReady", (False,))
         self.emit("collectOscillationStarted", (owner, None, None, None, cp, None))
         self.emit("progressInit", ("Collection", 100, False))
-
+        self.current_dc_parameters = cp
+        
         try:
             # Prepare data collection
-            self._prepare(cp)
+            #self._prepare(cp)
             logging.getLogger("HWR").info("Collection parameters: %s" % str(cp))
 
             # Create directories and input files for processing, XDS, mossflm etc
-            self._create_files_and_directories(cp)
-            self._get_sample_info(cp)
+            #self._create_files_and_directories(cp)
+            #self._get_sample_info(cp)
 
             # Store information in LIMS
             self._store_data_collection_in_lims(cp)
@@ -179,14 +182,14 @@ class AbstractCollect(HardwareObject, object):
 
             # Move to the centered position and take crystal snapshots
             log.info("Collection: Moving to centred position")
-            self._move_to_centered_position()
-            self._take_crystal_snapshots()
-            self._move_to_centered_position()
+            #self._move_to_centered_position(cp)
+            #self._take_crystal_snapshots(cp)
+            #self._move_to_centered_position(cp)
 
             # Set beamline parameters, transmission, energy and detector distance
             if "transmission" in cp:
                 log.info("Collection: Setting transmission to %.2f", cp["transmission"])
-                HWR.beamline.transmission.set_value(cp["transmission"])
+                HWR.beamline.transmission.set_value(min(100., cp["transmission"]))
 
             if "wavelength" in cp:
                 log.info("Collection: Setting wavelength to %.4f", cp["wavelength"])
@@ -221,6 +224,9 @@ class AbstractCollect(HardwareObject, object):
 
         return cp
 
+    def _collect(self, cp):
+        print("Collecting")
+        
     def _post_collect(self, cp):
         """Collection finished beahviour"""
         cp.dangerously_set("status", "Data collection successful")
@@ -231,13 +237,15 @@ class AbstractCollect(HardwareObject, object):
             last_frame = cp["oscillation_sequence"][0]["number_of_images"]
             if last_frame > 1 and cp["experiment_type"] != "Mesh":
                 # We do not store first and last frame for mesh
-                self.store_image_in_lims_by_frame_num(last_frame)
+                pass
+                #self.store_image_in_lims_by_frame_num(last_frame)
             if (
                 cp["experiment_type"] in ("OSC", "Helical")
                 and cp["oscillation_sequence"][0]["overlap"] == 0
                 and last_frame > 19
             ):
-                self.trigger_auto_processing("after", 0)
+                print("trigger_auto_processing")
+                #self.trigger_auto_processing("after", 0)
 
         self.emit(
             "collectOscillationFinished",
@@ -252,7 +260,7 @@ class AbstractCollect(HardwareObject, object):
         )
         self.emit("progressStop", ())
 
-    def _post_collect_cleanup(self):
+    def _post_collect_cleanup(self, cp=None):
         """
         Method called when at end of data collection, successful or not.
         """
@@ -467,7 +475,7 @@ class AbstractCollect(HardwareObject, object):
             cp.dangerously_set("flux_end", HWR.beamline.flux.get_value())
             cp.dangerously_set("wavelength", HWR.beamline.energy.get_wavelength())
             cp.dangerously_set(
-                "detectorDistance", HWR.beamline.detector.distance.get_valus()
+                "detectorDistance", HWR.beamline.detector.distance.get_value()
             )
 
             cp.dangerously_set("resolution", HWR.beamline.resolution.get_value())
@@ -572,256 +580,256 @@ class AbstractCollect(HardwareObject, object):
             self.data_collect_task.kill(block=False)
 
     # These methods will be replaced with HWR.beamline. ...
-    # def open_detector_cover(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     pass
+    def open_detector_cover(self):
+        """
+        Descript. :
+        """
+        pass
 
-    # def open_safety_shutter(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     pass
+    def open_safety_shutter(self):
+        """
+        Descript. :
+        """
+        pass
 
-    # def open_fast_shutter(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     pass
+    def open_fast_shutter(self):
+        """
+        Descript. :
+        """
+        pass
 
-    # def close_fast_shutter(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     pass
+    def close_fast_shutter(self):
+        """
+        Descript. :
+        """
+        pass
 
-    # def close_safety_shutter(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     pass
+    def close_safety_shutter(self):
+        """
+        Descript. :
+        """
+        pass
 
-    # def close_detector_cover(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     pass
+    def close_detector_cover(self):
+        """
+        Descript. :
+        """
+        pass
 
-    # def set_transmission(self, value):
-    #     """
-    #     Descript. :
-    #     """
-    #     pass
+    def set_transmission(self, value):
+        """
+        Descript. :
+        """
+        pass
 
-    # def set_wavelength(self, value):
-    #     """
-    #     Descript. :
-    #     """
-    #     pass
+    def set_wavelength(self, value):
+        """
+        Descript. :
+        """
+        pass
 
-    # def set_energy(self, value):
-    #     """
-    #     Descript. :
-    #     """
-    #     pass
+    def set_energy(self, value):
+        """
+        Descript. :
+        """
+        pass
 
-    # def set_resolution(self, value):
-    #     """
-    #     Descript. :
-    #     """
-    #     pass
+    def set_resolution(self, value):
+        """
+        Descript. :
+        """
+        pass
 
-    # def move_detector(self, value):
-    #     """
-    #     Descript. :
-    #     """
-    #     pass
+    def move_detector(self, value):
+        """
+        Descript. :
+        """
+        pass
 
-    # def get_flux(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     return
+    def get_flux(self):
+        """
+        Descript. :
+        """
+        return
 
-    # def get_wavelength(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     if HWR.beamline.energy is not None:
-    #         return HWR.beamline.energy.get_wavelength()
+    def get_wavelength(self):
+        """
+        Descript. :
+        """
+        if HWR.beamline.energy is not None:
+            return HWR.beamline.energy.get_wavelength()
 
-    # def get_detector_distance(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     if HWR.beamline.detector is not None:
-    #         return HWR.beamline.detector.distance.get_value()
+    def get_detector_distance(self):
+        """
+        Descript. :
+        """
+        if HWR.beamline.detector is not None:
+            return HWR.beamline.detector.distance.get_value()
 
-    # def get_resolution(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     if HWR.beamline.resolution is not None:
-    #         return HWR.beamline.resolution.get_value()
+    def get_resolution(self):
+        """
+        Descript. :
+        """
+        if HWR.beamline.resolution is not None:
+            return HWR.beamline.resolution.get_value()
 
-    # def get_transmission(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     if HWR.beamline.transmission is not None:
-    #         return HWR.beamline.transmission.get_value()
+    def get_transmission(self):
+        """
+        Descript. :
+        """
+        if HWR.beamline.transmission is not None:
+            return HWR.beamline.transmission.get_value()
 
-    # def get_beam_centre(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     if HWR.beamline.detector is not None:
-    #         return HWR.beamline.detector.get_beam_centre()
-    #     else:
-    #         return None, None
+    def get_beam_centre(self):
+        """
+        Descript. :
+        """
+        if HWR.beamline.detector is not None:
+            return HWR.beamline.detector.get_beam_position()
+        else:
+            return None, None
 
-    # def get_beam_centre_pix(self):
-    #     """Get beam center in pixels"""
-    #     return HWR.beamline.detector.get_beam_centre_pix()
+    def get_beam_centre_pix(self):
+        """Get beam center in pixels"""
+        return HWR.beamline.detector.get_beam_centre_pix()
 
-    # def get_resolution_at_corner(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     return
+    def get_resolution_at_corner(self):
+        """
+        Descript. :
+        """
+        return
 
-    # def get_beam_size(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     if HWR.beamline.beam is not None:
-    #         return HWR.beamline.beam.get_beam_size()
-    #     else:
-    #         return None, None
+    def get_beam_size(self):
+        """
+        Descript. :
+        """
+        if HWR.beamline.beam is not None:
+            return HWR.beamline.beam.get_beam_size()
+        else:
+            return None, None
 
-    # def get_slit_gaps(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     if HWR.beamline.beam is not None:
-    #         return HWR.beamline.beam.get_slits_gap()
-    #     return None, None
+    def get_slit_gaps(self):
+        """
+        Descript. :
+        """
+        if HWR.beamline.beam is not None:
+            return HWR.beamline.beam.get_slits_gap()
+        return None, None
 
-    # def get_undulators_gaps(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     return {}
+    def get_undulators_gaps(self):
+        """
+        Descript. :
+        """
+        return {}
 
-    # def get_beam_shape(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     if HWR.beamline.beam is not None:
-    #         return HWR.beamline.beam.get_beam_shape()
+    def get_beam_shape(self):
+        """
+        Descript. :
+        """
+        if HWR.beamline.beam is not None:
+            return HWR.beamline.beam.get_beam_shape()
 
-    # def get_machine_current(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     if HWR.beamline.machine_info:
-    #         return HWR.beamline.machine_info.get_current()
-    #     else:
-    #         return 0
+    def get_machine_current(self):
+        """
+        Descript. :
+        """
+        if HWR.beamline.machine_info:
+            return HWR.beamline.machine_info.get_current()
+        else:
+            return 0
 
-    # def get_machine_message(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     if HWR.beamline.machine_info:
-    #         return HWR.beamline.machine_info.get_message()
-    #     else:
-    #         return ""
+    def get_machine_message(self):
+        """
+        Descript. :
+        """
+        if HWR.beamline.machine_info:
+            return HWR.beamline.machine_info.get_message()
+        else:
+            return ""
 
-    # def get_machine_fill_mode(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     if HWR.beamline.machine_info:
-    #         fill_mode = str(HWR.beamline.machine_info.get_message())
-    #         return fill_mode[:20]
-    #     else:
-    #         return ""
+    def get_machine_fill_mode(self):
+        """
+        Descript. :
+        """
+        if HWR.beamline.machine_info:
+            fill_mode = str(HWR.beamline.machine_info.get_message())
+            return fill_mode[:20]
+        else:
+            return ""
 
-    # def get_measured_intensity(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     return
+    def get_measured_intensity(self):
+        """
+        Descript. :
+        """
+        return
 
-    # def get_cryo_temperature(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     return
+    def get_cryo_temperature(self):
+        """
+        Descript. :
+        """
+        return
 
-    # def prepare_input_files(self):
-    #     """
-    #     Prepares input files for xds, mosflm and hkl2000
-    #     returns: 3 strings
-    #     """
-    #     return None, None, None
+    def prepare_input_files(self):
+        """
+        Prepares input files for xds, mosflm and hkl2000
+        returns: 3 strings
+        """
+        return None, None, None
 
-    # @abc.abstractmethod
-    # @task
-    # def move_motors(self, motor_position_dict):
-    #     """
-    #     Descript. :
-    #     """
-    #     return
+    @abc.abstractmethod
+    @task
+    def move_motors(self, motor_position_dict):
+        """
+        Descript. :
+        """
+        return
 
-    # @abc.abstractmethod
-    # @task
-    # def _take_crystal_snapshot(self, snapshot_filename):
-    #     """
-    #     Depends on gui version how this method is implemented.
-    #     In Qt3 diffractometer has a function,
-    #     In Qt4 graphics_manager is making crystal snapshots
-    #     """
-    #     pass
+    @abc.abstractmethod
+    @task
+    def _take_crystal_snapshot(self, snapshot_filename):
+        """
+        Depends on gui version how this method is implemented.
+        In Qt3 diffractometer has a function,
+        In Qt4 graphics_manager is making crystal snapshots
+        """
+        pass
 
-    # def _take_crystal_animation(self, animation_filename, duration_sec=1):
-    #     """Rotates sample by 360 and composes a gif file
-    #     """
-    #     pass
+    def _take_crystal_animation(self, animation_filename, duration_sec=1):
+        """Rotates sample by 360 and composes a gif file
+        """
+        pass
 
-    # @abc.abstractmethod
-    # def data_collection_hook(self):
-    #     """
-    #     Descript. :
-    #     """
-    #     pass
+    @abc.abstractmethod
+    def data_collection_hook(self):
+        """
+        Descript. :
+        """
+        pass
 
-    # @abc.abstractmethod
-    # def trigger_auto_processing(self, process_event, frame_number):
-    #     """
-    #     Descript. :
-    #     """
-    #     pass
+    @abc.abstractmethod
+    def trigger_auto_processing(self, process_event, frame_number):
+        """
+        Descript. :
+        """
+        pass
 
-    # def set_helical(self, arg):
-    #     """
-    #     Descript. :
-    #     """
-    #     pass
+    def set_helical(self, arg):
+        """
+        Descript. :
+        """
+        pass
 
-    # def set_helical_pos(self, arg):
-    #     """
-    #     Descript. :
-    #     """
-    #     pass
+    def set_helical_pos(self, arg):
+        """
+        Descript. :
+        """
+        pass
 
-    # def setCentringStatus(self, status):
-    #     """
-    #     Descript. :
-    #     """
-    #     pass
+    def setCentringStatus(self, status):
+        """
+        Descript. :
+        """
+        pass
 
     # specifies the next scan will be a mesh scan
     def set_mesh(self, mesh_on):
