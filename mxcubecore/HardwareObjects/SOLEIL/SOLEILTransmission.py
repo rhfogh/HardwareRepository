@@ -36,7 +36,7 @@ class SOLEILTransmission(AbstractTransmission):
         self.transmission = transmission()
         
     def init(self):
-        
+        AbstractTransmission.init(self)
         self.h_gap_channel = self.get_channel_object("h_gap")
         self.h_state_channel = self.get_channel_object("h_state")
         self.v_gap_channel = self.get_channel_object("v_gap")
@@ -65,12 +65,16 @@ class SOLEILTransmission(AbstractTransmission):
         self.emit("limitsChanged", (self._limits,))
 
     def _set_value(self, value):
-        self.transmission.set_transmission(value)
+        gevent.spawn(self.transmission.set_transmission, value)
+        #self.transmission.set_transmission(value)
 
     def get_value(self):
-        t = self.transmission.get_transmission()
+        try:
+            t = self.transmission.get_transmission()
+        except:
+            t = None
         return t
     
     def is_ready(self):
-        return self.get_state() in [self.STATES.STANDBY, self.STATES.READY]
+        return self.get_state() in [self.STATES.READY]
         
