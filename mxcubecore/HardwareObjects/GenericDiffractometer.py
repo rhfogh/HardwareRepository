@@ -434,7 +434,7 @@ class GenericDiffractometer(HardwareObject):
             return HardwareObject.__getattr__(self, attr)
 
     # Contained Objects
-    # NBNB Temp[orary hack - should be cleaned up together with configuration
+    # NBNB Temporary hack - should be cleaned up together with configuration
     @property
     def omega(self):
         """omega motor object
