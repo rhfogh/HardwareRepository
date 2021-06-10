@@ -25,6 +25,7 @@ class MicrodiffZoomMockup(AbstractNState):
         """Initialize the zoom"""
         AbstractNState.init(self)
 
+        self.set_limits(limits=(1, 10))
         self.initialise_values()
         _len = len(self.VALUES) - 1
         if _len > 0:
@@ -42,7 +43,7 @@ class MicrodiffZoomMockup(AbstractNState):
         self.update_limits(limits)
 
         # we assume that the names are LEVEL%d, starting from 1
-        self.update_value(self.VALUES.LEVEL1)
+        self.update_value(self.get_value())
 
         self.update_state(self.STATES.READY)
 
@@ -78,7 +79,6 @@ class MicrodiffZoomMockup(AbstractNState):
     def _initialise_values(self):
         """Initialise the ValueEnum """
         low, high = self.get_limits()
-
         values = {"LEVEL%s" % str(v): v for v in range(low, high + 1)}
         self.VALUES = Enum(
             "ValueEnum",
