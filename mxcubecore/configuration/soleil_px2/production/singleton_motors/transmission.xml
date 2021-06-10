@@ -1,0 +1,7 @@
+<device class = "SOLEILTransmission">
+  <username>Attenuators by secondary slits</username>
+  <channel type="tango" polling="250" name="h_gap" tangoname="i11-ma-c04/ex/fent_h.2">gap</channel>
+  <channel type="tango" polling="250" name="h_state" tangoname="i11-ma-c04/ex/fent_h.2">state</channel>
+  <channel type="tango" polling="250" name="v_gap" tangoname="i11-ma-c04/ex/fent_v.2">gap</channel>
+  <channel type="tango" polling="250" name="v_state" tangoname="i11-ma-c04/ex/fent_v.2">state</channel>
+</device>

@@ -1,0 +1,19 @@
+<object class="PX2Collect">
+    <object href="/diffractometer/diffractometer" role="diffractometer"/>
+    <object href="/singleton_objects/sample_view" role="graphics_manager"/>
+    <object href="/singleton_objects/dbconnection" role="lims_client"/>
+
+    <object href="/singleton_motors/photon_energy" role="energy"/>
+    <object href="/singleton_motors/transmission" role="transmission"/>
+    <object href="/detectors/diffraction_detector" role="detector"/>
+    <object href="/singleton_motors/resolution" role="resolution"/>
+    <object href="/singleton_objects/machine_info" role="machine_info"/>
+    <monochromator>Si(111)</monochromator>
+    <focusing_optic>KB mirrors</focusing_optic>
+    <polarisation>0.99</polarisation>
+    <undulators>
+        <undulator>
+            <type>U24</type>
+        </undulator>
+    </undulators>
+</object>

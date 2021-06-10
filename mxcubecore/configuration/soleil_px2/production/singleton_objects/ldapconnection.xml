@@ -1,0 +1,6 @@
+<procedure class="LdapLogin">
+    <ldaphost>195.221.10.1</ldaphost>
+    <ldapport>389</ldapport>
+    <ldapdomain>EXP</ldapdomain>
+    <ldapdc>EXP</ldapdc>
+</procedure>
