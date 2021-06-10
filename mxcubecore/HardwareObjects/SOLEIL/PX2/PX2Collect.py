@@ -19,6 +19,9 @@
 import os
 import logging
 import gevent
+import json
+import tempfile
+import redis
 from mxcubecore.TaskUtils import task
 from mxcubecore.BaseHardwareObjects import HardwareObject
 from mxcubecore.HardwareObjects.abstract.AbstractCollect import AbstractCollect
@@ -44,7 +47,7 @@ __version__ = "2.3."
 __category__ = "General"
 
 
-class PX2Collect(AbstractCollect, HardwareObject):
+class PX2Collect(AbstractCollect):
     """Main data collection class. Inherited from AbstractCollect.
        Collection is done by setting collection parameters and
        executing collect command
@@ -80,218 +83,338 @@ class PX2Collect(AbstractCollect, HardwareObject):
         """
 
         AbstractCollect.__init__(self, name)
-        HardwareObject.__init__(self, name)
 
         self.current_dc_parameters = None
         self.osc_id = None
         self.owner = None
         self.aborted_by_user = None
         self.slits1 = slits1()
-
+        self.log = logging.getLogger('HWR')
+        self.redis = redis.StrictRedis(host='172.19.10.23')
+        self.collection_id = -1
+        
     def init(self):
-
-        self.ready_event = gevent.event.Event()
-
-        undulators = []
-        try:
-            for undulator in self["undulators"]:
-                undulators.append(undulator)
-        except Exception:
-            pass
-
-        beam_div_hor, beam_div_ver = HWR.beamline.beam.get_beam_divergence()
-
-        self.set_beamline_configuration(
-            synchrotron_name="SOLEIL",
-            directory_prefix=self.get_property("directory_prefix"),
-            default_exposure_time=HWR.beamline.detector.get_property(
-                "default_exposure_time"
-            ),
-            minimum_exposure_time=HWR.beamline.detector.get_property(
-                "minimum_exposure_time"
-            ),
-            detector_fileext=HWR.beamline.detector.get_property("fileSuffix"),
-            detector_type=HWR.beamline.detector.get_property("type"),
-            detector_manufacturer=HWR.beamline.detector.get_property("manufacturer"),
-            detector_model=HWR.beamline.detector.get_property("model"),
-            detector_px=HWR.beamline.detector.get_property("px"),
-            detector_py=HWR.beamline.detector.get_property("py"),
-            undulators=undulators,
-            focusing_optic=self.get_property("focusing_optic"),
-            monochromator_type=self.get_property("monochromator"),
-            beam_divergence_vertical=beam_div_ver,
-            beam_divergence_horizontal=beam_div_hor,
-            polarisation=self.get_property("polarisation"),
-            input_files_server=self.get_property("input_files_server"),
-        )
-
+        AbstractCollect.init(self)
         self.emit("collectConnected", (True,))
         self.emit("collectReady", (True,))
 
-    def data_collection_hook(self):
+    def _collect(self, cp):
         """Main collection hook"""
-
-        if self.aborted_by_user:
-            self.collection_failed("Aborted by user")
+        print('PX2Collect _collect')
+        parameters = cp
+        self.emit("collectStarted", (None, 1))
+        
+        if hasattr(self, 'experiment'):
+            del self.experiment
+            
+        if self.aborted_by_user == True:
+            self.collection_finished("Aborted by user")
             self.aborted_by_user = False
             return
-
+        
         parameters = self.current_dc_parameters
 
-        log = logging.getLogger("user_level_info")
-        log.info("data collection parameters received %s" % parameters)
+        self.log.info('in data_collection_hook, self.collection_id %s' % self.collection_id)
 
+        # save a json file for the autoprocessing
+        execute_XDSME = eval(self.redis.get('XDSME'))
+        execute_autoPROC = eval(self.redis.get('autoPROC'))
+        autoproc_options = {'xdsme': execute_XDSME, 'autoproc': execute_autoPROC}
+        #print('type(parameters)', type(parameters))
+        processing_parameters = dict(parameters)
+        processing_parameters['collection_id'] = self.collection_id
+        processing_parameters["autoproc_options"] = {'xdsme': execute_XDSME, 'autoproc': execute_autoPROC}
+        jsonstr = json.dumps(processing_parameters)
+        fd, name = tempfile.mkstemp(dir="/tmp")
+        os.write(fd, jsonstr.encode("utf-8"))
+        os.close(fd)
+        
+        self.log.info('data collection parameters received %s' % parameters)
+        
+        log_hwr = logging.getLogger('HWR')
         for parameter in parameters:
-            log.info("%s: %s" % (str(parameter), str(parameters[parameter])))
-
-        osc_seq = parameters["oscillation_sequence"][0]
+            log_hwr.info('PX2Collect %s: %s' % (str(parameter), str(parameters[parameter])))
+         
+        shutterless = parameters['shutterless']
+        motors = parameters['motors']
+        aligned_position = HWR.beamline.diffractometer.translate_from_mxcube_to_md2(motors)
+        osc_seq = parameters['oscillation_sequence'][0]
         fileinfo = parameters["fileinfo"]
-        sample_reference = parameters["sample_reference"]
-        experiment_type = parameters["experiment_type"]
-        energy = parameters["energy"]
-        transmission = parameters["transmission"]
-        resolution = parameters["resolution"]
+        sample_reference = parameters['sample_reference']
+        experiment_type = parameters['experiment_type'] 
+        energy = parameters['energy']
+        if energy < 1.e3:
+            energy *= 1.e3
+        photon_energy = energy
+        transmission = parameters['transmission']
+        resolution = parameters['resolution']['upper']
+        
+        exposure_time = osc_seq['exposure_time']
+        in_queue = parameters['in_queue'] != False
 
-        exposure_time = osc_seq["exposure_time"]
-        in_queue = parameters["in_queue"] != False
-
-        overlap = osc_seq["overlap"]
-        angle_per_frame = osc_seq["range"]
-        scan_start_angle = osc_seq["start"]
-        number_of_images = osc_seq["number_of_images"]
-        image_nr_start = osc_seq["start_image_number"]
-
-        directory = fileinfo["directory"]
-        prefix = fileinfo["prefix"]
-        template = fileinfo["template"]
-        run_number = fileinfo["run_number"]
-        process_directory = fileinfo["process_directory"]
-
-        # space_group = str(sample_reference['space_group'])
-        # unit_cell = list(eval(sample_reference['cell']))
-
-        self.emit("collectStarted", (self.owner, 1))
-        self.emit("progressInit", ("Data collection", 100))
-        self.emit("fsmConditionChanged", "data_collection_started", True)
-
-        self.store_image_in_lims_by_frame_num(1)
-
+        overlap = osc_seq['overlap']
+        angle_per_frame = osc_seq['range']
+        scan_start_angle = osc_seq['start']
+        number_of_images = osc_seq['number_of_images']
+        image_nr_start = osc_seq['start_image_number']
+        
+        directory = str(fileinfo["directory"].strip('\n'))
+            
+        prefix = str(fileinfo['prefix'])
+        template = str(fileinfo['template'])
+        run_number = fileinfo['run_number']
+        process_directory = fileinfo['process_directory']
+        
+        if parameters['processing'] in ['True', True]:
+            do_auto_analysis = True
+        sample_reference = parameters['sample_reference']
+        
+        #space_group = str(sample_reference['space_group'])
+        #unit_cell = list(eval(sample_reference['cell']))
+        
+        #self.emit("fsmConditionChanged",
+                  #"data_collection_started",
+                  #True)
+        
         name_pattern = template[:-8]
-
-        if experiment_type == "OSC":
+        
+        #self.log.info('PX2Collect experiment_type: %s' % (experiment_type,))
+          
+        if experiment_type == 'OSC':
+            self.emit("progressInit", ("Collection", 100, False))
+            self.log.debug('PX2Collect: executing omega_scan')
             scan_range = angle_per_frame * number_of_images
             scan_exposure_time = exposure_time * number_of_images
-            experiment = omega_scan(
-                name_pattern,
-                directory,
-                scan_range=scan_range,
-                scan_exposure_time=scan_exposure_time,
-                scan_start_angle=scan_start_angle,
-                angle_per_frame=angle_per_frame,
-                image_nr_start=image_nr_start,
-                photon_energy=energy,
-                transmission=transmission,
-                resolution=resolution,
-                simulation=False,
-            )
-            experiment.execute()
-
-        elif experiment_type == "Characterization":
-
-            number_of_wedges = osc_seq["number_of_images"]
-            wedge_size = osc_seq["wedge_size"]
-            overlap = osc_seq["overlap"]
+            self.log.debug('PX2Collect: omega_scan parameters:\n\tname_pattern: %s\
+                                                        \n\tdirectory: %s\
+                                                        \n\tposition: %s\
+                                                        \n\tscan_range: %.2f\
+                                                        \n\tscan_exposure_time: %.2f\
+                                                        \n\tscan_start_angle: %.2f\
+                                                        \n\tangle_per_frame: %.2f\
+                                                        \n\timage_nr_start: %.2f\
+                                                        \n\tphoton_energy: %.2f\
+                                                        \n\ttransmission: %.2f\
+                                                        \n\tresolution: %.2f\
+                                                        \n\tprocessing: %s\
+                                                        \n\tsample_reference %s' % (name_pattern, directory, aligned_position, scan_range, scan_exposure_time, scan_start_angle, angle_per_frame, image_nr_start, photon_energy, transmission, resolution, do_auto_analysis, sample_reference))
+                                                        
+            
+            experiment = omega_scan(name_pattern,
+                                    directory,
+                                    position=aligned_position,
+                                    scan_range=scan_range,
+                                    scan_exposure_time=scan_exposure_time,
+                                    scan_start_angle=scan_start_angle,
+                                    angle_per_frame=angle_per_frame,
+                                    image_nr_start=image_nr_start,
+                                    photon_energy=energy,
+                                    transmission=transmission,
+                                    resolution=resolution,
+                                    simulation=False,
+                                    diagnostic=True,
+                                    analysis=do_auto_analysis,
+                                    parent=self)
+            
+        elif experiment_type == 'Characterization':
+            self.emit("progressInit", ("Characterization", 100, False))
+            self.log.debug('PX2Collect: executing reference_images')
+            number_of_wedges = osc_seq['number_of_images']
+            try:
+                wedge_size = osc_seq['range']
+            except KeyError:
+                wedge_size = 10
+            try:
+                range_per_frame_ref = osc_seq['range_per_frame']
+            except KeyError:
+                range_per_frame_ref = 0.1
+            angle_per_frame = range_per_frame_ref
+            number_of_images = wedge_size/angle_per_frame
+            
+            #overlap = osc_seq['overlap']
+            overlap = -90 + wedge_size
+            
             scan_start_angles = []
-            scan_exposure_time = exposure_time * wedge_size
-            scan_range = angle_per_frame * wedge_size
-
+            scan_exposure_time = exposure_time * number_of_images
+            scan_range = angle_per_frame * number_of_images
+            
             for k in range(number_of_wedges):
-                scan_start_angles.append(
-                    scan_start_angle + k * -overlap + k * scan_range
-                )
+                scan_start_angles.append(scan_start_angle + k * -overlap + k * scan_range)
 
-            experiment = reference_images(
-                name_pattern,
-                directory,
-                scan_range=scan_range,
-                scan_exposure_time=scan_exposure_time,
-                scan_start_angles=scan_start_angles,
-                angle_per_frame=angle_per_frame,
-                image_nr_start=image_nr_start,
-                photon_energy=energy,
-                transmission=transmission,
-                resolution=resolution,
-                simulation=False,
-            )
-
-            experiment.execute()
-
-        elif experiment_type == "Helical" and osc_seq["mesh_range"] == ():
+            self.log.debug('PX2Collect: reference_images parameters:\
+                                                        \n\tname_pattern: %s\
+                                                        \n\tdirectory: %s\
+                                                        \n\tposition: %s\
+                                                        \n\tscan_range: %.2f\
+                                                        \n\tscan_exposure_time: %.2f\
+                                                        \n\tscan_start_angles: %s\
+                                                        \n\tangle_per_frame: %.2f\
+                                                        \n\timage_nr_start: %.2f\
+                                                        \n\tphoton_energy: %.2f\
+                                                        \n\ttransmission: %.2f\
+                                                        \n\tresolution: %.2f' % (name_pattern, directory, aligned_position, scan_range, scan_exposure_time, str(scan_start_angles), angle_per_frame, image_nr_start, photon_energy, transmission, resolution))
+            experiment = reference_images(name_pattern,
+                                          directory,
+                                          position=aligned_position,
+                                          scan_range=scan_range,
+                                          scan_exposure_time=scan_exposure_time,
+                                          scan_start_angles=scan_start_angles,
+                                          angle_per_frame=angle_per_frame,
+                                          image_nr_start=image_nr_start,
+                                          photon_energy=energy,
+                                          transmission=transmission,
+                                          resolution=resolution,
+                                          simulation=False,
+                                          diagnostic=True,
+                                          analysis=do_auto_analysis,
+                                          parent=self)
+        
+        elif experiment_type == 'Helical' and osc_seq['mesh_range'] == ():
+            self.emit("progressInit", ("Helical scan", 100, False))
+            self.log.debug('PX2Collect: executing helical_scan')
             scan_range = angle_per_frame * number_of_images
             scan_exposure_time = exposure_time * number_of_images
-            log.info("helical_pos %s" % self.helical_pos)
-            experiment = helical_scan(
-                name_pattern,
-                directory,
-                scan_range=scan_range,
-                scan_exposure_time=scan_exposure_time,
-                scan_start_angle=scan_start_angle,
-                angle_per_frame=angle_per_frame,
-                image_nr_start=image_nr_start,
-                position_start=self.translate_position(self.helical_pos["1"]),
-                position_end=self.translate_position(self.helical_pos["2"]),
-                photon_energy=energy,
-                transmission=transmission,
-                resolution=resolution,
-                simulation=False,
-            )
-            experiment.execute()
+            self.log.debug('helical_pos %s' % self.helical_pos)
+            self.log.debug('PX2Collect: helical_scan parameters:\
+                                                        \n\tname_pattern: %s\
+                                                        \n\tdirectory: %s\
+                                                        \n\tscan_range: %.2f\
+                                                        \n\tscan_exposure_time: %.2f\
+                                                        \n\tscan_start_angle: %.2f\
+                                                        \n\tangle_per_frame: %.2f\
+                                                        \n\timage_nr_start: %.2f\
+                                                        \n\tphoton_energy: %.2f\
+                                                        \n\ttransmission: %.2f\
+                                                        \n\tresolution: %.2f' % (name_pattern, directory, scan_range, scan_exposure_time, scan_start_angle, angle_per_frame, image_nr_start, photon_energy, transmission, resolution))
+            experiment = helical_scan(name_pattern,
+                                      directory,
+                                      scan_range=scan_range,
+                                      scan_exposure_time=scan_exposure_time,
+                                      scan_start_angle=scan_start_angle,
+                                      angle_per_frame=angle_per_frame,
+                                      image_nr_start=image_nr_start,
+                                      position_start=self.translate_position(self.helical_pos['1']),
+                                      position_end=self.translate_position(self.helical_pos['2']),
+                                      photon_energy=energy,
+                                      transmission=transmission,
+                                      resolution=resolution,
+                                      simulation=False,
+                                      diagnostic=True,
+                                      analysis=do_auto_analysis,
+                                      parent=self)
+            
+        elif experiment_type == 'Helical' and osc_seq['mesh_range'] != ():
+            self.emit("progressInit", ("X-ray centring", 100, False))
+            self.log.debug('PX2Collect: executing xray_centring')
+            horizontal_range, vertical_range = osc_seq['mesh_range']
+            number_of_lines = osc_seq['number_of_lines']
+            scan_range = angle_per_frame * number_of_lines
+            
+            
+            
+            self.log.debug('PX2Collect: xray_centring parameters:\
+                                                        \n\tname_pattern: %s\
+                                                        \n\tdirectory: %s\
+                                                        \n\tscan_range: %.2f\
+                                                        \n\tscan_exposure_time: %.3f\
+                                                        \n\tscan_start_angle: %.2f\
+                                                        \n\tangle_per_frame: %.2f\
+                                                        \n\timage_nr_start: %.2f\
+                                                        \n\tphoton_energy: %.2f\
+                                                        \n\ttransmission: %.2f\
+                                                        \n\tresolution: %.2f' % (name_pattern, directory, scan_range, scan_exposure_time, scan_start_angle, angle_per_frame, image_nr_start, photon_energy, transmission, resolution))
+            experiment = xray_centring(name_pattern,
+                                       directory,
+                                       diagnostic=True,
+                                       parent=self)
+            
+        elif experiment_type == 'Mesh':
+            self.emit("progressInit", ("Mesh scan", 100, False))
+            self.log.info('PX2Collect: executing raster_scan')
+            number_of_rows = int(osc_seq['number_of_lines'])
+            number_of_columns = int(number_of_images/number_of_rows)
+            horizontal_range, vertical_range = osc_seq['mesh_range']
+            angle_per_line = angle_per_frame * number_of_rows
+            
+            if shutterless == True:
+                scan_range = angle_per_frame * number_of_rows
+            else:
+                scan_range = angle_per_frame
 
-        elif experiment_type == "Helical" and osc_seq["mesh_range"] != ():
-            horizontal_range, vertical_range = osc_seq["mesh_range"]
-
-            experiment = xray_centring(name_pattern, directory)
-
-            experiment.execute(simulation=False)
-
-        elif experiment_type == "Mesh":
-            number_of_columns = osc_seq["number_of_lines"]
-            number_of_rows = int(number_of_images / number_of_columns)
-            horizontal_range, vertical_range = osc_seq["mesh_range"]
-            angle_per_line = angle_per_frame * number_of_columns
-            experiment = raster_scan(
-                name_pattern,
-                directory,
-                vertical_range,
-                horizontal_range,
-                number_of_rows,
-                number_of_columns,
-                frame_time=exposure_time,
-                scan_start_angle=scan_start_angle,
-                scan_range=angle_per_line,
-                image_nr_start=image_nr_start,
-                photon_energy=energy,
-                transmission=transmission,
-                simulation=False,
-            )
-            experiment.execute()
-
-        # for image in range(number_of_images):
-        # if self.aborted_by_user:
-        # self.ready_event.set()
-        # return
-
-        # Uncomment to test collection failed
-        # if image == 5:
-        # self.emit("collectOscillationFailed", (self.owner, False,
-        # "Failed on 5", parameters.get("collection_id")))
-        # self.ready_event.set()
-        # return
-
-        # gevent.sleep(exposure_time)
-        # self.emit("collectImageTaken", image)
-        # self.emit("progressStep", (int(float(image) / number_of_images * 100)))
-
+            if scan_range == 0:
+                scan_range = 0.01
+                
+            try:
+                nimages_per_point = int(self.redis.get('nimages_per_point'))
+            except:
+                nimages_per_point = 1
+            try:
+                npasses = int(self.redis.get('npasses'))
+            except:
+                npasses = 1
+            try:
+                dark_time_between_passes = float(self.redis.get('dark_time_between_passes'))
+            except:
+                dark_time_between_passes = 0.
+            try:
+                fast_axis = self.redis.get('fast_axis')
+            except:
+                fast_axis = 'vertical'
+                
+            self.log.info('PX2Collect: raster_scan parameters:\
+                                                        \n\tname_pattern: %s\
+                                                        \n\tdirectory: %s\
+                                                        \n\tvertical_range: %.2f\
+                                                        \n\thorizontal_range: %.2f\
+                                                        \n\tnumber_of_rows: %.2f\
+                                                        \n\tnumber_of_columns: %.2f\
+                                                        \n\tframe_time: %.2f\
+                                                        \n\tscan_start_angle: %.2f\
+                                                        \n\tscan_range: %.2f\
+                                                        \n\timage_nr_start: %.2f\
+                                                        \n\tphoton_energy: %.2f\
+                                                        \n\ttransmission: %.2f\
+                                                        \n\tresolution: %.2f\
+                                                        \n\tshutterless: %s\
+                                                        \n\tfast_axis: %s\
+                                                        \n\tnimages_per_point: %d\
+                                                        \n\tnpasses: %d\
+                                                        \n\tdark_time_between_passes: %.2f' % (name_pattern, directory, vertical_range, horizontal_range, number_of_rows, number_of_columns, exposure_time, scan_start_angle, scan_range, image_nr_start, photon_energy, transmission, resolution, shutterless, fast_axis, nimages_per_point, npasses, dark_time_between_passes))
+                                                        
+            experiment = raster_scan(name_pattern,
+                                     directory,
+                                     vertical_range,
+                                     horizontal_range,
+                                     position=aligned_position,
+                                     number_of_rows=number_of_rows,
+                                     number_of_columns=number_of_columns,
+                                     frame_time=exposure_time,
+                                     scan_start_angle=scan_start_angle,
+                                     scan_range=scan_range,
+                                     image_nr_start=image_nr_start,
+                                     photon_energy=energy,
+                                     transmission=transmission,
+                                     resolution=resolution,
+                                     shutterless=shutterless,
+                                     scan_axis=fast_axis,
+                                     nimages_per_point=nimages_per_point,
+                                     npasses=npasses,
+                                     dark_time_between_passes=dark_time_between_passes,
+                                     use_centring_table=True,
+                                     simulation=False,
+                                     diagnostic=True,
+                                     analysis=True,
+                                     parent=self)
+        
+        self.experiment = experiment
+        
+        if self.experiment._stop_flag == False:
+            self.experiment.execute()
+            
+            if do_auto_analysis == True:
+                self.log.info('executing autoprocessing-px2 %s' % name)
+                os.system('autoprocessing-px2 %s &' % name)
+                
         self.emit_collection_finished()
 
     def translate_position(self, position):
@@ -344,13 +467,14 @@ class PX2Collect(AbstractCollect, HardwareObject):
         """Collection finished beahviour
         """
         if self.current_dc_parameters["experiment_type"] != "Collect - Multiwedge":
-            self.update_data_collection_in_lims()
+            #self.update_data_collection_in_lims()
 
             last_frame = self.current_dc_parameters["oscillation_sequence"][0][
                 "number_of_images"
             ]
             if last_frame > 1:
-                self.store_image_in_lims_by_frame_num(last_frame)
+                pass
+                #self.store_image_in_lims_by_frame_num(last_frame)
             if (
                 self.current_dc_parameters["experiment_type"] in ("OSC", "Helical")
                 and self.current_dc_parameters["oscillation_sequence"][0]["overlap"]
@@ -360,7 +484,7 @@ class PX2Collect(AbstractCollect, HardwareObject):
                 self.trigger_auto_processing("after", self.current_dc_parameters, 0)
 
         success_msg = "Data collection successful"
-        self.current_dc_parameters["status"] = success_msg
+        #self.current_dc_parameters["status"] = success_msg
         self.emit(
             "collectOscillationFinished",
             (
@@ -386,7 +510,7 @@ class PX2Collect(AbstractCollect, HardwareObject):
         """
         image_id = None
         self.trigger_auto_processing("image", self.current_dc_parameters, frame)
-        image_id = self.store_image_in_lims(frame)
+        image_id = self._store_image_in_lims(self.current_dc_parameters, frame)
         return image_id
 
     def stopCollect(self, owner="MXCuBE"):
@@ -397,6 +521,9 @@ class PX2Collect(AbstractCollect, HardwareObject):
         self.cmd_collect_abort()
         self.emit_collection_failed("Aborted by user")
 
+    def set_helical(self, helical=True):
+        self.helical = helical
+        
     def set_helical_pos(self, helical_pos):
         self.helical_pos = helical_pos
 
