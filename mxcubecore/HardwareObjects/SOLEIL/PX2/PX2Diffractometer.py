@@ -17,31 +17,31 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with MXCuBE. If not, see <http://www.gnu.org/licenses/>.
 
-import os
 import time
-import logging
-import traceback
-import pickle
-import copy
-import datetime
-import h5py
-
-import numpy as np
-from scipy.optimize import minimize
-from math import sqrt
-
 import gevent
+import logging
+import os
+import traceback
 
+from math import sqrt
 from goniometer import goniometer
 from detector import detector
 from camera import camera
+from film import film
 
 import beam_align
 import scan_and_align
 import optical_alignment
+import pickle
+import numpy as np
+from scipy.optimize import minimize
+import copy
 
 from anneal import anneal as anneal_procedure
-from queue_model_enumerables_v1 import CENTRING_METHOD
+import datetime
+import h5py
+from queue_model_enumerables import CENTRING_METHOD
+from optical_path_report import optical_path_analysis
 
 try:
     import lmfit
@@ -63,7 +63,7 @@ except ImportError:
         )
 
 from mxcubecore.HardwareObjects.GenericDiffractometer import (
-    GenericDiffractometer,
+    GenericDiffractometer, DiffractometerState
 )
 
 from mxcubecore.TaskUtils import task
@@ -102,9 +102,11 @@ class PX2Diffractometer(GenericDiffractometer):
 
         # Hardware objects ----------------------------------------------------
         self.zoom_motor_hwobj = None
+        self.camera_hwobj = None
         self.omega_reference_motor = None
         self.centring_hwobj = None
         self.minikappa_correction_hwobj = None
+        self.detector_distance_motor_hwobj = None
         self.nclicks = None
         self.step = None
         self.centring_method = None
@@ -125,7 +127,7 @@ class PX2Diffractometer(GenericDiffractometer):
         self.cmd_start_auto_focus = None
         self.cmd_get_omega_scan_limits = None
         self.cmd_save_centring_positions = None
-        self.centring_time = None
+        self.centring_time = time.time()
         # Internal values -----------------------------------------------------
         self.use_sc = False
         self.omega_reference_pos = [0, 0]
@@ -239,12 +241,24 @@ class PX2Diffractometer(GenericDiffractometer):
 
         # self.use_sc = self.get_property("use_sample_changer")
 
+    def centring_motor_moved(self, pos, delta=1.0):
+        """
+        """
+        try:
+            if time.time() - self.centring_time > delta:
+                self.invalidate_centring()
+            self.emit_diffractometer_moved()
+        except TypeError:
+            logging.getLogger('HWR').exception(traceback.format_exc())
+        
+        
     def use_sample_changer(self):
         """
         Description:
         """
         return not self.in_plate_mode()
 
+    
     def beam_position_changed(self, value):
         self.beam_position = value
 
@@ -452,6 +466,7 @@ class PX2Diffractometer(GenericDiffractometer):
         """
         Descript. :
         """
+        start = time.time()
         try:
             motor_pos = centring_procedure.get()
             # if isinstance(motor_pos, gevent.GreenletExit):
@@ -463,6 +478,7 @@ class PX2Diffractometer(GenericDiffractometer):
         else:
             self.emit_progress_message("Moving sample to centred position...")
             self.emit_centring_moving()
+            s_move = time.time()
             try:
                 self.move_to_motors_positions(motor_pos)
             except Exception:
@@ -490,25 +506,28 @@ class PX2Diffractometer(GenericDiffractometer):
 
         position = self.translate_from_mxcube_to_md2(motor_positions)
 
-        self.goniometer.set_position(position, timeout=timeout)
+        self.goniometer.set_position(position)
 
     def get_centred_point_from_coord(self, x, y, return_by_names=None):
         """
         Descript. :
         """
-
-        self.log.info("get_centred_point_from_coord: x, y: %s %s" % (x, y))
-        self.log.info(
-            "get_centred_point_from_coord: self.pixels_per_mm_x, self.pixels_per_mm_ y: %s %s"
-            % (self.pixels_per_mm_x, self.pixels_per_mm_y)
-        )
-        self.log.info(
-            "get_centred_point_from_coord: self.beam_position: %s"
-            % str(self.beam_position)
-        )
-
+        
+        self.log.info('get_centred_point_from_coord: x, y: %s %s' % (x, y))
+        self.log.info('get_centred_point_from_coord: self.pixels_per_mm_x, self.pixels_per_mm_ y: %s %s' % (self.pixels_per_mm_x,  self.pixels_per_mm_y))
+        self.log.info('get_centred_point_from_coord: self.beam_position: %s' % str(self.beam_position))
+        
+        timestamp = time.time()
+        name_pattern= '%s_%s' % (os.getuid(), time.asctime(time.localtime(timestamp)).replace(' ', '_'))
+        directory ='%s/manual_optical_alignment' % os.getenv('HOME')
+        
+        save_double_click_command = 'double_click_saver.py -x %.2f -y %.2f -d %s -n %s -t %.3f &' % (x, y, directory, name_pattern, timestamp)
+        
+        self.log.info('save_double_click_command: %s' % save_double_click_command)
+        os.system(save_double_click_command)
+        
         current_position = self.goniometer.get_aligned_position()
-
+        
         omega_reference = self.omega_reference_par["position"]
 
         alignmentz_shift = current_position["AlignmentZ"] - omega_reference
@@ -573,8 +592,8 @@ class PX2Diffractometer(GenericDiffractometer):
         self.omega_reference_add_constraint()
         pos = self.centring_hwobj.centeredPosition()
         self.log.info("get_centred_point_from_coord: pos %s" % str(pos))
-        if return_by_names:
-            pos = self.convert_from_obj_to_name(pos)
+        #if return_by_names:
+            #pos = self.convert_from_obj_to_name(pos)
         return pos
 
     def move_to_beam(self, x, y, omega=None):
@@ -679,21 +698,7 @@ class PX2Diffractometer(GenericDiffractometer):
 
         angles = np.radians(omegas)
 
-        if self.centring_method != CENTRING_METHOD.REFRACTIVE:
-            initial_parameters = [4.0, 25.0, 0.05]
-            fit_y = minimize(
-                self.circle_model_residual,
-                initial_parameters,
-                method="nelder-mead",
-                args=(angles, vertical_discplacements),
-            )
-
-            c, r, alpha = fit_y.x
-            c *= 1e-3
-            r *= 1.0e-3
-            v = {"c": c, "r": r, "alpha": alpha}
-
-        else:
+        if hasattr(self.centring_method, 'REFRACTIVE') and self.centring_method == CENTRING_METHOD.REFRACTIVE:
             initial_parameters = lmfit.Parameters()
             initial_parameters.add_many(
                 ("c", 0.0, True, -5e3, +5e3, None, None),
@@ -726,6 +731,19 @@ class PX2Diffractometer(GenericDiffractometer):
             r *= 1.0e-3
             front *= 1.0e-3
             back *= 1.0e-3
+        else:
+            initial_parameters = [4.0, 25.0, 0.05]
+            fit_y = minimize(
+                self.circle_model_residual,
+                initial_parameters,
+                method="nelder-mead",
+                args=(angles, vertical_discplacements),
+            )
+
+            c, r, alpha = fit_y.x
+            c *= 1e-3
+            r *= 1.0e-3
+            v = {"c": c, "r": r, "alpha": alpha}
 
         horizontal_center = np.mean(horizontal_displacements)
 
@@ -779,7 +797,7 @@ class PX2Diffractometer(GenericDiffractometer):
         images_file.close()
 
         clicks_filename = "%s_clicks.pickle" % template
-        f = open(clicks_filename, "w")
+        f = open(clicks_filename, "wb")
         pickle.dump(results, f)
         f.close()
 
@@ -836,13 +854,18 @@ class PX2Diffractometer(GenericDiffractometer):
         return motors
 
     def translate_from_mxcube_to_md2(self, position):
+        self.log.info('translate_from_mxcube_to_md2 positioon %s' % str(position))
         translated_position = {}
 
         for key in position:
             if isinstance(key, str):
-                translated_position[self.mxcube_to_md2[key]] = position[key]
+                try:
+                    translated_position[self.mxcube_to_md2[key]] = position[key]
+                except:
+                    self.log.exception(traceback.format_exc())
+                
             else:
-                translated_position[key.motor_name] = position[key]
+                translated_position[key.actuator_name] = position[key]
         return translated_position
 
     def circle_model(self, angles, c, r, alpha):
@@ -1094,16 +1117,13 @@ class PX2Diffractometer(GenericDiffractometer):
                 new_phi,
                 (new_sampx, new_sampy, new_phiy,),
             ) = self.goniometer.get_align_vector(t1, t2, kappa, phi)
-            # self.minikappa_correction_hwobj.alignVector(t1,t2,kappa,phi)
-            self.move_to_motors_positions(
-                {
-                    self.motor_hwobj_dict["kappa"]: new_kappa,
-                    self.motor_hwobj_dict["kappa_phi"]: new_phi,
-                    self.motor_hwobj_dict["sampx"]: new_sampx,
-                    self.motor_hwobj_dict["sampy"]: new_sampy,
-                    self.motor_hwobj_dict["phiy"]: new_phiy,
-                }
-            )
+            new_position = {self.motor_hwobj_dict['kappa'] : new_kappa, 
+                            self.motor_hwobj_dict['kappa_phi'] : new_phi, 
+                            self.motor_hwobj_dict['sampx'] : new_sampx,
+                            self.motor_hwobj_dict['sampy'] : new_sampy, 
+                            self.motor_hwobj_dict['phiy'] : new_phiy}
+
+            self.move_to_motors_positions(new_position)
 
     def re_emit_values(self):
         """
@@ -1328,7 +1348,7 @@ class PX2Diffractometer(GenericDiffractometer):
         scan_length=0.1,
         step=90.0,
         start=0.0,
-        base_directory="/nfs/ruche/proxima2a-spool/2019_Run1/excenter",
+        base_directory="/nfs/data2/excenter'",
         name_pattern="excenter",
     ):
 
@@ -1336,7 +1356,7 @@ class PX2Diffractometer(GenericDiffractometer):
 
         angles = str(tuple(np.arange(start, 360.0, step)))
 
-        execute_line = 'excenter.py -d %s -n %s -l %.2f -a "%s" &' % (
+        execute_line = '/usr/local/experimental_methods/diffraction_tomography.py -d %s -n %s -l %.2f -a "%s" &' % (
             directory,
             name_pattern,
             scan_length,
