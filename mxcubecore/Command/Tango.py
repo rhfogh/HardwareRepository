@@ -143,11 +143,7 @@ class E:
 class TangoChannel(ChannelObject):
     _tangoEventsQueue = Queue()
     _eventReceivers = {}
-
-    if gevent_version < [1,3,0]:
-        _tangoEventsProcessingTimer = gevent.get_hub().loop.async()
-    else:
-        _tangoEventsProcessingTimer = gevent.get_hub().loop.async_()
+    _tangoEventsProcessingTimer = gevent.get_hub().loop.async_()
 
     # start Tango events processing timer
     _tangoEventsProcessingTimer.start(process_tango_events)
