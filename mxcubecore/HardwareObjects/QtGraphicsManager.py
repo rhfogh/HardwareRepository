@@ -123,6 +123,7 @@ class QtGraphicsManager(AbstractSampleView):
         self.shape_dict = {}
         self.temp_animation_dir = None
         self.omega_move_delta = None
+        self.positive_negative_scroll_move_factor = None
         self.cursor = None
 
         self.graphics_view = None
@@ -358,6 +359,7 @@ class QtGraphicsManager(AbstractSampleView):
         # self.temp_animation_dir = os.path.join(self.user_file_directory, "animation")
 
         self.omega_move_delta = self.get_property("omega_move_delta", 10)
+        self.positive_negative_scroll_move_factor = self.get_property("positive_negative_scroll_move_factor", 1)
 
         custom_cursor_filename = self.get_property("custom_cursor", "")
         if os.path.exists(custom_cursor_filename):
@@ -1105,7 +1107,7 @@ class QtGraphicsManager(AbstractSampleView):
         if delta > 0:
             self.diffractometer_hwobj.move_omega_relative(self.omega_move_delta)
         else:
-            self.diffractometer_hwobj.move_omega_relative(-self.omega_move_delta)
+            self.diffractometer_hwobj.move_omega_relative(-self.positive_negative_scroll_move_factor *self.omega_move_delta)
 
     def item_clicked(self, item, state):
         """Item clicked event
