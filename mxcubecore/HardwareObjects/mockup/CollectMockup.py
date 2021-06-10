@@ -43,7 +43,9 @@ class CollectMockup(AbstractCollect.AbstractCollect):
         AbstractCollect.AbstractCollect.__init__(self, name)
 
         self.aborted_by_user = False
-
+        self.collection_id = -1
+        self.run_processing_parallel = False
+        
     def init(self):
         """Main init method
         """
@@ -140,7 +142,7 @@ class CollectMockup(AbstractCollect.AbstractCollect):
         if HWR.beamline.offline_processing is not None:
             HWR.beamline.offline_processing.execute_autoprocessing(
                 process_event,
-                self.current_dc_parameters,
+                params_dict,
                 frame_number,
                 self.run_processing_after,
             )
@@ -205,3 +207,6 @@ class CollectMockup(AbstractCollect.AbstractCollect):
         )
 
         return xds_directory, mosflm_directory, ""
+
+    def set_helical(self, value=False):
+        self.helical = value
