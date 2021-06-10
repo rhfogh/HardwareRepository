@@ -43,7 +43,7 @@ import os
 import time
 import logging
 from copy import copy
-
+import traceback
 import gevent
 
 from mxcubecore import HardwareRepository as HWR
@@ -79,7 +79,8 @@ class TaskGroupQueueEntry(BaseQueueEntry):
         self.interleave_items = None
         self.interleave_sw_list = None
         self.interleave_stoped = None
-
+        
+        
     def execute(self):
         BaseQueueEntry.execute(self)
         task_model = self.get_data_model()
@@ -578,7 +579,8 @@ class DataCollectionQueueEntry(BaseQueueEntry):
         self.enable_take_snapshots = True
         self.enable_store_in_lims = True
         self.in_queue = False
-
+        self.run_processing_parallel = False
+        
     def __setstate__(self, d):
         self.__dict__.update(d)
 
@@ -596,7 +598,7 @@ class DataCollectionQueueEntry(BaseQueueEntry):
     def execute(self):
         BaseQueueEntry.execute(self)
         data_collection = self.get_data_model()
-
+        print('queue_entry about to launch collect_dc, in execute()')
         if data_collection:
             acq_params = data_collection.acquisitions[0].acquisition_parameters
             cpos = acq_params.centred_position
@@ -697,7 +699,6 @@ class DataCollectionQueueEntry(BaseQueueEntry):
 
     def collect_dc(self, dc, list_item):
         log = logging.getLogger("user_level_log")
-
         if HWR.beamline.collect:
             acq_1 = dc.acquisitions[0]
             acq_1.acquisition_parameters.in_queue = self.in_queue
@@ -706,9 +707,10 @@ class DataCollectionQueueEntry(BaseQueueEntry):
             HWR.beamline.collect.run_offline_processing = dc.run_offline_processing
             HWR.beamline.collect.aborted_by_user = None
             self.online_processing_task = None
-
+            log.info('dc.experiment_type %s' % str(dc.experiment_type))
             try:
                 if dc.experiment_type is EXPERIMENT_TYPE.HELICAL:
+                    log.info('in helical')
                     acq_1, acq_2 = (dc.acquisitions[0], dc.acquisitions[1])
                     HWR.beamline.collect.set_helical(True)
                     HWR.beamline.collect.set_mesh(False)
@@ -723,6 +725,7 @@ class DataCollectionQueueEntry(BaseQueueEntry):
                     # log.info(msg)
                     # list_item.setText(1, "Moving sample")
                 elif dc.experiment_type is EXPERIMENT_TYPE.MESH:
+                    log.info('in mesh')
                     mesh_nb_lines = acq_1.acquisition_parameters.num_lines
                     mesh_total_nb_frames = acq_1.acquisition_parameters.num_images
                     mesh_range = acq_1.acquisition_parameters.mesh_range
@@ -744,9 +747,10 @@ class DataCollectionQueueEntry(BaseQueueEntry):
                     and acq_1.acquisition_parameters.num_images > 4
                     and HWR.beamline.online_processing is not None
                 ):
-                    self.online_processing_task = gevent.spawn(
-                        HWR.beamline.online_processing.run_processing, dc
-                    )
+                    pass
+                    #self.online_processing_task = gevent.spawn(
+                        #HWR.beamline.online_processing.run_processing, dc
+                    #)
 
                 empty_cpos = queue_model_objects.CentredPosition()
                 if cpos != empty_cpos:
@@ -759,7 +763,6 @@ class DataCollectionQueueEntry(BaseQueueEntry):
                     acq_1.acquisition_parameters.centred_position.snapshot_image = (
                         snapshot
                     )
-
                 HWR.beamline.sample_view.inc_used_for_collection(cpos)
                 param_list = queue_model_objects.to_collect_dict(
                     dc,
@@ -767,16 +770,19 @@ class DataCollectionQueueEntry(BaseQueueEntry):
                     sample,
                     cpos if cpos != empty_cpos else None,
                 )
-
+                log.info('queue_entry collect_dc param_list %s' % str(param_list))
                 # TODO this is wrong. Rename to something like collect.start_procedure
+                log.info('creating collect_task')
                 self.collect_task = HWR.beamline.collect.collect(
                     COLLECTION_ORIGIN_STR.MXCUBE, param_list
                 )
                 self.collect_task.get()
-
+                
                 if "collection_id" in param_list[0]:
                     dc.id = param_list[0]["collection_id"]
-
+                else:
+                    self.collection_id += 1
+                    param_list[0]["collection_id"] = self.collection_id 
                 dc.acquisitions[0].path_template.xds_dir = param_list[0]["xds_dir"]
 
             except gevent.GreenletExit:
@@ -784,6 +790,7 @@ class DataCollectionQueueEntry(BaseQueueEntry):
                 list_item.setText(1, "Stopped")
                 raise QueueAbortedException("queue stopped by user", self)
             except Exception as ex:
+                logging.getLogger('HWR').exception(traceback.format_exc())
                 raise QueueExecutionException(str(ex), self)
         else:
             log.error(
@@ -840,7 +847,7 @@ class DataCollectionQueueEntry(BaseQueueEntry):
         if self.online_processing_task is not None:
             self.get_view().setText(1, "Processing...")
             logging.getLogger("user_level_log").warning("Processing: Please wait...")
-            HWR.beamline.online_processing.done_event.wait(timeout=120)
+            #HWR.beamline.online_processing.done_event.wait(timeout=120)
             HWR.beamline.online_processing.done_event.clear()
 
     def stop(self):
@@ -1631,10 +1638,10 @@ class AdvancedConnectorQueueEntry(BaseQueueEntry):
 
     def execute(self):
         BaseQueueEntry.execute(self)
-        firt_qe_data_model = self.first_qe.get_data_model()
+        first_qe_data_model = self.first_qe.get_data_model()
 
-        if firt_qe_data_model.run_online_processing == "XrayCentering":
-            best_positions = firt_qe_data_model.online_processing_results[
+        if first_qe_data_model.run_online_processing == "XrayCentering":
+            best_positions = first_qe_data_model.online_processing_results[
                 "aligned"
             ].get("best_positions", [])
 
