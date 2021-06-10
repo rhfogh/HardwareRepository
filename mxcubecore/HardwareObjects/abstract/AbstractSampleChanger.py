@@ -135,7 +135,8 @@ from mxcubecore.TaskUtils import task
 from mxcubecore.BaseHardwareObjects import Equipment
 from mxcubecore.HardwareObjects.abstract.sample_changer.Container import (
     Container,
-    Sample,
+    Basket,
+    Pin
 )
 
 
