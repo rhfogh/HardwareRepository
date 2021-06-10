@@ -104,7 +104,7 @@ class Beamline(ConfiguredObject):
         self.run_processing_parallel = False
         
         # bool By default run online processing (characterization/mesh?)
-        self.run_online_processing = True
+        self.run_online_processing = False
         
         # Dictionary-of-dictionaries of default acquisition parameters
         self.default_acquisition_parameters = {}
