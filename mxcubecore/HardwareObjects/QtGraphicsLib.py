@@ -2696,7 +2696,10 @@ class GraphicsView(qt_import.QGraphicsView):
         :param event:
         :return:
         """
-        self.wheelSignal.emit(event.delta())
+        if qt_import.qt_variant == 'PyQt5':
+            self.wheelSignal.emit(event.angleDelta().y())
+        else:
+            self.wheelSignal.emit(event.delta())
 
         """
         //Get the original screen centerpoint
