@@ -46,8 +46,8 @@ class ExporterMotor(AbstractMotor):
     def __init__(self, name):
         AbstractMotor.__init__(self, name)
         self.username = None
-        self._motor_pos_suffix = None
-        self._motor_state_suffix = None
+        self._motor_pos_suffix = "Position"
+        self._motor_state_suffix = "State"
         self._exporter = None
         self._exporter_address = None
         self.motor_position = None
@@ -57,8 +57,8 @@ class ExporterMotor(AbstractMotor):
         """Initialise the motor"""
         AbstractMotor.init(self)
 
-        self._motor_pos_suffix = self.get_property("position_suffix", "Position")
-        self._motor_state_suffix = self.get_property("state_suffix", "State")
+        self._motor_pos_suffix = self.get_property("position_suffix", self._motor_pos_suffix)
+        self._motor_state_suffix = self.get_property("state_suffix", self._motor_state_suffix)
 
         self._exporter_address = self.get_property("exporter_address")
         _host, _port = self._exporter_address.split(":")
@@ -88,7 +88,7 @@ class ExporterMotor(AbstractMotor):
         if self.motor_state:
             self.motor_state.connect_signal("update", self._update_state)
 
-        self.update_state()
+        self.update_state(self.STATES.READY)
 
     def get_state(self):
         """Get the motor state.
