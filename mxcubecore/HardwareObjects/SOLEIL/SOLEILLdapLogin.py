@@ -1,4 +1,3 @@
-from mxcubecore import HardwareRepository as HWR
 from mxcubecore.BaseHardwareObjects import Procedure
 import logging
 import ldap
@@ -299,38 +298,3 @@ class SessionList(list):
         return retlist
 
 
-def test():
-    hwr = HWR.get_hardware_repository()
-    hwr.connect()
-
-    conn = hwr.get_hardware_object("/ldapconnection")
-    # conn.login("20141015", "4dBM0lx3pw")
-
-    # ok,name = conn.login("99140198", "5u4Twf70K5")
-    # ok,name = conn.login("mx20100023", "tisabet")
-    # ok,name = conn.login("anything", "tisabet")
-
-    # info = conn.getinfo("legrand")
-    # info = conn.getinfo("20100023")
-    # conn.find_groups_for_username('houdusse')
-
-    # grps = conn.find_groups_for_username('houdusse')
-    # for grp,users in grps.items():
-    # print grp, " :  " , users
-    user = "20140088"  # '20100023'
-    sess = conn.find_sessions_for_user("%s" % user)
-    for onesess in sess:
-        print("Session for %s" % user, onesess)
-
-    validsess = conn.find_valid_sessions_for_user(user)
-    for valid in validsess:
-        print("Valid session for today", valid)
-
-    # if info:
-    #     print "GID:", info.get('gidNumber','')[0]
-    #     print "UID:", info.get('uidNumber','')[0]
-    #     print "title:", info.get('title','')
-
-
-if __name__ == "__main__":
-    test()

@@ -1,8 +1,15 @@
 import logging
-import urllib2
 import os
-from cookielib import CookieJar
-
+try:
+    import urllib2 as urllib
+except ImportError:
+    import urllib
+    
+try:
+    from cookielib import CookieJar
+except ModuleNotFoundError:
+    from http.cookiejar import CookieJar
+    
 from suds.transport.http import HttpAuthenticated
 from suds.client import Client
 
@@ -145,7 +152,11 @@ class SOLEILISPyBClient(ISPyBClient):
 
         # Handling of redirection at soleil needs cookie handling
         cj = CookieJar()
-        url_opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
+        
+        try:
+            url_opener = urllib.build_opener(urllib.HTTPCookieProcessor(cj))
+        except:
+            url_opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
 
         trans = HttpAuthenticated(username=self.ws_username, password=self.ws_password)
         logging.info("_wsdl_client service_name %s - trans %s" % (service_name, trans))
