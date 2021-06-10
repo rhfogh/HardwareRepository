@@ -110,6 +110,7 @@ class AbstractOnlineProcessing(HardwareObject):
         :param data_collection: data collection object
         :type : queue_model_objects.DataCollection
         """
+        logging.info('AbstractOnlineProcessing prepare_processing self.data_collection %s' % str(self.data_collection))
         acquisition = self.data_collection.acquisitions[0]
         acq_params = acquisition.acquisition_parameters
         self.grid = self.data_collection.grid
@@ -139,13 +140,17 @@ class AbstractOnlineProcessing(HardwareObject):
         workflow_step_directory = None
         self.params_dict = {}
 
-        if self.data_collection.run_processing_parallel == "XrayCentering":
-            prefix = "xray_centering_%s" % prefix
-            if self.grid:
-                workflow_step_directory = "/mesh"
-            else:
-                workflow_step_directory = "/line"
-
+        try:
+            if self.data_collection.run_processing_parallel == "XrayCentering":
+                prefix = "xray_centering_%s" % prefix
+                if self.grid:
+                    workflow_step_directory = "/mesh"
+                else:
+                    workflow_step_directory = "/line"
+        except:
+            prefix = "run_processing_parallel_prefix"
+            workflow_step_directory = "/all_the_rest"
+            
         if self.workflow_info is not None:
             process_directory = self.workflow_info["process_root_directory"]
             archive_directory = self.workflow_info["archive_root_directory"]
@@ -238,7 +243,7 @@ class AbstractOnlineProcessing(HardwareObject):
             lines_num,
             images_num / lines_num,
         )
-        self.params_dict["workflow_type"] = self.data_collection.run_processing_parallel
+        self.params_dict["workflow_type"] = "Standard" #self.data_collection.run_processing_parallel
 
         self.params_dict["group_id"] = self.data_collection.lims_group_id
         self.params_dict["processing_start_time"] = time.strftime("%Y-%m-%d %H:%M:%S")
