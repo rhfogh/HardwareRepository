@@ -86,8 +86,13 @@ class _Poller:
         self.delay = 0
         self.stop_event = Event()
 
-        self.async_watcher = gevent.get_hub().loop.async_()
-
+        if gevent_version < [1, 3, 0]:
+            async_attribute = 'async'
+        else:
+            async_attribute = 'async_'
+        
+        self.async_watcher = getattr(gevent.get_hub().loop, async_attribute)()
+        
     def start_delayed(self, delay):
         self.delay = delay
         _threading.start_new_thread(self.run, ())
