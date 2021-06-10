@@ -9,10 +9,6 @@ except ImportError:
     pass
 
 from mxcubecore.utils.qt_import import QImage, QPixmap
-from mxcubecore.HardwareObjects.abstract.AbstractVideoDevice import (
-    AbstractVideoDevice,
-)
-
 from abstract.AbstractVideoDevice import AbstractVideoDevice
 
 
