@@ -35,6 +35,8 @@ class DataObject(dict):
     _SCHEMA = {}
 
     def __init__(self, *args, **kwargs):
+        print('args', args)
+        print('kwrags', kwargs)
         dict.__init__(self, *args, **kwargs)
         self.validate()
         self._intset("_mutations", [])
@@ -72,11 +74,11 @@ class DataObject(dict):
         Returns:
             None
         """
-        if self.VERBOSE:
-            print(
-                "ImmutableDict (%s), dangerously set %s to %s:"
-                % (str(self), key, value)
-            )
+        #if self.VERBOSE:
+            #print(
+                #"ImmutableDict (%s), dangerously set %s to %s:"
+                #% (str(self), key, value)
+            #)
 
         self._setitem(key, value)
 
