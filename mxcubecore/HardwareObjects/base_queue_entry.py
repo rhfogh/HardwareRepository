@@ -203,7 +203,8 @@ class BaseQueueEntry(QueueEntryContainer):
         self._checked_for_exec = False
         self.status = QUEUE_ENTRY_STATUS.NOT_EXECUTED
         self.type_str = ""
-
+        self.collection_id = 0
+        
     def is_failed(self):
         """Returns True if failed
         """
