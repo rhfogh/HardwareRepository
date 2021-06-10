@@ -2,7 +2,6 @@ import time
 from gevent import Timeout
 from mxcubecore.HardwareObjects.abstract.AbstractMotor import AbstractMotor
 
-
 class MD2TimeoutError(Exception):
     pass
 
@@ -35,19 +34,20 @@ class MicrodiffMotor(AbstractMotor):
         "HighLim": ONLIMIT,
     }
 
-    TANGO_TO_MOTOR_STATE = {"STANDBY": READY, "MOVING": MOVING}
+    TANGO_TO_MOTOR_STATE = {"STANDBY": READY, "READY": READY, "MOVING": MOVING}
 
     def __init__(self, name):
         AbstractMotor.__init__(self, name)
         self.motor_pos_attr_suffix = "Position"
         self.motor_state_attr_suffix = "State"
         self.translate_state = {
-            MicrodiffMotor.NOTINITIALIZED: self.motor_states.NOTINITIALIZED,
-            MicrodiffMotor.UNUSABLE: self.motor_states.BUSY,
-            MicrodiffMotor.READY: self.motor_states.READY,
-            MicrodiffMotor.MOVESTARTED: self.motor_states.MOVESTARTED,
-            MicrodiffMotor.MOVING: self.motor_states.MOVING,
-            MicrodiffMotor.ONLIMIT: self.motor_states.HIGHLIMIT,
+            MicrodiffMotor.NOTINITIALIZED: self.STATES.UNKNOWN,
+            MicrodiffMotor.UNUSABLE: self.STATES.BUSY,
+            MicrodiffMotor.READY: self.STATES.READY,
+            MicrodiffMotor.MOVESTARTED: self.STATES.BUSY,
+            MicrodiffMotor.MOVING: self.STATES.BUSY,
+            MicrodiffMotor.ONLIMIT: self.STATES.WARNING,
+            'Running': self.STATES.BUSY
         }
 
     def init(self):
@@ -141,13 +141,6 @@ class MicrodiffMotor(AbstractMotor):
         elif signal == "limitsChanged":
             self.motorLimitsChanged()
 
-    def updateState(self):
-        self.set_is_ready(self._get_state() > MicrodiffMotor.UNUSABLE)
-
-    def set_is_ready(self, value):
-        if value is True:
-            self.set_ready()
-
     def updateMotorState(self, motor_states):
         d = dict([x.split("=") for x in motor_states])
         # Some are like motors but have no state
@@ -166,7 +159,7 @@ class MicrodiffMotor(AbstractMotor):
         self.motorStateChanged(self.motorState)
 
     def motorStateChanged(self, state):
-        self.updateState()
+        self.update_state()
         if not isinstance(state, int):
             state = self.get_state()
         self.emit("stateChanged", (state,))
@@ -175,6 +168,8 @@ class MicrodiffMotor(AbstractMotor):
         state_value = self.state_attr.get_value()
         if state_value in MicrodiffMotor.EXPORTER_TO_MOTOR_STATE:
             self.motorState = MicrodiffMotor.EXPORTER_TO_MOTOR_STATE[state_value]
+        elif type(state_value) == str:
+            self.motorState = state_value
         else:
             self.motorState = MicrodiffMotor.TANGO_TO_MOTOR_STATE[state_value.name]
         return self.motorState
