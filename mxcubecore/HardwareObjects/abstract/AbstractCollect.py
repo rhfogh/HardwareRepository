@@ -209,10 +209,10 @@ class AbstractCollect(HardwareObject, object):
                 HWR.beamline.detector.distance.set_value(cp["detector_distance"])
 
             # Method to be overridden for the actual image acquisition
-            self._collect(cp)
+            self._collect()
 
             # Update information in LIMS
-            self._update_data_collection_in_lims(cp)
+            self._update_data_collection_in_lims()
         except Exception:
             exc_type, exc_value, exc_tb = sys.exc_info()
             self._collection_failed(cp, exc_type, exc_value, exc_tb)
@@ -224,7 +224,7 @@ class AbstractCollect(HardwareObject, object):
 
         return cp
 
-    def _collect(self, cp):
+    def _collect(self):
         print("Collecting")
         
     def _post_collect(self, cp):
@@ -232,7 +232,7 @@ class AbstractCollect(HardwareObject, object):
         cp.dangerously_set("status", "Data collection successful")
 
         if cp["experiment_type"] != "Collect - Multiwedge":
-            self._update_data_collection_in_lims(cp)
+            self._update_data_collection_in_lims()
 
             last_frame = cp["oscillation_sequence"][0]["number_of_images"]
             if last_frame > 1 and cp["experiment_type"] != "Mesh":
@@ -281,7 +281,7 @@ class AbstractCollect(HardwareObject, object):
         )
 
         self.emit("progressStop", ())
-        self._update_data_collection_in_lims(cp)
+        self._update_data_collection_in_lims()
 
     def prepare(self, cp):
         cp.dangerously_set("status", "Running")
@@ -464,10 +464,12 @@ class AbstractCollect(HardwareObject, object):
             cp.dangerously_set("xtalSnapshotFullPath2", animation_filename)
             self._take_crystal_animation(animation_filename, duration_sec=1)
 
-    def _update_data_collection_in_lims(self, cp):
+    def _update_data_collection_in_lims(self):
         """
         Descript. :
         """
+
+        cp = self.current_dc_parameters
         log.info("Collection: Updating data collection in LIMS")
 
         if HWR.beamline.lims and not cp["in_interleave"]:
@@ -511,10 +513,11 @@ class AbstractCollect(HardwareObject, object):
                     "Could not update data collection in LIMS"
                 )
 
-    def _store_image_in_lims(self, cp, frame_number, motor_position_id=None):
+    def _store_image_in_lims(self, frame_number, motor_position_id=None):
         """
         Descript. :
         """
+        cp = self.current_dc_parameters
         if HWR.beamline.lims and not cp["in_interleave"]:
             file_location = cp["fileinfo"]["directory"]
             image_file_template = cp["fileinfo"]["template"]

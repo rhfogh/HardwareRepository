@@ -98,10 +98,9 @@ class PX2Collect(AbstractCollect):
         self.emit("collectConnected", (True,))
         self.emit("collectReady", (True,))
 
-    def _collect(self, cp):
+    def _collect(self):
         """Main collection hook"""
         print('PX2Collect _collect')
-        parameters = cp
         self.emit("collectStarted", (None, 1))
         
         if hasattr(self, 'experiment'):
@@ -467,7 +466,7 @@ class PX2Collect(AbstractCollect):
         """Collection finished beahviour
         """
         if self.current_dc_parameters["experiment_type"] != "Collect - Multiwedge":
-            #self.update_data_collection_in_lims()
+            #self._update_data_collection_in_lims()
 
             last_frame = self.current_dc_parameters["oscillation_sequence"][0][
                 "number_of_images"
@@ -508,9 +507,8 @@ class PX2Collect(AbstractCollect):
         """
         Descript. :
         """
-        image_id = None
         self.trigger_auto_processing("image", self.current_dc_parameters, frame)
-        image_id = self._store_image_in_lims(self.current_dc_parameters, frame)
+        image_id = self._store_image_in_lims(frame)
         return image_id
 
     def stopCollect(self, owner="MXCuBE"):

@@ -55,12 +55,12 @@ class CollectMockup(AbstractCollect.AbstractCollect):
         self.emit("collectConnected", (True,))
         self.emit("collectReady", (True,))
 
-    def data_collection_hook(self):
+    def _collect(self):
         """Main collection hook
         """
         self.emit("collectStarted", (None, 1))
         self.emit("fsmConditionChanged", "data_collection_started", True)
-        self.store_image_in_lims_by_frame_num(1)
+        self._store_image_in_lims_by_frame_num(1)
         number_of_images = self.current_dc_parameters["oscillation_sequence"][0][
             "number_of_images"
         ]
@@ -91,13 +91,13 @@ class CollectMockup(AbstractCollect.AbstractCollect):
         """Collection finished beahviour
         """
         if self.current_dc_parameters["experiment_type"] != "Collect - Multiwedge":
-            self.update_data_collection_in_lims()
+            self._update_data_collection_in_lims()
 
             last_frame = self.current_dc_parameters["oscillation_sequence"][0][
                 "number_of_images"
             ]
             if last_frame > 1:
-                self.store_image_in_lims_by_frame_num(last_frame)
+                self._store_image_in_lims_by_frame_num(last_frame)
             if (
                 self.current_dc_parameters["experiment_type"] in ("OSC", "Helical")
                 and self.current_dc_parameters["oscillation_sequence"][0]["overlap"]
@@ -107,7 +107,7 @@ class CollectMockup(AbstractCollect.AbstractCollect):
                 self.trigger_auto_processing("after", self.current_dc_parameters, 0)
 
         success_msg = "Data collection successful"
-        self.current_dc_parameters["status"] = success_msg
+        # self.current_dc_parameters["status"] = success_msg
         self.emit(
             "collectOscillationFinished",
             (
@@ -127,12 +127,12 @@ class CollectMockup(AbstractCollect.AbstractCollect):
         self._collecting = False
         self.ready_event.set()
 
-    def store_image_in_lims_by_frame_num(self, frame, motor_position_id=None):
+    def _store_image_in_lims_by_frame_num(self, frame, motor_position_id=None):
         """
         Descript. :
         """
         self.trigger_auto_processing("image", self.current_dc_parameters, frame)
-        image_id = self.store_image_in_lims(frame)
+        image_id = self._store_image_in_lims(frame)
         return image_id
 
     def trigger_auto_processing(self, process_event, params_dict, frame_number):
